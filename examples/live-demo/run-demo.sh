@@ -4,7 +4,8 @@ set -euo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_dir="$(cd "${script_dir}/../.." && pwd)"
 tool_dir="${MLIR_BIN_DIR:-${repo_dir}/llvm-project/build/bin}"
-out_dir="${script_dir}/generated"
+output_root="${CACHESCOPE_OUTPUT_DIR:-${repo_dir}/output}"
+out_dir="${output_root}/live-demo"
 
 mlir_opt="${tool_dir}/mlir-opt"
 transform_opt="${tool_dir}/mlir-transform-opt"

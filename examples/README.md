@@ -1,14 +1,20 @@
 # Examples
 
-Эта директория содержит минимальные входные данные проекта и отдельный
-воспроизводимый набор для live demo.
+Все примеры используют исходные payload/scripts из Git и пишут результаты
+только под игнорируемый `output/`.
 
-- `matmul.mlir` — минимальный payload MLIR;
-- `cache-l1.yaml` — детерминированная L1D model и фиксированное размещение
-  буферов;
-- `live-demo/` — два исполняемых payload, Transform Dialect strategies,
-  lowering до LLVM dialect и проверенный JIT-запуск шести вариантов.
+| Directory | Что показывает |
+|---|---|
+| [`hybrid-instrumentation`](hybrid-instrumentation/README.md) | semantic coverage, LLVM fallback и strict rejection |
+| [`live-demo`](live-demo/README.md) | Transform Dialect baseline/tiling/interchange |
+| [`manual-instrumentation`](manual-instrumentation/README.md) | ручной эталон trace ABI |
+| [`torch-demo`](torch-demo/README.md) | PyTorch frontend и native tensor execution |
 
-Подробные команды и рекомендуемый сценарий показа находятся в
-[`live-demo/README.md`](live-demo/README.md). Примеры проверены на локальной
-сборке LLVM/MLIR 24.0.0git из `llvm-project/build`.
+Для основной автоматической проверки примеры вручную запускать не нужно:
+
+```bash
+scripts/check.sh
+```
+
+Конфигурации cache в этой директории пока являются fixtures для будущего
+simulator и не используются trace producer.

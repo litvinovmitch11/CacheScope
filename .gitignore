@@ -1,1 +1,8 @@
-llvm-project/
+build/
+output/
+compile_commands.json
+/CMakePresets.json
+venv/
+.venv/
+**/__pycache__/
+*.py[cod]
