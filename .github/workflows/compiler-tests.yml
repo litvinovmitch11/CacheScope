@@ -2,6 +2,8 @@ name: Compiler and trace tests
 
 on:
   push:
+    branches:
+      - main
   pull_request:
   workflow_dispatch:
 
@@ -34,16 +36,18 @@ jobs:
       - name: Build, test, format-check and clang-tidy
         run: scripts/check.sh --with-lint
 
-      - name: Check patch whitespace
+      - name: Check pull request whitespace
+        if: github.event_name == 'pull_request'
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: git diff --check "${BASE_SHA}" "${HEAD_SHA}"
+
+      - name: Check pushed commit whitespace
+        if: github.event_name != 'pull_request'
+        env:
           HEAD_SHA: ${{ github.sha }}
-        run: |
-          if [[ -n "${BASE_SHA}" && ! "${BASE_SHA}" =~ ^0+$ ]]; then
-            git diff --check "${BASE_SHA}" "${HEAD_SHA}"
-          else
-            git show --check --format= "${HEAD_SHA}"
-          fi
+        run: git diff --check "${HEAD_SHA}^" "${HEAD_SHA}"
 
       - name: Upload CTest diagnostics
         if: failure()
