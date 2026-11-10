@@ -7,7 +7,8 @@ import { describeConfig, groupByConfig } from "./metrics";
 import type { LoadResult } from "./types";
 
 export default function App() {
-  const [result, setResult] = useState<LoadResult | null>(loadEmbedded);
+  const [embedded] = useState<LoadResult | null>(loadEmbedded);
+  const [result, setResult] = useState<LoadResult | null>(embedded);
   const [busy, setBusy] = useState(false);
 
   async function onFiles(files: FileList) {
@@ -24,7 +25,8 @@ export default function App() {
   return (
     <main>
       <h1>CacheScope</h1>
-      <FolderPicker onFiles={onFiles} busy={busy} />
+
+      {!embedded && <FolderPicker onFiles={onFiles} busy={busy} />}
 
       {result && result.errors.length > 0 && (
         <section className="errors">
