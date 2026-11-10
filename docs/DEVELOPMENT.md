@@ -1,5 +1,22 @@
 # Сборка и разработка
 
+## Только trace runner
+
+Для работы со статистикой готовых трасс LLVM/MLIR не нужен:
+
+```bash
+cmake -S runner -B build/runner -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build build/runner
+ctest --test-dir build/runner --output-on-failure
+```
+
+Нужны C++17 compiler, CMake 3.20+ и Ninja. nlohmann/json скачивается при
+configure; автономная сборка и подключение к приложению описаны в
+[runner README](../runner/README.md).
+
+Полная compiler-проверка ниже относится к compiler/runtime; для изменений
+раннера обязательны CTest suites раннера, иерархии и симулятора и `git diff --check`.
+
 ## Сборка с чистой машины
 
 Нужны Git, CMake 3.20+, Ninja, Python 3.10+ и C/C++ compiler. На Ubuntu/Debian
@@ -135,6 +152,12 @@ git diff --check
 - `cachescope.end-to-end` — baseline/tiled compilation, execution и trace diff;
 - `cachescope.schema-suite` — schema fixtures, compatibility и invariants;
 - `cachescope.documentation-suite` — существование локальных Markdown links.
+- `cachescope.runner-*` — integration, real-cache, validation, random-miss и streaming;
+- `cachescope.hierarchy` — exclusive-переносы, dirty и реальный LRU;
+- `SetAssociativeCacheLevelTest.*`, `LRUTest.*` — upstream-тесты симулятора.
+
+Сборка `build/runner` включает все три компонента без LLVM. CI выполняет те же
+тесты в GCC Release и Clang ASan/UBSan.
 
 Запуск одного теста:
 

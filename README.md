@@ -17,9 +17,23 @@ CacheScope показывает, как compiler transformations меняют п
 - stage-aware mapping от input `linalg` operation до конкретных
   `memref.load/store` и `llvm.load/store`;
 - один канонический baseline/tile/interchange example;
-- pass, runtime, schema, end-to-end и documentation tests.
+- pass, runtime, schema, end-to-end и documentation tests;
+- SetAssociativeCacheLevel с LRU, exclusive CacheHierarchy и независимый trace
+  runner со статистикой по уровням, инструкциям и подробным временным рядом для UI.
 
 Точные границы перечислены в [support matrix](docs/SUPPORT_MATRIX.md).
+
+## Раннер и кеш без LLVM
+
+```bash
+cmake -S runner -B build/runner -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build build/runner
+ctest --test-dir build/runner --output-on-failure
+```
+
+API и smoke-тест: [runner](runner/README.md). Владение уровнями и exclusive:
+[CacheHierarchy](hierarchy/README.md). [Контракт UI](docs/SIMULATION_FORMAT.md)
+и [дополнительные поля отчёта](docs/STATISTICS_FORMAT.md).
 
 ## Быстрый старт
 

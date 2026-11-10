@@ -91,15 +91,25 @@ Emulator обязан:
 - вернуть детерминированные statistics для одинаковых trace/config;
 - не использовать `source_location` как memory address или origin identity.
 
-Рекомендуемый результат emulator:
+Реализованы [runner](../runner/README.md) и [CacheHierarchy](../hierarchy/README.md).
+Раннер получает иерархию по ссылке, проверяет trace, очищает уровни и вызывает
+`read/write(address, size)`. Иерархия владеет уровнями `ICacheLevel` и выполняет
+exclusive-переносы; SetAssociativeCacheLevel и LRU находятся в `simulator/`.
+
+Результат runner:
 
 ```text
 output/<experiment>/simulation/<config-name>/
   statistics.json            totals: hits, misses, evictions, writebacks
-  events.json                optional per-access cache outcome
+  events.json                per-access cache outcome, записывается потоково
 ```
 
-Версию схемы statistics нужно завести отдельно от trace schema. Первый
+Используются `cachescope.simulation-statistics.v1` и
+`cachescope.simulation-events.v1` из [контракта UI](SIMULATION_FORMAT.md).
+Базовые поля проецируют L1, `levels` и `level_results` описывают остальные
+уровни; [расширения раннера](STATISTICS_FORMAT.md) связывают их с инструкциями.
+Полный объект producer и source mapping сохраняются. Поддержаны `memref_offset`
+и `read/write`; fallback, atomics и неполные трассы явно отклоняются. Первый
 разработчик не должен добавлять cache outcomes в compiler runtime.
 
 ## 4. UI
@@ -132,7 +142,7 @@ manifest и отдельного CLI/API orchestration слоя.
 |---|---|---|---|
 | Compiler | Emulator | `cachescope.trace.v1` | участник 1 |
 | Compiler | UI | `cachescope.input.v1`, tensors | участник 1 |
-| Emulator | UI | будущая statistics schema | участники 2–3 |
+| Emulator | UI | `cachescope.simulation-statistics.v1`, `cachescope.simulation-events.v1` | участники 2–3 |
 | Все компоненты | Все | experiment directory layout | совместно |
 
 Изменение общего контракта делается отдельным commit и включает fixture для

@@ -16,9 +16,10 @@ frontend
   → trace.v1 JSON
 ```
 
-Cache simulator и UI являются следующими независимыми потребителями trace.
-В `simulator/` определены интерфейсы и реализации set-associative cache level и
-LRU policy; целевое разделение иерархии и раннера описано в разделе 13.
+`runner/` потребляет trace независимо от LLVM/MLIR, вызывает `CacheHierarchy`
+и пишет JSON для UI. `hierarchy/` владеет уровнями из `simulator/`, где
+реализованы SetAssociativeCacheLevel и LRU. Разделение ответственности описано
+в разделе 13; API — в [runner README](../runner/README.md).
 
 ## 2. Компоненты
 
@@ -321,10 +322,10 @@ LLVM pass. Канонический пример проверяет коорди
 
 ## 13. Симулятор кеша: разделение ответственности
 
-Ниже описана целевая архитектура потребителя трассы. В текущей ветке доступны
-`ICacheLevel`, `IReplacementPolicy`, `SetAssociativeCacheLevel` и `LRU` с
-тестами. `CacheHierarchy` и cache runner ещё не реализованы; их сигнатуры здесь
-обозначают целевые границы компонентов, а не уже доступный API.
+Реализованы `ICacheLevel`, SetAssociativeCacheLevel, LRU, `CacheHierarchy` и
+cache runner. Иерархия поддерживает exclusive с write-back/write-allocate и
+одинаковым размером строк всех уровней. UI получает сводку и временной ряд по
+[общему контракту](SIMULATION_FORMAT.md).
 
 ```text
 trace.v1 JSON

@@ -20,6 +20,11 @@ PyTorch или MLIR payload
 Численная эквивалентность и различие traces проверяются автоматически.
 Канонический pipeline находится в `examples/trace_demo.py`.
 
+Реализованы SetAssociativeCacheLevel с LRU, exclusive `CacheHierarchy` и
+независимый `runner/`: полные semantic-трассы, автоматическое размещение буферов,
+статистика по уровням/инструкциям и событийный ряд для UI. Тесты используют
+реальную модель и отдельную smoke-модель с вероятностью miss 50%.
+
 ## M0: контракт trace producer — выполнено
 
 - `cachescope.trace.v1` исправлен до появления внешних consumers;
