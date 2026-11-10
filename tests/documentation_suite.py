@@ -21,6 +21,7 @@ def markdown_files(repo: Path) -> list[Path]:
     files.extend((repo / "docs").glob("*.md"))
     files.extend((repo / "examples").glob("**/README.md"))
     files.append(repo / "compiler/cs-trace/ARCHITECTURE.md")
+    files.append(repo / "runner/README.md")
     return sorted(set(files))
 
 

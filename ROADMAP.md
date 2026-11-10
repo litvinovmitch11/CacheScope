@@ -19,6 +19,12 @@ PyTorch или MLIR payload
 
 Численная эквивалентность и различие traces проверяются автоматически.
 
+Независимый `runner/` уже воспроизводит полные semantic-трассы через переданный
+`ICacheSimulator`, автоматически размещает buffers и пишет
+`cachescope.statistics.v1`: локальные показатели инструкций/уровней и каждый
+исход. Есть smoke-тест с 50% вероятностью miss; сама cache model остаётся
+задачей следующего этапа.
+
 ## P0: завершить контракт trace producer
 
 - добавить semantic policies для `memref.copy` и atomics;

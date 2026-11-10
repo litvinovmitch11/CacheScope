@@ -1,0 +1,17 @@
+{
+  "schema": "cachescope.trace.v1",
+  "variant": "fixture",
+  "producer": "scripted-test",
+  "total_events": 3,
+  "recorded_events": 3,
+  "truncated": false,
+  "accesses": [
+    {"access_id": 20, "memref_id": 1, "kind": "write"},
+    {"access_id": 10, "memref_id": 0, "kind": "read"}
+  ],
+  "events": [
+    {"sequence": 0, "access_id": 10, "memref_id": 0, "byte_offset": 60, "size_bytes": 8, "kind": "read", "indices": [0, 15], "address_kind": "memref_offset"},
+    {"sequence": 1, "access_id": 20, "memref_id": 1, "byte_offset": 0, "size_bytes": 4, "kind": "write", "indices": [0, 0], "address_kind": "memref_offset"},
+    {"sequence": 2, "access_id": 10, "memref_id": 0, "byte_offset": 0, "size_bytes": 4, "kind": "read", "indices": [0, 0], "address_kind": "memref_offset"}
+  ]
+}

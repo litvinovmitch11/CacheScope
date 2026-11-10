@@ -17,8 +17,26 @@ LLVM/MLIR libraries.
 - baseline, tiling и loop interchange одного kernel;
 - JSON trace, input manifest и точные входные tensors;
 - pass, runtime, end-to-end и documentation tests.
+- независимый C++ trace runner: статистика по инструкциям/уровням и подробный
+  JSON-ряд через переданную модель кеша.
 
 Границы поддержки перечислены в [support matrix](docs/SUPPORT_MATRIX.md).
+
+## Раннер кеша без LLVM
+
+```bash
+cmake -S runner -B build/runner -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build build/runner
+ctest --test-dir build/runner --output-on-failure
+```
+
+Библиотека принимает готовый `ICacheSimulator`, очищает его, воспроизводит
+полную semantic-трассу и записывает `cachescope.statistics.v1`. Модель кеша
+реализуется отдельно. Есть smoke-тест с вероятностью miss 50% и потоковый
+тест на 1 000 001 событие.
+
+Подключение и API: [runner](runner/README.md).
+Контракт для UI: [statistics](docs/STATISTICS_FORMAT.md).
 
 ## С нуля до первого trace
 
@@ -116,6 +134,8 @@ build/compile_commands.json
 llvm-project/          закреплённый upstream LLVM submodule
 compiler/cs-trace/     MLIR pass plugin
 compiler/runtime/      runtime только для compiler trace producer
+runner/                независимая библиотека replay/statistics и тесты
+include/cache_simulator/ публичные интерфейсы модели кеша и раннера
 tests/                 CTest integration suites
 examples/              воспроизводимые compiler scenarios
 output/                локальные результаты экспериментов, ignored
@@ -131,6 +151,7 @@ Runtime намеренно находится под `compiler/`: он явля�
 - [Командная интеграция для четырёх участников](docs/INTEGRATION.md)
 - [Сборка и разработка](docs/DEVELOPMENT.md)
 - [Формат trace](docs/TRACE_FORMAT.md)
+- [Формат statistics](docs/STATISTICS_FORMAT.md)
 - [Support matrix](docs/SUPPORT_MATRIX.md)
 - [Roadmap](ROADMAP.md)
 

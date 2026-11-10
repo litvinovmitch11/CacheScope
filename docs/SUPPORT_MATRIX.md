@@ -47,7 +47,19 @@
 - GPU/NVVM/ROCDL memory spaces;
 - source location table в JSON;
 - перенос access identity через cloning/fusion/unrolling;
-- cache simulator и UI.
+- реализация cache hierarchy и UI (раннер готов, модель передаётся извне).
+
+## Trace runner
+
+Поддерживает полные `cachescope.trace.v1` с `memref_offset` и `read/write`,
+автоматическое размещение буферов, локальную статистику каждого уровня и
+инструкции, подробный событийный JSON. Обрабатывает файл потоково без лимита
+числа событий. Модель реализует `ICacheSimulator`, включая `level_names()` и
+`LineAccessResult.level`; деление запросов на строки выполняет модель.
+
+`process_address`, `read_write`, truncated traces и арифметическое переполнение
+отклоняются. Подробнее: [runner](../runner/README.md) и
+[statistics format](STATISTICS_FORMAT.md).
 
 ## Известные ограничения точности
 

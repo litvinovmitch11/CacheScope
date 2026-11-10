@@ -85,16 +85,28 @@ Emulator обязан:
 - вернуть детерминированные statistics для одинаковых trace/config;
 - не интерпретировать MLIR indices как физический адрес.
 
-Рекомендуемый результат emulator:
+В emulator уже есть [runner](../runner/README.md), который принимает готовый
+`ICacheSimulator`; сама модель и её конфигурация реализуются отдельно.
+Раннер вызывает `clear()`, затем `read/write`. Модель сообщает названия уровней
+через `level_names()` и возвращает demand probes всех посещённых уровней
+с 1-based `LineAccessResult.level`. Разбиение запроса на строки выполняет модель.
+
+Раннер v1 принимает полные semantic-трассы `memref_offset` с `read/write`;
+`process_address`, `read_write` и truncated traces отклоняются. Адреса массивов
+назначаются автоматически и сохраняются в отчёте; YAML buffer names не
+используются для сопоставления с числовыми memref_id.
+
+Результат runner:
 
 ```text
 output/<experiment>/simulation/<config-name>/
-  statistics.json            totals: hits, misses, evictions, writebacks
-  events.json                optional per-access cache outcome
+  statistics.json            totals + instructions + every event/level outcome
 ```
 
-Версию схемы statistics нужно завести отдельно от trace schema. Первый
-разработчик не должен добавлять cache outcomes в compiler runtime.
+Контракт [cachescope.statistics.v1](STATISTICS_FORMAT.md) версионируется
+отдельно от trace. Он содержит hits, misses и evictions; writebacks пока
+не наблюдаемы через интерфейс модели. Первый разработчик не должен добавлять
+cache outcomes в compiler runtime.
 
 ## 4. UI
 
@@ -105,7 +117,7 @@ UI получает:
 
 - `input.json` и при необходимости `inputs.npz` от trace producer;
 - `trace.json` от trace producer;
-- `statistics.json` и опциональный `events.json` от emulator.
+- `statistics.json`, включая подробный массив events, от runner.
 
 UI может показывать порядок обращений, offsets, read/write kind и формальный
 результат cache model. Он не должен делать выводы о wall-clock performance или
@@ -121,7 +133,7 @@ manifest и отдельного CLI/API orchestration слоя.
 |---|---|---|---|
 | Compiler | Emulator | `cachescope.trace.v1` | участник 1 |
 | Compiler | UI | `cachescope.input.v1`, tensors | участник 1 |
-| Emulator | UI | будущая statistics schema | участники 2–3 |
+| Emulator | UI | `cachescope.statistics.v1` | участники 2–3 |
 | Все компоненты | Все | experiment directory layout | совместно |
 
 Изменение общего контракта делается отдельным commit и включает fixture для
