@@ -20,6 +20,15 @@ sys.path.insert(0, str(ROOT / "scripts"))
 from validate_trace import validate_trace  # noqa: E402
 
 
+def pinned_llvm_root() -> Path:
+    version_file = ROOT / "cmake/LLVMVersion.cmake"
+    prefix = 'set(CACHESCOPE_LLVM_MAJOR_VERSION "'
+    for line in version_file.read_text(encoding="utf-8").splitlines():
+        if line.startswith(prefix) and line.endswith('")'):
+            return Path(f"/usr/lib/llvm-{line[len(prefix) : -2]}")
+    raise RuntimeError(f"Cannot read LLVM major version from {version_file}")
+
+
 @dataclass(frozen=True)
 class Variant:
     name: str
@@ -41,11 +50,9 @@ def parse_args() -> argparse.Namespace:
         description="Compile, instrument, execute, and validate three MLIR variants."
     )
     parser.add_argument(
-        "--llvm-build-dir",
+        "--llvm-root",
         type=Path,
-        default=Path(
-            os.environ.get("LLVM_BUILD_DIR", ROOT / "llvm-project" / "build")
-        ),
+        default=Path(os.environ.get("LLVM_ROOT", pinned_llvm_root())),
     )
     parser.add_argument(
         "--build-dir",
@@ -128,7 +135,10 @@ def resolve_artifacts(args: argparse.Namespace) -> tuple[Path, Path]:
             args.build_dir,
             "-G",
             "Ninja",
-            f"-DMLIR_DIR={args.llvm_build_dir / 'lib/cmake/mlir'}",
+            f"-DMLIR_DIR={args.llvm_root / 'lib/cmake/mlir'}",
+            f"-DCACHESCOPE_CLANG_TOOLS_DIR={args.llvm_root / 'bin'}",
+            f"-DCMAKE_C_COMPILER={args.llvm_root / 'bin/clang'}",
+            f"-DCMAKE_CXX_COMPILER={args.llvm_root / 'bin/clang++'}",
             "-DCMAKE_BUILD_TYPE=Release",
             "-DBUILD_TESTING=ON",
         ]
@@ -394,12 +404,12 @@ def compare_traces(traces: dict[str, dict]) -> dict[str, dict]:
 
 def main() -> int:
     args = parse_args()
-    args.llvm_build_dir = args.llvm_build_dir.resolve()
+    args.llvm_root = args.llvm_root.resolve()
     args.build_dir = args.build_dir.resolve()
     args.output_dir = args.output_dir.resolve()
     args.output_dir.mkdir(parents=True, exist_ok=True)
     plugin, runtime = resolve_artifacts(args)
-    tool_dir = args.llvm_build_dir / "bin"
+    tool_dir = args.llvm_root / "bin"
     payload = require_file(
         ROOT / "examples/workloads/matmul.mlir", "canonical MLIR payload"
     )

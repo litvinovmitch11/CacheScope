@@ -77,7 +77,7 @@ def main() -> None:
             [
                 sys.executable,
                 args.repo / "examples/trace_demo.py",
-                "--llvm-build-dir",
+                "--llvm-root",
                 args.mlir_bin.parent,
                 "--output-dir",
                 output,

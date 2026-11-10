@@ -44,6 +44,7 @@ struct AccessSite {
   Operation *operation;
   Value memref;
   SmallVector<Value> indices;
+  std::int64_t elementSizeBytes;
   AccessKey key;
   std::int64_t accessId = -1;
 };
@@ -173,7 +174,8 @@ static LogicalResult collectAccessSites(func::FuncOp function,
       operation->emitError("CacheScope requires a strided memref layout");
       return WalkResult::interrupt();
     }
-    if (failed(getElementSizeBytes(memrefType))) {
+    FailureOr<std::int64_t> elementSizeBytes = getElementSizeBytes(memrefType);
+    if (failed(elementSizeBytes)) {
       operation->emitError(
           "CacheScope requires a byte-addressable scalar int/float element");
       return WalkResult::interrupt();
@@ -192,6 +194,7 @@ static LogicalResult collectAccessSites(func::FuncOp function,
     sites.push_back({operation,
                      memref,
                      SmallVector<Value>(indices),
+                     *elementSizeBytes,
                      {*memrefId, kind, ordinal}});
     return WalkResult::advance();
   });
@@ -290,8 +293,7 @@ void InstrumentMemoryPass::runOnOperation() {
   assignStableAccessIds(sites);
   for (const AccessSite &site : sites) {
     attachAccessMetadata(site);
-    auto type = cast<MemRefType>(site.memref.getType());
-    instrumentAccess(site, *getElementSizeBytes(type));
+    instrumentAccess(site, site.elementSizeBytes);
   }
   module->setAttr(kInstrumentedAttribute, UnitAttr::get(&getContext()));
 }

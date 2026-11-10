@@ -37,12 +37,13 @@ API и smoke-тест: [runner](runner/README.md). Владение уровня
 
 ## Быстрый старт
 
-Клонируйте закреплённый LLVM submodule и соберите необходимые инструменты:
+Клонируйте репозиторий и установите закреплённые LLVM/MLIR 22.1.8 packages
+для Ubuntu 24.04:
 
 ```bash
-git clone --recurse-submodules https://github.com/litvinovmitch11/CacheScope.git
+git clone https://github.com/litvinovmitch11/CacheScope.git
 cd CacheScope
-scripts/build-llvm.sh
+scripts/install-llvm-dependencies.sh
 ```
 
 Запустите канонический пример:
@@ -77,7 +78,7 @@ output/trace-demo/
 
 ```bash
 cmake -S . -B build -G Ninja \
-  -DMLIR_DIR="$PWD/llvm-project/build/lib/cmake/mlir" \
+  -DMLIR_DIR=/usr/lib/llvm-22/lib/cmake/mlir \
   -DCMAKE_BUILD_TYPE=Release \
   -DBUILD_TESTING=ON
 cmake --build build
@@ -114,7 +115,6 @@ schemas/               общие контракты и fixtures
 examples/              один канонический pipeline и optional PyTorch frontend
 tests/                 compiler, ABI и проверки общих контрактов
 docs/                  архитектура и межкомпонентные контракты
-llvm-project/          закреплённый upstream LLVM submodule
 output/                локальные generated artifacts, ignored
 ```
 

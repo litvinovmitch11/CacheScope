@@ -1,7 +1,7 @@
 build/
+.deps/
 output/
 compile_commands.json
-/CMakePresets.json
 venv/
 .venv/
 **/__pycache__/

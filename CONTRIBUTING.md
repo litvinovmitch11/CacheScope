@@ -25,10 +25,10 @@ python3 examples/trace_demo.py
 scripts/check.sh --with-torch
 ```
 
-Generated IR, binaries, traces, virtual environments и LLVM build tree не
-коммитятся. LLVM source закреплён как submodule. Новая memory operation
-принимается только вместе с точной policy и тестами; best-effort silent
-skipping не допускается.
+Generated IR, binaries, traces и virtual environments не коммитятся. LLVM/MLIR
+берутся из закреплённых apt.llvm.org packages; исходники LLVM не входят в
+checkout и не собираются в CI. Новая memory operation принимается только вместе
+с точной policy и тестами; best-effort silent skipping не допускается.
 
 Изменение `cachescope.trace.v1` одновременно обновляет JSON Schema,
 `scripts/validate_trace.py`, golden fixtures, runtime/schema suites и

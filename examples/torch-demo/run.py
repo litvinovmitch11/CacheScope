@@ -33,9 +33,20 @@ class Strategy:
 
 
 ROOT = Path(__file__).resolve().parents[2]
-LLVM_BUILD = Path(os.environ.get("LLVM_BUILD_DIR", ROOT / "llvm-project" / "build"))
+
+
+def pinned_llvm_root() -> Path:
+    version_file = ROOT / "cmake/LLVMVersion.cmake"
+    prefix = 'set(CACHESCOPE_LLVM_MAJOR_VERSION "'
+    for line in version_file.read_text(encoding="utf-8").splitlines():
+        if line.startswith(prefix) and line.endswith('")'):
+            return Path(f"/usr/lib/llvm-{line[len(prefix) : -2]}")
+    raise RuntimeError(f"Cannot read LLVM major version from {version_file}")
+
+
+LLVM_ROOT = Path(os.environ.get("LLVM_ROOT", pinned_llvm_root()))
 BUILD = Path(os.environ.get("BUILD_DIR", ROOT / "build"))
-TOOLS = LLVM_BUILD / "bin"
+TOOLS = LLVM_ROOT / "bin"
 OUTPUT = Path(os.environ.get("CACHESCOPE_OUTPUT_DIR", ROOT / "output")) / "torch-demo"
 PLUGIN = BUILD / "lib" / "CacheScopePassPlugin.so"
 RUNTIME = BUILD / "compiler/runtime/libcachescope_trace_runtime.so"
@@ -52,7 +63,7 @@ STRATEGIES = (
 def tool(name: str) -> Path:
     path = TOOLS / name
     if not path.is_file():
-        raise SystemExit(f"Не найден {path}. Сначала соберите LLVM/MLIR.")
+        raise SystemExit(f"Не найден {path}. Установите LLVM/MLIR dependencies.")
     return path
 
 
@@ -75,7 +86,10 @@ def configure_and_build_plugin() -> None:
         BUILD,
         "-G",
         "Ninja",
-        f"-DMLIR_DIR={LLVM_BUILD / 'lib/cmake/mlir'}",
+        f"-DMLIR_DIR={LLVM_ROOT / 'lib/cmake/mlir'}",
+        f"-DCACHESCOPE_CLANG_TOOLS_DIR={LLVM_ROOT / 'bin'}",
+        f"-DCMAKE_C_COMPILER={LLVM_ROOT / 'bin/clang'}",
+        f"-DCMAKE_CXX_COMPILER={LLVM_ROOT / 'bin/clang++'}",
         "-DCMAKE_BUILD_TYPE=Release",
     )
     run("cmake", "--build", BUILD)
