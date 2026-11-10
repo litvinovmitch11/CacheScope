@@ -311,9 +311,9 @@ Optional `cachescope.source-map.v1` связывает high-level origins, opera
 только `access_id`, поэтому mapping не зависит от event limit и truncation.
 
 Контракт и UI navigation rules описаны в
-[SOURCE_MAPPING.md](SOURCE_MAPPING.md). Producer implementation должна
-использовать MLIR location snapshots и сохранять tagged locations через
-Transform Dialect и lowering. Эта реализация пока не завершена.
+[SOURCE_MAPPING.md](SOURCE_MAPPING.md). Producer использует MLIR location
+snapshots, CacheScope origin/stage tags и fail-closed сборку mapping в финальном
+LLVM pass. Канонический пример проверяет координаты во всех пяти dumps.
 
 ## 13. Симулятор кеша: разделение ответственности
 

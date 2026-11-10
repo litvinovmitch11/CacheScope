@@ -27,6 +27,10 @@ def load_runtime(path: Path) -> ctypes.CDLL:
     register.argtypes = [ctypes.c_int64] * 4
     register_source = getattr(library, "__cachescope_register_source_v1")
     register_source.argtypes = [ctypes.c_int64, ctypes.c_char_p]
+    register_source_map = getattr(library, "__cachescope_register_source_map_v1")
+    register_source_map.argtypes = [ctypes.c_char_p]
+    register_mapping = getattr(library, "__cachescope_register_mapping_v1")
+    register_mapping.argtypes = [ctypes.c_int64, ctypes.c_char_p, ctypes.c_char_p]
     getattr(library, "__cachescope_trace_reset_v1").argtypes = []
     getattr(library, "__cachescope_trace_flush_v1").argtypes = []
     return library
@@ -47,6 +51,8 @@ def main() -> None:
     fallback = getattr(library, "__cachescope_trace_fallback_v1")
     register = getattr(library, "__cachescope_register_access_v1")
     register_source = getattr(library, "__cachescope_register_source_v1")
+    register_source_map = getattr(library, "__cachescope_register_source_map_v1")
+    register_mapping = getattr(library, "__cachescope_register_mapping_v1")
     reset = getattr(library, "__cachescope_trace_reset_v1")
     flush = getattr(library, "__cachescope_trace_flush_v1")
 
@@ -57,14 +63,44 @@ def main() -> None:
         os.environ["CACHESCOPE_PIPELINE_FINGERPRINT"] = "runtime-suite-v1"
         os.environ["CACHESCOPE_TRACE_LIMIT"] = "3"
         reset()
+        source_map = {
+            "schema": "cachescope.source-map.v1",
+            "payload_fingerprint": "sha256:" + "a" * 64,
+            "stages": [{"stage_id": "input", "path": "input.mlir"}],
+            "origins": [
+                {
+                    "origin_id": 0,
+                    "stage_id": "input",
+                    "line": 1,
+                    "column": 0,
+                    "operation": "test.origin",
+                }
+            ],
+        }
+        register_source_map(json.dumps(source_map).encode())
         register(0, 0, 0, 0)
         register_source(0, b'loc("runtime.mlir":1:1)')
+        register_mapping(
+            0,
+            b"[0]",
+            b'[{"stage_id":"input","line":1,"column":0,"operation":"memref.load"}]',
+        )
         register(1, 2, 1, 0)
         register_source(1, b'loc("runtime.mlir":2:1)')
+        register_mapping(
+            1,
+            b"[0]",
+            b'[{"stage_id":"input","line":1,"column":0,"operation":"memref.store"}]',
+        )
         register(2**32, -1, 2, 1)
         register_source(2**32, b'loc("runtime.mlir":3:1)')
         register(3, 2, 1, 0)
         register_source(3, b'loc("runtime.mlir":4:1)')
+        register_mapping(
+            3,
+            b"[0]",
+            b'[{"stage_id":"input","line":1,"column":0,"operation":"memref.store"}]',
+        )
         semantic(0, 0, 16, 4, 0)
         semantic(1, 2, 32, 4, 1)
         fallback(2**32, 0x1234, 8, 2)
@@ -84,6 +120,9 @@ def main() -> None:
         assert trace["events"][0]["address_kind"] == "memref_offset"
         assert trace["events"][2]["address_kind"] == "process_address"
         assert trace["events"][2]["kind"] == "read_write"
+        assert trace["source_map"] == source_map
+        assert trace["accesses"][0]["origin_ids"] == [0]
+        assert trace["accesses"][0]["stage_locations"][0]["column"] == 0
         assert "indices" not in trace["events"][0]
         assert len(trace["accesses"]) == 4
         assert trace["accesses"][3]["access_id"] == 2**32
@@ -104,6 +143,7 @@ def main() -> None:
         assert second_trace["truncated"] is False
         assert second_trace["valid"] is True
         assert second_trace["complete"] is True
+        assert "source_map" not in second_trace
 
         invalid_limit_output = Path(directory) / "invalid-limit.json"
         os.environ["CACHESCOPE_TRACE_FILE"] = str(invalid_limit_output)

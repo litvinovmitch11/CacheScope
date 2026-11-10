@@ -33,6 +33,8 @@ struct AccessDescription {
   std::int64_t accessKind;
   std::int64_t addressKind;
   std::string sourceLocation;
+  std::string originIdsJson;
+  std::string stageLocationsJson;
 };
 
 struct Event {
@@ -48,6 +50,7 @@ struct Event {
 std::map<std::int64_t, AccessDescription> accessTable;
 std::vector<Event> events;
 std::vector<std::string> errors;
+std::string sourceMapJson;
 std::uint64_t eventCount = 0;
 std::uint64_t traceLimit = 1'000'000;
 bool flushRegistered = false;
@@ -155,6 +158,24 @@ static void validateEvent(std::int64_t accessId, std::int64_t memrefId,
     addError("dynamic event conflicts with its static access description");
 }
 
+static void validateSourceMapping() {
+  for (const auto &[accessId, description] : accessTable) {
+    const bool hasOrigins = !description.originIdsJson.empty();
+    const bool hasStageLocations = !description.stageLocationsJson.empty();
+    if (sourceMapJson.empty()) {
+      if (hasOrigins || hasStageLocations)
+        addError("access mapping was registered without a source map");
+      continue;
+    }
+    if (description.addressKind == kSemanticAddress &&
+        (!hasOrigins || !hasStageLocations)) {
+      addError("semantic access is missing source mapping metadata");
+      return;
+    }
+    (void)accessId;
+  }
+}
+
 static void flushTrace() {
   if (flushed)
     return;
@@ -172,6 +193,7 @@ static void flushTrace() {
     return;
   }
 
+  validateSourceMapping();
   const bool truncated = eventCount > events.size();
   const bool valid = errors.empty();
   output << "{\n"
@@ -197,7 +219,10 @@ static void flushTrace() {
     output << (i == 0 ? "\n" : ",\n") << "    \"" << jsonEscape(errors[i])
            << "\"";
   }
-  output << (errors.empty() ? "],\n" : "\n  ],\n") << "  \"accesses\": [\n";
+  output << (errors.empty() ? "],\n" : "\n  ],\n");
+  if (!sourceMapJson.empty())
+    output << "  \"source_map\": " << sourceMapJson << ",\n";
+  output << "  \"accesses\": [\n";
 
   std::size_t accessIndex = 0;
   for (const auto &[accessId, description] : accessTable) {
@@ -206,7 +231,12 @@ static void flushTrace() {
            << kindName(description.accessKind) << "\", \"address_kind\": \""
            << addressKindName(description.addressKind)
            << "\", \"source_location\": \""
-           << jsonEscape(description.sourceLocation) << "\"}";
+           << jsonEscape(description.sourceLocation) << "\"";
+    if (!description.originIdsJson.empty())
+      output << ", \"origin_ids\": " << description.originIdsJson;
+    if (!description.stageLocationsJson.empty())
+      output << ", \"stage_locations\": " << description.stageLocationsJson;
+    output << "}";
     output << (++accessIndex == accessTable.size() ? "\n" : ",\n");
   }
 
@@ -273,7 +303,8 @@ __cachescope_register_access_v1(std::int64_t accessId, std::int64_t memrefId,
   if (!descriptionValid)
     return;
 
-  AccessDescription description{memrefId, accessKind, addressKind, "unknown"};
+  AccessDescription description{memrefId,  accessKind, addressKind,
+                                "unknown", "",         ""};
   auto [entry, inserted] = accessTable.try_emplace(accessId, description);
   if (!inserted && (entry->second.memrefId != memrefId ||
                     entry->second.accessKind != accessKind ||
@@ -297,6 +328,47 @@ __cachescope_register_source_v1(std::int64_t accessId,
     return;
   }
   access->second.sourceLocation = source;
+}
+
+extern "C" CACHESCOPE_EXPORT void
+__cachescope_register_source_map_v1(const char *sourceMap) {
+  initializeRuntime();
+  const std::string value = sourceMap ? sourceMap : "";
+  if (value.empty()) {
+    addError("source map registration is empty");
+    return;
+  }
+  if (!sourceMapJson.empty() && sourceMapJson != value) {
+    addError("conflicting source map registrations");
+    return;
+  }
+  sourceMapJson = value;
+}
+
+extern "C" CACHESCOPE_EXPORT void
+__cachescope_register_mapping_v1(std::int64_t accessId, const char *originIds,
+                                 const char *stageLocations) {
+  initializeRuntime();
+  auto access = accessTable.find(accessId);
+  if (access == accessTable.end()) {
+    addError("source mapping references an unregistered access_id");
+    return;
+  }
+  const std::string origins = originIds ? originIds : "";
+  const std::string locations = stageLocations ? stageLocations : "";
+  if (origins.empty() || locations.empty()) {
+    addError("source mapping registration is incomplete");
+    return;
+  }
+  if ((!access->second.originIdsJson.empty() &&
+       access->second.originIdsJson != origins) ||
+      (!access->second.stageLocationsJson.empty() &&
+       access->second.stageLocationsJson != locations)) {
+    addError("conflicting source mappings for one access_id");
+    return;
+  }
+  access->second.originIdsJson = origins;
+  access->second.stageLocationsJson = locations;
 }
 
 extern "C" CACHESCOPE_EXPORT void
@@ -335,6 +407,7 @@ extern "C" CACHESCOPE_EXPORT void __cachescope_trace_reset_v1() {
   accessTable.clear();
   events.clear();
   errors.clear();
+  sourceMapJson.clear();
   eventCount = 0;
   flushed = false;
   readTraceLimit();

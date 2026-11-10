@@ -297,6 +297,7 @@ void InstrumentMemoryPass::runOnOperation() {
 }
 
 void registerCacheScopePasses() {
+  registerCacheScopeSourceMappingPasses();
   PassRegistration<InstrumentMemoryPass>();
   registerCacheScopeLLVMFallbackPass();
 }

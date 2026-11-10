@@ -5,6 +5,7 @@ namespace mlir::cachescope {
 
 void registerCacheScopePasses();
 void registerCacheScopeLLVMFallbackPass();
+void registerCacheScopeSourceMappingPasses();
 
 } // namespace mlir::cachescope
 
