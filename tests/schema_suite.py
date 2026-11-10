@@ -128,6 +128,15 @@ def main() -> None:
         "validator accepted an unknown stage_id",
     )
 
+    negative_column = deepcopy(source_mapped)
+    negative_column["accesses"][0]["stage_locations"][0]["column"] = -1
+    expect_invalid(
+        validate_trace,
+        TraceValidationError,
+        negative_column,
+        "validator accepted a negative MLIR column",
+    )
+
     missing_semantic_mapping = deepcopy(source_mapped)
     del missing_semantic_mapping["accesses"][0]["stage_locations"]
     expect_invalid(

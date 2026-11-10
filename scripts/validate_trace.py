@@ -141,11 +141,14 @@ def validate_source_map(
         stage_id = validate_stage_id(origin["stage_id"], f"{context}.stage_id")
         require(stage_id in stage_ids, f"{context} references an unknown stage_id")
         require(stage_id == "input", f"{context} must reference the input stage")
-        for field in ("line", "column"):
-            require(
-                type(origin[field]) is int and origin[field] >= 1,
-                f"{context}.{field} must be a positive integer",
-            )
+        require(
+            type(origin["line"]) is int and origin["line"] >= 1,
+            f"{context}.line must be a positive integer",
+        )
+        require(
+            type(origin["column"]) is int and origin["column"] >= 0,
+            f"{context}.column must be a non-negative integer",
+        )
         require(
             isinstance(origin["operation"], str) and origin["operation"],
             f"{context}.operation must be a non-empty string",
@@ -330,11 +333,15 @@ def validate_trace(trace: Any, artifact_root: Path | None = None) -> None:
                         stage_id in source_map_stage_ids,
                         f"{location_context} references an unknown stage_id",
                     )
-                    for field in ("line", "column"):
-                        require(
-                            type(location[field]) is int and location[field] >= 1,
-                            f"{location_context}.{field} must be a positive integer",
-                        )
+                    require(
+                        type(location["line"]) is int and location["line"] >= 1,
+                        f"{location_context}.line must be a positive integer",
+                    )
+                    require(
+                        type(location["column"]) is int
+                        and location["column"] >= 0,
+                        f"{location_context}.column must be a non-negative integer",
+                    )
                     require(
                         isinstance(location["operation"], str)
                         and location["operation"],

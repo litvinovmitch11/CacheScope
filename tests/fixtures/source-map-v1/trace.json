@@ -36,7 +36,7 @@
         "origin_id": 0,
         "stage_id": "input",
         "line": 4,
-        "column": 5,
+        "column": 4,
         "operation": "linalg.matmul"
       }
     ],
@@ -48,19 +48,19 @@
       "memref_id": 0,
       "kind": "read",
       "address_kind": "memref_offset",
-      "source_location": "loc(\"tile4/02-loops.mlir\":5:11)",
+      "source_location": "loc(\"tile4/02-loops.mlir\":5:4)",
       "origin_ids": [0],
       "stage_locations": [
         {
           "stage_id": "after-transform",
           "line": 7,
-          "column": 7,
+          "column": 6,
           "operation": "linalg.matmul"
         },
         {
           "stage_id": "after-linalg-to-loops",
           "line": 5,
-          "column": 11,
+          "column": 4,
           "operation": "memref.load"
         }
       ]

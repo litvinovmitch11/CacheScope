@@ -124,6 +124,11 @@ origins разных traces разрешено только при одинак�
 Путь использует `/`, не является абсолютным и не содержит пустые, `.` или
 `..` components. Trace bundle остаётся переносимым между машинами.
 
+CLI validator разрешает эти пути относительно каталога trace, проверяет
+наличие каждого dump и сверяет `payload_fingerprint` с точными байтами файла
+`input`. Библиотечный вызов без artifact root проверяет только структуру и
+cross-field invariants.
+
 Canonical stage IDs первой producer implementation:
 
 | Stage ID | Содержимое |
@@ -145,7 +150,8 @@ Origin описывает high-level operation в `input`:
 |---|---|---|
 | `origin_id` | integer | уникальный неотрицательный ID в пределах fingerprint |
 | `stage_id` | string | в v1 всегда `input` |
-| `line`, `column` | integer | 1-based позиция operation в dump |
+| `line` | integer | 1-based строка operation в dump |
+| `column` | integer | 0-based колонка начала operation в dump |
 | `operation` | string | MLIR operation name, например `linalg.matmul` |
 
 `origin_id` назначается детерминированно до transformations. Один origin может
@@ -154,15 +160,39 @@ Origin описывает high-level operation в `input`:
 
 ## Access mapping
 
+Каждый элемент `accesses` описывает один static memory access site:
+
+| Поле | Тип | Смысл |
+|---|---|---|
+| `access_id` | integer | уникальный неотрицательный ID static access site; по нему dynamic `events` ссылаются на эту запись |
+| `memref_id` | integer | ID semantic memref; для LLVM fallback используется `-1` |
+| `kind` | string | `read`, `write` или `read_write` |
+| `address_kind` | string | `memref_offset` для semantic access либо `process_address` для fallback |
+| `source_location` | string | legacy diagnostic location; не используется как structured UI mapping |
+| `origin_ids` | integer[] | optional ссылки на high-level operations из `source_map.origins` |
+| `stage_locations` | object[] | optional позиции этого access site в сохранённых stage dumps |
+
+Элемент `stage_locations` содержит:
+
+| Поле | Тип | Смысл |
+|---|---|---|
+| `stage_id` | string | ссылка на `source_map.stages[].stage_id` |
+| `line` | integer | 1-based строка operation в dump |
+| `column` | integer | 0-based колонка начала operation в dump |
+| `operation` | string | полное MLIR operation name, например `memref.load` |
+
 При наличии `source_map` каждый semantic access с
 `address_kind = "memref_offset"` обязан содержать:
 
 - непустой уникальный `origin_ids`;
 - непустой `stage_locations`.
 
-`stage_locations` содержит 1-based line/column и operation name в dump
-указанного stage. Несколько locations одного stage допустимы для lineage,
-образованного слиянием operations.
+`stage_locations` содержит 1-based line, 0-based column и operation name в
+dump указанного stage. Такая база координат совпадает с
+`AsmState::LocationMap` и `snapshot-op-locations`: колонка указывает на начало
+печатного operation, включая SSA result list перед именем op. Несколько
+locations одного stage допустимы для lineage, образованного слиянием
+operations.
 
 LLVM fallback с `address_kind = "process_address"` может не иметь high-level
 origin. Для него mapping fields могут отсутствовать либо быть пустыми.

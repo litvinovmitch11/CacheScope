@@ -315,7 +315,6 @@ Optional `cachescope.source-map.v1` связывает high-level origins, opera
 использовать MLIR location snapshots и сохранять tagged locations через
 Transform Dialect и lowering. Эта реализация пока не завершена.
 
-
 ## 13. Симулятор кеша: разделение ответственности
 
 Ниже описана целевая архитектура потребителя трассы. В текущей ветке объявлены
