@@ -8,6 +8,8 @@ endif()
 add_library(cachescope_simulator
   lib/SetAssociativeCacheLevel.cpp
   lib/LRU.cpp
+  lib/FIFO.cpp
+  lib/Random.cpp
 )
 target_compile_features(cachescope_simulator PUBLIC cxx_std_17)
 target_include_directories(cachescope_simulator PUBLIC
@@ -29,6 +31,8 @@ if(BUILD_TESTING)
   add_executable(cachescope_cache_level_tests
     tests/SetAssociativeCacheLevelTest.cpp
     tests/LRUTest.cpp
+    tests/FIFOTest.cpp
+    tests/RandomTest.cpp
   )
   target_link_libraries(cachescope_cache_level_tests PRIVATE cachescope_simulator GTest::gtest_main)
   include(GoogleTest)
