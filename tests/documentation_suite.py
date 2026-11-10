@@ -22,7 +22,8 @@ def markdown_files(repo: Path) -> list[Path]:
     files.extend((repo / "examples").glob("**/README.md"))
     files.append(repo / "compiler/cs-trace/ARCHITECTURE.md")
     files.append(repo / "runner/README.md")
-    files.append(repo / "hierarchy/README.md")
+    files.append(repo / "simulator/README.md")
+    files.append(repo / "schemas/README.md")
     return sorted(set(files))
 
 
@@ -36,7 +37,7 @@ def main() -> None:
         "cmake/LLVMVersion.cmake",
         "schemas/cachescope.trace.v1.schema.json",
         "examples/trace_demo.py",
-        "tests/fixtures/source-map-v1/trace.json",
+        "schemas/fixtures/source-map-v1/trace.json",
         "scripts/build-llvm.sh",
         "scripts/validate_trace.py",
     )

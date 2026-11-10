@@ -37,7 +37,7 @@ def main() -> None:
         == "cachescope.source-map.v1"
     )
 
-    fixtures = args.repo / "tests/fixtures"
+    fixtures = args.repo / "schemas/fixtures"
     complete = json.loads((fixtures / "trace-v1-complete.json").read_text())
     truncated = json.loads((fixtures / "trace-v1-truncated.json").read_text())
     invalid = json.loads((fixtures / "trace-v1-invalid.json").read_text())

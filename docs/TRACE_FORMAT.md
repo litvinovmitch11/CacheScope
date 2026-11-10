@@ -173,6 +173,6 @@ Trace limit принимает только непустое десятично�
 - при наличии `source_map` проверять его schema и все ссылки на stages/origins;
 - не сопоставлять fallback addresses между процессами.
 
-Golden fixtures находятся в [`tests/fixtures`](../tests/fixtures). Любое
+Golden fixtures находятся в [`schemas/fixtures`](../schemas/fixtures). Любое
 изменение обязательного поля или его семантики требует обновления JSON Schema,
 валидатора, fixtures, runtime suite и этого документа.

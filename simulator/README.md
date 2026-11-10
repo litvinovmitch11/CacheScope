@@ -1,4 +1,13 @@
-# CacheHierarchy
+# Cache simulator
+
+Модуль содержит SetAssociativeCacheLevel, политики LRU/FIFO/Random и
+CacheHierarchy. Публичные заголовки находятся в `include/cache_simulator/`,
+реализации — в `lib/`, тесты — в `tests/`. LLVM и JSON для сборки не нужны.
+
+CMake предоставляет `cachescope_simulator` для уровней и политик и
+`CacheScope::Hierarchy` для иерархии. Раннер подключается отдельно из `runner/`.
+
+## CacheHierarchy
 
 Независимая C++17-библиотека без LLVM и JSON. Владеет уровнями кеша через
 `unique_ptr<ICacheLevel>` и реализует exclusive, write-back/write-allocate
@@ -7,18 +16,18 @@
 передаются вызывающим кодом.
 
 ```bash
-cmake -S hierarchy -B build/hierarchy -DCMAKE_BUILD_TYPE=Release
-cmake --build build/hierarchy
-ctest --test-dir build/hierarchy --output-on-failure
+cmake -S simulator -B build/simulator -DCMAKE_BUILD_TYPE=Release
+cmake --build build/simulator
+ctest --test-dir build/simulator --output-on-failure
 ```
 
 ## Контракт
 
-Используется актуальный [CacheLevel.h](../simulator/include/cache_simulator/CacheLevel.h)
+Используется актуальный [CacheLevel.h](include/cache_simulator/CacheLevel.h)
 из `main`. Иерархия линкуется с `cachescope_simulator`; собственного
 параллельного API уровня нет. Готовые реализации —
-[SetAssociativeCacheLevel](../simulator/include/cache_simulator/SetAssociativeCacheLevel.h)
-и [LRU](../simulator/include/cache_simulator/LRU.h).
+[SetAssociativeCacheLevel](include/cache_simulator/SetAssociativeCacheLevel.h)
+и [LRU](include/cache_simulator/LRU.h).
 
 - `CacheLine` содержит адрес строки и dirty-флаг. Состоянием владеет уровень.
 - `lookup(line_address) const` проверяет наличие без изменения dirty и replacement

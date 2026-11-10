@@ -57,7 +57,7 @@
 
 ## Trace runner
 
-Независимые C++17-модули `runner/` и `hierarchy/` работают без LLVM. Раннер
+Независимые C++17-модули `runner/` и `simulator/` работают без LLVM. Раннер
 принимает полный valid trace v1 с объектом producer, status flags и static
 access table. Поддержаны `memref_offset` и `read/write`, отрицательные смещения,
 разбиение на строки, hit/miss по инструкциям и уровням, полный событийный ряд.
@@ -68,7 +68,7 @@ exclusive, write-back/write-allocate с одинаковым line size всех 
 Готовые уровни — SetAssociativeCacheLevel с LRU. Нет ограничения числа событий
 раннера; память зависит от static sites и размера одного запроса. Неполные,
 invalid и truncated traces, `process_address` и `read_write` отклоняются.
-Подробнее: [runner](../runner/README.md), [hierarchy](../hierarchy/README.md) и
+Подробнее: [runner](../runner/README.md), [hierarchy](../simulator/README.md) и
 [statistics](STATISTICS_FORMAT.md).
 
 ## Известные ограничения точности

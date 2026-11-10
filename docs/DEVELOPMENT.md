@@ -14,6 +14,18 @@ ctest --test-dir build/runner --output-on-failure
 configure; автономная сборка и подключение к приложению описаны в
 [runner README](../runner/README.md).
 
+Уровни кеша, replacement policies и иерархию можно собрать отдельно, без JSON:
+
+```bash
+cmake -S simulator -B build/simulator -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build build/simulator
+ctest --test-dir build/simulator --output-on-failure
+```
+
+Публичные заголовки каждого модуля находятся в его `include/`, реализации —
+в `lib/`, собственные тесты — в `tests/`. Общие контрактные fixtures находятся
+в `schemas/fixtures/`.
+
 Полная compiler-проверка ниже относится к compiler/runtime; для изменений
 раннера обязательны CTest suites раннера, иерархии и симулятора и `git diff --check`.
 
