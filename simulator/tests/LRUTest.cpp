@@ -67,6 +67,30 @@ TEST(LRUTest, ClearResetsAllState) {
   EXPECT_EQ(policy.choose_victim(), 1u);
 }
 
+TEST(LRUTest, InvalidateRemovesWaysAndPreservesRemainingOrder) {
+  LRU policy;
+  policy.on_insert(0);
+  policy.on_insert(1);
+  policy.on_insert(2);
+  policy.on_invalidate(1); // Middle of the list.
+  EXPECT_THROW(policy.on_hit(1), std::out_of_range);
+  EXPECT_EQ(policy.choose_victim(), 0u);
+  policy.on_invalidate(0); // Least recently used.
+  EXPECT_EQ(policy.choose_victim(), 2u);
+  policy.on_insert(1);
+  policy.on_invalidate(1); // Most recently used.
+  EXPECT_EQ(policy.choose_victim(), 2u);
+  policy.on_invalidate(2); // Last remaining way.
+  EXPECT_THROW(policy.choose_victim(), std::out_of_range);
+  policy.on_invalidate(2); // Repeated/unknown invalidation is harmless.
+  policy.on_invalidate(99);
+  policy.on_insert(0);
+  policy.on_insert(2);
+  EXPECT_EQ(policy.choose_victim(), 0u);
+  policy.on_hit(0);
+  EXPECT_EQ(policy.choose_victim(), 2u);
+}
+
 TEST(LRUTest, IntegratesWithCacheLevelAndIndependentSets) {
   SetAssociativeCacheLevel cache({256, 64, 2},
                                  [] { return std::make_unique<LRU>(); });

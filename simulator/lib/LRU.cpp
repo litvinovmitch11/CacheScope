@@ -26,6 +26,15 @@ void LRU::on_insert(std::size_t way) {
   }
 }
 
+void LRU::on_invalidate(std::size_t way) {
+  const auto position = positions_.find(way);
+  if (position == positions_.end()) {
+    return;
+  }
+  order_.erase(position->second);
+  positions_.erase(position);
+}
+
 std::size_t LRU::choose_victim() {
   if (order_.empty()) {
     throw std::out_of_range("cannot choose a victim from an empty LRU policy");

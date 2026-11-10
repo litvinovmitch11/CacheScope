@@ -118,6 +118,7 @@ SetAssociativeCacheLevel::invalidate(std::uint64_t line_address) {
   }
   auto &line = sets_[result.set].lines[*result.way];
   const auto removed = line;
+  sets_[result.set].policy->on_invalidate(*result.way);
   line.reset();
   return removed;
 }
