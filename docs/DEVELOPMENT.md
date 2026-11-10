@@ -15,7 +15,7 @@ configure; автономная сборка и подключение к при
 [runner README](../runner/README.md).
 
 Полная compiler-проверка ниже относится к compiler/runtime; для изменений
-раннера обязательны его четыре CTest suites и `git diff --check`.
+раннера обязательны CTest suites раннера, иерархии и симулятора и `git diff --check`.
 
 ## Сборка с чистой машины
 
@@ -152,8 +152,12 @@ git diff --check
 - `cachescope.end-to-end` — baseline/tiled compilation, execution и trace diff;
 - `cachescope.schema-suite` — schema fixtures, compatibility и invariants;
 - `cachescope.documentation-suite` — существование локальных Markdown links.
-- `cachescope.runner-*` — integration, validation, random-miss и streaming;
-  запускаются из отдельного `build/runner`.
+- `cachescope.runner-*` — integration, real-cache, validation, random-miss и streaming;
+- `cachescope.hierarchy` — exclusive-переносы, dirty и реальный LRU;
+- `SetAssociativeCacheLevelTest.*`, `LRUTest.*` — upstream-тесты симулятора.
+
+Сборка `build/runner` включает все три компонента без LLVM. CI выполняет те же
+тесты в GCC Release и Clang ASan/UBSan.
 
 Запуск одного теста:
 

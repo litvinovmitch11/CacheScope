@@ -1,4 +1,4 @@
-name: Simulator tests
+name: Cache simulator and runner tests
 
 on:
   push:
@@ -43,16 +43,16 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y cmake ninja-build g++ clang
 
-      - name: Configure simulator
+      - name: Configure runner, hierarchy and simulator
         run: >-
-          cmake -S simulator -B build/simulator -G Ninja
+          cmake -S runner -B build/runner -G Ninja
           -DBUILD_TESTING=ON
           -DCMAKE_CXX_COMPILER=${{ matrix.compiler }}
           -DCMAKE_BUILD_TYPE=${{ matrix.build-type }}
           -DCMAKE_CXX_FLAGS="${{ matrix.flags }}"
 
       - name: Build
-        run: cmake --build build/simulator --parallel 2
+        run: cmake --build build/runner --parallel 2
 
       - name: Test
-        run: ctest --test-dir build/simulator --output-on-failure --no-tests=error
+        run: ctest --test-dir build/runner --output-on-failure --no-tests=error

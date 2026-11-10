@@ -1,17 +1,62 @@
 {
   "schema": "cachescope.trace.v1",
   "variant": "fixture",
-  "producer": "scripted-test",
+  "producer": {
+    "name": "CacheScope",
+    "version": "0.1.0",
+    "llvm_version": "24.0.0git",
+    "llvm_revision": "40e5c847efaca209a9823e950fc5f26dc60cad4e",
+    "pipeline_fingerprint": "fixture-pipeline-v1"
+  },
   "total_events": 3,
   "recorded_events": 3,
   "truncated": false,
   "accesses": [
-    {"access_id": 20, "memref_id": 1, "kind": "write"},
-    {"access_id": 10, "memref_id": 0, "kind": "read"}
+    {
+      "access_id": 20,
+      "memref_id": 1,
+      "kind": "write",
+      "address_kind": "memref_offset",
+      "source_location": "loc(\"fixture.mlir\":20:0)"
+    },
+    {
+      "access_id": 10,
+      "memref_id": 0,
+      "kind": "read",
+      "address_kind": "memref_offset",
+      "source_location": "loc(\"fixture.mlir\":10:0)"
+    }
   ],
   "events": [
-    {"sequence": 0, "access_id": 10, "memref_id": 0, "byte_offset": 60, "size_bytes": 8, "kind": "read", "indices": [0, 15], "address_kind": "memref_offset"},
-    {"sequence": 1, "access_id": 20, "memref_id": 1, "byte_offset": 0, "size_bytes": 4, "kind": "write", "indices": [0, 0], "address_kind": "memref_offset"},
-    {"sequence": 2, "access_id": 10, "memref_id": 0, "byte_offset": 0, "size_bytes": 4, "kind": "read", "indices": [0, 0], "address_kind": "memref_offset"}
-  ]
+    {
+      "sequence": 0,
+      "access_id": 10,
+      "memref_id": 0,
+      "byte_offset": 60,
+      "size_bytes": 8,
+      "kind": "read",
+      "address_kind": "memref_offset"
+    },
+    {
+      "sequence": 1,
+      "access_id": 20,
+      "memref_id": 1,
+      "byte_offset": 0,
+      "size_bytes": 4,
+      "kind": "write",
+      "address_kind": "memref_offset"
+    },
+    {
+      "sequence": 2,
+      "access_id": 10,
+      "memref_id": 0,
+      "byte_offset": 0,
+      "size_bytes": 4,
+      "kind": "read",
+      "address_kind": "memref_offset"
+    }
+  ],
+  "valid": true,
+  "complete": true,
+  "errors": []
 }

@@ -12,11 +12,17 @@ FetchContent_Declare(nlohmann_json
 )
 FetchContent_MakeAvailable(nlohmann_json)
 
+if(NOT TARGET cachescope_hierarchy)
+  add_subdirectory(../hierarchy ${CMAKE_CURRENT_BINARY_DIR}/hierarchy)
+endif()
+
 add_library(cachescope_runner src/trace_runner.cpp)
 add_library(CacheScope::Runner ALIAS cachescope_runner)
 target_compile_features(cachescope_runner PUBLIC cxx_std_17)
 target_include_directories(cachescope_runner PUBLIC ../include)
-target_link_libraries(cachescope_runner PRIVATE nlohmann_json::nlohmann_json)
+target_link_libraries(cachescope_runner
+  PUBLIC CacheScope::Hierarchy
+  PRIVATE nlohmann_json::nlohmann_json)
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
   target_compile_options(cachescope_runner PRIVATE -Wall -Wextra -Wpedantic)
 endif()
@@ -27,8 +33,9 @@ if(BUILD_TESTING)
     CacheScope::Runner nlohmann_json::nlohmann_json)
   target_compile_definitions(cachescope_runner_tests PRIVATE
     CACHESCOPE_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures"
+    CACHESCOPE_TRACE_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../tests/fixtures"
     CACHESCOPE_SMOKE_OUTPUT_DIR="${CMAKE_CURRENT_BINARY_DIR}/smoke")
-  foreach(suite IN ITEMS integration validation random-miss streaming)
+  foreach(suite IN ITEMS integration real-cache validation random-miss streaming)
     add_test(NAME cachescope.runner-${suite}
       COMMAND cachescope_runner_tests ${suite})
   endforeach()

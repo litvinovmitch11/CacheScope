@@ -1,78 +1,95 @@
-# Statistics format: `cachescope.statistics.v1`
+# Отчёты runner и CacheHierarchy
 
-Раннер пишет один JSON object. Примеры для интеграции:
-[входная трасса](../runner/tests/fixtures/example.trace.json) и
-[полный отчёт](../runner/tests/fixtures/example.statistics.json).
-Это маленький fixture с заранее заданными результатами тестовой модели,
-а не измерение реального CPU.
+Базовый контракт взят из [PR #2](https://github.com/litvinovmitch11/CacheScope/pull/2):
+[SIMULATION_FORMAT.md](SIMULATION_FORMAT.md). Раннер создаёт два файла:
 
-## Верхний уровень
+- `statistics.json`: `cachescope.simulation-statistics.v1`, компактная сводка;
+- `events.json`: `cachescope.simulation-events.v1`, подробный событийный ряд.
 
-| Поле | Смысл |
-|---|---|
-| `schema` | точное значение `cachescope.statistics.v1` |
-| `source` | header входной трассы: schema, variant, producer, counts, truncated |
-| `levels` | массив `{level, name}` от L1 наружу; level начинается с 1 |
-| `buffers` | массив `{memref_id, base_address, min_offset, end_offset}` |
-| `events` | подробный ряд в порядке исходного sequence |
-| `summary` | общие счётчики запросов и статистика уровней |
-| `instructions` | статистика по access_id, отсортированная по числовому ID |
+Файл событий записывается потоково. Сводка не содержит массива events и не
+растёт с числом динамических событий при неизменном наборе access_id.
+Примеры: [trace](../runner/tests/fixtures/example.trace.json),
+[statistics](../runner/tests/fixtures/example.statistics.json),
+[events](../runner/tests/fixtures/example.events.json).
+Fixture использует заданные исходы тестовых уровней, а не реальные CPU counters.
 
-В `buffers` сохранены базы и зарезервированные полуинтервалы смещений
-`[min_offset, end_offset)`. Они включают 0. Модельный адрес равен
-`base_address + byte_offset`, в том числе при отрицательном смещении.
+## Совместимость с UI
 
-## События
+Контракт [SIMULATION_FORMAT.md](SIMULATION_FORMAT.md), включая расширение
+из [PR #5](https://github.com/litvinovmitch11/CacheScope/pull/5), описывает уровни кеша.
+Базовые поля сводки `cache_config`,
+`processed`, `totals` и поле `lines` каждого события относятся к **L1**.
+Они сохраняют смысл и типы контракта PR. В частности, `way` L1 известен после
+hit или заполнения, а все адреса сериализуются hex-строками, включая адрес 0.
 
-Каждая запись `events` содержит:
+В `cache_config` записываются фактические значения, переданные при создании
+иерархии: size, line size, associativity, computed set count, replacement policy.
+Поля уровней соответствуют общему контракту UI; дополнительные метаданные ниже
+прежний UI может игнорировать. Нельзя суммировать hits/misses разных уровней
+для вычисления локального hit rate.
 
-- `event`: исходный объект события вместе с дополнительными полями;
-- `model_address`: вычисленный адрес;
-- `lines`: результаты модели, каждый с `level`, `line_address`, `hit`, `set`,
-  `way`, `evicted_address`.
-
-`line_address` — начальный адрес строки, `evicted_address` — адрес вытесненной
-строки либо `null`. Адрес 0 также является допустимым вытесненным адресом.
-В записи отсутствуют результаты уровней, до которых запрос не дошёл.
-Служебные writeback/fill обращения модели исключены.
-
-Этот массив — точный событийный ряд: ось X задаётся `event.sequence`.
-Секунды, cycles и latency из него не выводятся. UI может строить оконные
-показатели по этим исходам, не запрашивая повторный прогон модели.
-
-## Итоговые счётчики
-
-`summary` содержит `events`, `reads`, `writes`, `read_bytes`, `write_bytes`
-и массив `levels`. Байты считаются по исходным запросам программы и не
-обозначают traffic между кешами.
-
-Каждый элемент `instructions` содержит `access_id`, `memref_id`, `kind`,
-`events`, `requested_bytes` и массив `levels`. Инструкция обозначает статический
-memory access из trace; имена и исходные строки программы пока отсутствуют
-в контракте производителя. Объявленные, но не исполненные access sites имеют
-нулевые счётчики.
-
-Каждая запись статистики уровня содержит `level` и три набора счётчиков:
-`total`, `reads`, `writes`. В каждом наборе:
+## Расширения statistics.json
 
 | Поле | Смысл |
 |---|---|
-| `probes` | количество проверок строк на этом уровне |
-| `hits`, `misses` | исходы этих проверок; сумма равна probes |
-| `evictions` | количество результатов с заполненным evicted_address, включая адрес 0 |
-| `hit_rate_percent` | `100 * hits / probes` или `null`, если probes равен 0 |
+| `levels` | `{level, name, cache_config, processed, totals}` для каждого уровня |
+| `instructions` | статистика по числовому `access_id`, отсортированная по ID |
+| `buffers` | модельные базы массивов и зарезервированные диапазоны смещений |
+| `source` | header исходной трассы, полный объект producer и optional source_map |
+| `hierarchy` | политики exclusive, write_back, write_allocate |
+| `requests` | число исходных events, reads/writes и запрошенные байты |
+| `memory` | число line reads из памяти и dirty writebacks в память |
 
-Одна инструкция, затронувшая две строки с hit и miss, даёт две проверки
-и 50% hit rate. Проценты уровней локальные: в знаменатель L2 входят только
-проверки, реально выполненные на L2. Например, 50/100 попаданий на L1,
-30/50 на L2 и 16/20 на L3 дают 50% / 60% / 80%.
+Корневой `producer` остаётся строкой `producer.name` исходной трассы, как
+требует UI. Полный объект с версиями и pipeline fingerprint доступен в
+`source.producer`.
 
-Счётчики — 64-битные целые. `hit_rate_percent` — вычисляемое число с плавающей
-точкой; для повторной агрегации следует использовать hits/probes.
-Writeback counters отсутствуют: текущий интерфейс не сообщает dirty state.
+Каждая инструкция сохраняет поля static access table, включая `source_location`,
+`address_kind` и optional `origin_ids`/`stage_locations`. Она также содержит `events`,
+`requested_bytes` и массив `levels`. Пути stage artifacts в `source.source_map`
+остаются относительными к исходному trace bundle; для навигации UI нужен этот
+bundle. Записи уровня содержат `level`,
+`processed`, `totals`. В `processed.trace_events` уровня входят только события,
+реально проверявшие этот уровень. `line_accesses` считает отдельные demand probes.
+Read/write counters классифицируются по исходному `event.kind`, а не по
+внутреннему чтению строки для write-allocate или служебным переносам.
 
-## Совместимость
+В `totals` дополнительно есть `writebacks` (dirty victims данного уровня,
+включая переносы ниже) и `hit_rate_percent = 100 * hits / line_accesses`.
+При нуле probes процент равен `null`. Отдельно `memory.writebacks` считает только
+записи в память после вытеснения из последнего уровня. Финального flush нет.
 
-Потребитель проверяет точную schema и допускает дополнительные поля.
-Порядок ключей JSON не является контрактом: итоговые summary/instructions
-пишутся после events для потоковой генерации отчёта.
+Вытеснения считаются по фактическим insert victims, включая каскады. Служебные
+переносы не считаются дополнительными demand hits/misses. Все их счётчики
+приписываются инструкции, которая вызвала перенос.
+
+В `buffers` сохранены `memref_id`, hex `base_address`, `min_offset` и
+`end_offset`. Полуинтервалы включают логическое смещение 0. Модельный адрес:
+`base_address + byte_offset`, в том числе для отрицательных смещений.
+
+## Расширения events.json
+
+Заголовок содержит массив `levels` с именами и конфигурациями. Событие содержит
+обязательные поля PR (`sequence`, `kind`, `address`, `size_bytes`, `lines`) и:
+
+- `access_id` и `trace_event`: связь с инструкцией и полный исходный event;
+- `level_results`: `{level, lines}` для каждого реально посещённого уровня;
+- `evictions`: все `{level, line_address, dirty}` при выполнении события;
+- `memory_reads`, `memory_writebacks`: обращения в память для этого события.
+
+В строках `level_results` есть дополнительный `evicted_dirty` или `null`.
+У нижнего уровня `way` может быть `null`: exclusive miss не размещает там
+запрошенную строку. В базовом `lines` L1 way всегда определён.
+
+Ось событийного ряда — `sequence`, а не время в секундах. UI может рассчитать
+оконные показатели по каждому уровню и access_id без повторной симуляции.
+
+## Публикация
+
+Оба файла сначала создаются рядом с назначением как временные. После успешного
+прогона и закрытия файлов заменяется пара; ошибки обычной публикации откатываются
+через резервные имена. Это не crash-atomic транзакция. Один bundle нельзя
+одновременно читать или перезаписывать во время публикации.
+
+Прежний экспериментальный `cachescope.statistics.v1` с events внутри сводки
+больше не формируется. Новый контракт использует названия схем из PR #2.

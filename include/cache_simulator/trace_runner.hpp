@@ -1,6 +1,6 @@
 #pragma once
 
-#include "cache_simulator.hpp"
+#include "cache_hierarchy.hpp"
 
 #include <filesystem>
 #include <map>
@@ -12,6 +12,7 @@ struct LineStatistics {
   std::uint64_t hits = 0;
   std::uint64_t misses = 0;
   std::uint64_t evictions = 0;
+  std::uint64_t writebacks = 0;
 
   std::optional<double> hit_rate_percent() const;
 };
@@ -28,6 +29,7 @@ struct InstructionStatistics {
   std::uint64_t events = 0;
   std::uint64_t requested_bytes = 0;
   std::vector<LevelStatistics> levels;
+  std::vector<std::uint64_t> level_events;
 };
 
 struct BufferLayout {
@@ -45,6 +47,9 @@ struct RunSummary {
   std::uint64_t write_bytes = 0;
   std::vector<std::string> level_names;
   std::vector<LevelStatistics> levels;
+  std::vector<std::uint64_t> level_events;
+  std::uint64_t memory_reads = 0;
+  std::uint64_t memory_writebacks = 0;
   std::map<std::uint64_t, InstructionStatistics> instructions;
   std::map<std::uint64_t, BufferLayout> buffers;
 };
@@ -53,7 +58,7 @@ struct RunSummary {
 // on invalid input, model failure or I/O failure. A failed replay may leave the
 // model partially populated, but never replaces a previously published report.
 RunSummary run_trace(const std::filesystem::path &input_path,
-                     ICacheSimulator &cache,
+                     CacheHierarchy &hierarchy,
                      const std::filesystem::path &report_path);
 
 } // namespace cache_simulator
