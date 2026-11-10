@@ -26,8 +26,8 @@ python3 scripts/validate_trace.py path/to/trace.json
   "producer": {
     "name": "CacheScope",
     "version": "0.1.0",
-    "llvm_version": "24.0.0git",
-    "llvm_revision": "40e5c847efaca209a9823e950fc5f26dc60cad4e",
+    "llvm_version": "22.1.8",
+    "llvm_revision": "ca7933e47d3a3451d81e72ac174dcb5aa28b59d1",
     "pipeline_fingerprint": "torch-mlir-matmul-baseline-v1"
   },
   "variant": "baseline",

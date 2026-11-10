@@ -31,52 +31,41 @@ ctest --test-dir build/simulator --output-on-failure
 
 ## Сборка с чистой машины
 
-Нужны Git, CMake 3.20+, Ninja, Python 3.10+ и C/C++ compiler. На Ubuntu/Debian
-достаточно базовых пакетов:
+Нужны Git, CMake 3.20+, Ninja, Python 3.10+ и C/C++ compiler. Поддерживаемое
+reference-окружение compiler pipeline — Ubuntu 24.04 (Noble), amd64.
+
+Клонируйте репозиторий:
 
 ```bash
-sudo apt-get install git cmake ninja-build build-essential python3-venv
-```
-
-Клонируйте репозиторий вместе с закреплённым LLVM:
-
-```bash
-git clone --recurse-submodules https://github.com/litvinovmitch11/CacheScope.git
+git clone https://github.com/litvinovmitch11/CacheScope.git
 cd CacheScope
 ```
 
-Если репозиторий уже был клонирован без submodules:
+Установите готовые LLVM/MLIR/Clang 22.1.8 packages:
 
 ```bash
-git submodule update --init --recursive
+scripts/install-llvm-dependencies.sh
 ```
 
-Соберите ровно те LLVM/MLIR/Clang tools, которые нужны CacheScope:
+Скрипт подключает официальный apt.llvm.org repository, проверяет fingerprint
+его signing key и устанавливает точные Debian package versions из
+`cmake/LLVMVersion.cmake`. LLVM source и build tree не скачиваются. CacheScope
+подключается к установленному `MLIRConfig.cmake` через `find_package`.
 
-```bash
-scripts/build-llvm.sh
-```
+LLVM закреплён на release `22.1.8`, commit
+`ca7933e47d3a3451d81e72ac174dcb5aa28b59d1`. Эти значения одновременно задают
+CMake compatibility check и producer metadata в trace. При обновлении LLVM
+нужно согласованно изменить major, package version, commit и Debian version в
+`cmake/LLVMVersion.cmake`, после чего полностью прогнать compiler suite.
 
-Это самая долгая стадия. Она создаёт `llvm-project/build` и собирает `mlir-opt`,
-`mlir-transform-opt`, `mlir-translate`, `mlir-runner`, `llc`, `FileCheck`,
-`clang-format` и `clang-tidy`. Нужны несколько гигабайт свободного места;
-длительность зависит от числа CPU cores.
-
-LLVM закреплён в Git как submodule на версии `24.0.0git`, commit
-`40e5c847efaca209a9823e950fc5f26dc60cad4e`. Ожидаемые значения хранятся в
-`cmake/LLVMVersion.cmake`; root configure и `scripts/build-llvm.sh` прекращают
-работу при несовпадении версии или commit. LLVM собирается отдельным CMake
-project.
-CacheScope подключается к готовому `MLIRConfig.cmake` через `find_package`.
-Так root configure остаётся быстрым, а изменение plugin не пересобирает весь
-LLVM. Встраивание `llvm-project/llvm` через `add_subdirectory` здесь намеренно
-не используется.
+На другой ОС установите LLVM/MLIR 22.1.8 штатным package manager и задайте
+`LLVM_ROOT` на install prefix. По умолчанию используется `/usr/lib/llvm-22`.
 
 После этого соберите и проверьте CacheScope:
 
 ```bash
 cmake -S . -B build -G Ninja \
-  -DMLIR_DIR="$PWD/llvm-project/build/lib/cmake/mlir" \
+  -DMLIR_DIR=/usr/lib/llvm-22/lib/cmake/mlir \
   -DCMAKE_BUILD_TYPE=Release \
   -DBUILD_TESTING=ON
 cmake --build build
@@ -88,6 +77,20 @@ ctest --test-dir build --output-on-failure
 ```bash
 scripts/check.sh
 ```
+
+Для compiler/runtime CI и локальной проверки без повторной сборки независимых
+runner/simulator targets:
+
+```bash
+CACHESCOPE_BUILD_CACHE_MODEL=OFF scripts/check.sh --with-lint
+```
+
+Этот режим по-прежнему запускает pass, runtime, schema, documentation и полный
+baseline/tile/interchange end-to-end. Runner, hierarchy и simulator проверяются
+отдельным быстрым workflow без LLVM. GitHub Actions workflow
+`.github/workflows/compiler-tests.yml` использует этот режим и собирает
+CacheScope против готовых закреплённых apt.llvm.org packages. CI не скачивает
+LLVM source, не собирает LLVM и не кеширует LLVM build tree.
 
 Канонический пользовательский pipeline запускается отдельно и использует ту
 же сборку:
@@ -118,11 +121,10 @@ scripts/check.sh --with-torch
 Директории имеют разные назначения:
 
 - `build/` — только CMake/Ninja artifacts, libraries и `compile_commands.json`;
-- `llvm-project/build/` — сборка закреплённого LLVM submodule;
 - `output/` — generated MLIR, LLVM IR, traces, input tensors и результаты
   экспериментов.
 
-Все три директории локальные и не коммитятся. Удаление `output/` не требует
+Обе директории локальные и не коммитятся. Удаление `output/` не требует
 пересборки CacheScope; удаление `build/` требует повторной CMake-сборки.
 Путь экспериментов можно заменить через
 `CACHESCOPE_OUTPUT_DIR=/path/to/output`.
@@ -149,7 +151,7 @@ cmake --build build --target tidy
 cmake --build build --target format
 ```
 
-Обе цели используют инструменты из `llvm-project/build/bin`, `.clang-format` в
+Обе цели используют инструменты из `/usr/lib/llvm-22/bin`, `.clang-format` в
 LLVM style и `.clang-tidy` в корне проекта. Полная проверка перед commit:
 
 ```bash

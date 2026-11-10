@@ -83,7 +83,7 @@ python3 scripts/validate_trace.py output/trace-demo/baseline/trace.json
 
 ```bash
 python3 examples/trace_demo.py \
-  --llvm-build-dir /path/to/llvm-build \
+  --llvm-root /path/to/llvm-prefix \
   --build-dir /path/to/cachescope-build \
   --output-dir /tmp/cachescope-traces
 ```
@@ -92,7 +92,7 @@ python3 examples/trace_demo.py \
 
 ```bash
 python3 examples/trace_demo.py \
-  --llvm-build-dir "$PWD/llvm-project/build" \
+  --llvm-root /usr/lib/llvm-22 \
   --plugin "$PWD/build/lib/CacheScopePassPlugin.so" \
   --runtime "$PWD/build/compiler/runtime/libcachescope_trace_runtime.so"
 ```

@@ -23,24 +23,6 @@ if(NOT LLVM_PACKAGE_VERSION STREQUAL CACHESCOPE_LLVM_PACKAGE_VERSION)
     "MLIR_DIR points to LLVM ${LLVM_PACKAGE_VERSION}")
 endif()
 
-set(CACHESCOPE_LLVM_SOURCE_DIR "${PROJECT_SOURCE_DIR}/llvm-project")
-if(EXISTS "${CACHESCOPE_LLVM_SOURCE_DIR}/.git")
-  execute_process(
-    COMMAND git -C "${CACHESCOPE_LLVM_SOURCE_DIR}" rev-parse HEAD
-    OUTPUT_VARIABLE CACHESCOPE_LLVM_ACTUAL_REVISION
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-    RESULT_VARIABLE CACHESCOPE_LLVM_GIT_RESULT
-  )
-  if(NOT CACHESCOPE_LLVM_GIT_RESULT EQUAL 0)
-    message(FATAL_ERROR "Cannot read the llvm-project submodule revision")
-  endif()
-  if(NOT CACHESCOPE_LLVM_ACTUAL_REVISION STREQUAL CACHESCOPE_LLVM_REVISION)
-    message(FATAL_ERROR
-      "CacheScope requires llvm-project ${CACHESCOPE_LLVM_REVISION}, but the "
-      "submodule is at ${CACHESCOPE_LLVM_ACTUAL_REVISION}")
-  endif()
-endif()
-
 message(STATUS "Using MLIRConfig.cmake in: ${MLIR_DIR}")
 message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 message(STATUS
@@ -61,13 +43,17 @@ include(AddLLVM)
 include(AddMLIR)
 include(HandleLLVMOptions)
 
-include_directories(${LLVM_INCLUDE_DIRS})
-include_directories(${MLIR_INCLUDE_DIRS})
+include_directories(SYSTEM ${LLVM_INCLUDE_DIRS})
+include_directories(SYSTEM ${MLIR_INCLUDE_DIRS})
 include_directories(${PROJECT_SOURCE_DIR}/compiler/cs-trace/include)
 link_directories(${LLVM_BUILD_LIBRARY_DIR})
 
-add_subdirectory(simulator)
-add_subdirectory(runner)
+option(CACHESCOPE_BUILD_CACHE_MODEL
+  "Build the simulator, hierarchy and trace runner" ON)
+if(CACHESCOPE_BUILD_CACHE_MODEL)
+  add_subdirectory(simulator)
+  add_subdirectory(runner)
+endif()
 add_subdirectory(compiler/runtime)
 add_subdirectory(compiler/cs-trace)
 

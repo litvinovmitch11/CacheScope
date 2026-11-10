@@ -33,23 +33,48 @@ def main() -> None:
     required_files = (
         ".clang-format",
         ".clang-tidy",
-        ".gitmodules",
+        ".github/workflows/compiler-tests.yml",
         "cmake/LLVMVersion.cmake",
         "schemas/cachescope.trace.v1.schema.json",
         "examples/trace_demo.py",
         "schemas/fixtures/source-map-v1/trace.json",
-        "scripts/build-llvm.sh",
+        "scripts/install-llvm-dependencies.sh",
         "scripts/validate_trace.py",
     )
     for relative_path in required_files:
         if not (args.repo / relative_path).is_file():
             failures.append(f"missing repository contract: {relative_path}")
 
+    if (args.repo / ".gitmodules").exists():
+        failures.append("obsolete repository contract: .gitmodules")
+
+    compiler_workflow = (
+        args.repo / ".github/workflows/compiler-tests.yml"
+    ).read_text(encoding="utf-8")
+    for obsolete_ci_fragment in (
+        "actions/cache",
+        "build-llvm.sh",
+        ".deps/llvm",
+    ):
+        if obsolete_ci_fragment in compiler_workflow:
+            failures.append(
+                "compiler workflow must not build or cache LLVM: "
+                f"{obsolete_ci_fragment}"
+            )
+    if "scripts/install-llvm-dependencies.sh" not in compiler_workflow:
+        failures.append("compiler workflow does not install pinned LLVM packages")
+
     for document in markdown_files(args.repo):
         if not document.is_file():
             failures.append(f"missing document: {document.relative_to(args.repo)}")
             continue
         text = document.read_text(encoding="utf-8")
+        for obsolete_command in ("git submodule", "--recurse-submodules"):
+            if obsolete_command in text:
+                failures.append(
+                    f"{document.relative_to(args.repo)}: obsolete command "
+                    f"{obsolete_command}"
+                )
         for match in LINK_PATTERN.finditer(text):
             raw_target = match.group(1).strip().strip("<>")
             if raw_target.startswith(("http://", "https://", "mailto:", "#")):

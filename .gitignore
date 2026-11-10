@@ -1,4 +1,6 @@
 build/
+.deps/
+/llvm-project/
 output/
 compile_commands.json
 /CMakePresets.json
