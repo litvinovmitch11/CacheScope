@@ -25,14 +25,23 @@ __cachescope_register_access_v1(std::int64_t accessId, std::int64_t memrefId,
 extern "C" CACHESCOPE_EXPORT void
 __cachescope_register_source_v1(std::int64_t accessId,
                                 const char *sourceLocation);
+// Source-map metadata crosses the ABI as typed fields. The runtime validates
+// references and serializes the optional JSON extension atomically.
 extern "C" CACHESCOPE_EXPORT void
-__cachescope_register_source_map_v1(const char *sourceMapJson);
-// The compiler owns serialization of these static JSON fragments. The runtime
-// embeds them after checking registration order and cross-call consistency.
+__cachescope_register_source_map_v1(const char *payloadFingerprint);
 extern "C" CACHESCOPE_EXPORT void
-__cachescope_register_mapping_v1(std::int64_t accessId,
-                                 const char *originIdsJson,
-                                 const char *stageLocationsJson);
+__cachescope_register_stage_v1(std::int64_t ordinal, const char *stageId,
+                               const char *path);
+extern "C" CACHESCOPE_EXPORT void
+__cachescope_register_origin_v1(std::int64_t originId, const char *stageId,
+                                std::int64_t line, std::int64_t column,
+                                const char *operation);
+extern "C" CACHESCOPE_EXPORT void
+__cachescope_register_access_origin_v1(std::int64_t accessId,
+                                       std::int64_t originId);
+extern "C" CACHESCOPE_EXPORT void __cachescope_register_stage_location_v1(
+    std::int64_t accessId, const char *stageId, std::int64_t line,
+    std::int64_t column, const char *operation);
 
 // LLVM fallback events have no stable memref identity. They carry the concrete
 // process address so no explicit LLVM memory operation is silently omitted.

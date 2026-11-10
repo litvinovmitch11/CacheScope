@@ -29,8 +29,30 @@ def load_runtime(path: Path) -> ctypes.CDLL:
     register_source.argtypes = [ctypes.c_int64, ctypes.c_char_p]
     register_source_map = getattr(library, "__cachescope_register_source_map_v1")
     register_source_map.argtypes = [ctypes.c_char_p]
-    register_mapping = getattr(library, "__cachescope_register_mapping_v1")
-    register_mapping.argtypes = [ctypes.c_int64, ctypes.c_char_p, ctypes.c_char_p]
+    register_stage = getattr(library, "__cachescope_register_stage_v1")
+    register_stage.argtypes = [ctypes.c_int64, ctypes.c_char_p, ctypes.c_char_p]
+    register_origin = getattr(library, "__cachescope_register_origin_v1")
+    register_origin.argtypes = [
+        ctypes.c_int64,
+        ctypes.c_char_p,
+        ctypes.c_int64,
+        ctypes.c_int64,
+        ctypes.c_char_p,
+    ]
+    register_access_origin = getattr(
+        library, "__cachescope_register_access_origin_v1"
+    )
+    register_access_origin.argtypes = [ctypes.c_int64, ctypes.c_int64]
+    register_stage_location = getattr(
+        library, "__cachescope_register_stage_location_v1"
+    )
+    register_stage_location.argtypes = [
+        ctypes.c_int64,
+        ctypes.c_char_p,
+        ctypes.c_int64,
+        ctypes.c_int64,
+        ctypes.c_char_p,
+    ]
     getattr(library, "__cachescope_trace_reset_v1").argtypes = []
     getattr(library, "__cachescope_trace_flush_v1").argtypes = []
     return library
@@ -52,7 +74,14 @@ def main() -> None:
     register = getattr(library, "__cachescope_register_access_v1")
     register_source = getattr(library, "__cachescope_register_source_v1")
     register_source_map = getattr(library, "__cachescope_register_source_map_v1")
-    register_mapping = getattr(library, "__cachescope_register_mapping_v1")
+    register_stage = getattr(library, "__cachescope_register_stage_v1")
+    register_origin = getattr(library, "__cachescope_register_origin_v1")
+    register_access_origin = getattr(
+        library, "__cachescope_register_access_origin_v1"
+    )
+    register_stage_location = getattr(
+        library, "__cachescope_register_stage_location_v1"
+    )
     reset = getattr(library, "__cachescope_trace_reset_v1")
     flush = getattr(library, "__cachescope_trace_flush_v1")
 
@@ -77,30 +106,23 @@ def main() -> None:
                 }
             ],
         }
-        register_source_map(json.dumps(source_map).encode())
+        register_source_map(source_map["payload_fingerprint"].encode())
+        register_stage(0, b"input", b"input.mlir")
+        register_origin(0, b"input", 1, 0, b"test.origin")
         register(0, 0, 0, 0)
         register_source(0, b'loc("runtime.mlir":1:1)')
-        register_mapping(
-            0,
-            b"[0]",
-            b'[{"stage_id":"input","line":1,"column":0,"operation":"memref.load"}]',
-        )
+        register_access_origin(0, 0)
+        register_stage_location(0, b"input", 1, 0, b"memref.load")
         register(1, 2, 1, 0)
         register_source(1, b'loc("runtime.mlir":2:1)')
-        register_mapping(
-            1,
-            b"[0]",
-            b'[{"stage_id":"input","line":1,"column":0,"operation":"memref.store"}]',
-        )
+        register_access_origin(1, 0)
+        register_stage_location(1, b"input", 1, 0, b"memref.store")
         register(2**32, -1, 2, 1)
         register_source(2**32, b'loc("runtime.mlir":3:1)')
         register(3, 2, 1, 0)
         register_source(3, b'loc("runtime.mlir":4:1)')
-        register_mapping(
-            3,
-            b"[0]",
-            b'[{"stage_id":"input","line":1,"column":0,"operation":"memref.store"}]',
-        )
+        register_access_origin(3, 0)
+        register_stage_location(3, b"input", 1, 0, b"memref.store")
         semantic(0, 0, 16, 4, 0)
         semantic(1, 2, 32, 4, 1)
         fallback(2**32, 0x1234, 8, 2)
@@ -189,6 +211,55 @@ def main() -> None:
             "event size_bytes must be positive",
             "event access kind is invalid",
             "dynamic event conflicts with its static access description",
+        ]
+
+        orphan_mapping_output = Path(directory) / "orphan-mapping.json"
+        os.environ["CACHESCOPE_TRACE_FILE"] = str(orphan_mapping_output)
+        reset()
+        register(100, 0, 0, 0)
+        register_access_origin(100, 0)
+        register_stage_location(100, b"input", 1, 0, b"memref.load")
+        semantic(100, 0, 0, 4, 0)
+        flush()
+        orphan_mapping_trace = read_trace(orphan_mapping_output)
+        validate_trace(orphan_mapping_trace)
+        assert orphan_mapping_trace["valid"] is False
+        assert "source_map" not in orphan_mapping_trace
+        assert "origin_ids" not in orphan_mapping_trace["accesses"][0]
+        assert orphan_mapping_trace["errors"] == [
+            "access mapping was registered without a source map"
+        ]
+
+        incomplete_mapping_output = Path(directory) / "incomplete-mapping.json"
+        os.environ["CACHESCOPE_TRACE_FILE"] = str(incomplete_mapping_output)
+        reset()
+        register_source_map(source_map["payload_fingerprint"].encode())
+        register_stage(0, b"input", b"input.mlir")
+        register_origin(0, b"input", 1, 0, b"test.origin")
+        register(101, 0, 0, 0)
+        semantic(101, 0, 0, 4, 0)
+        flush()
+        incomplete_mapping_trace = read_trace(incomplete_mapping_output)
+        validate_trace(incomplete_mapping_trace)
+        assert incomplete_mapping_trace["valid"] is False
+        assert "source_map" not in incomplete_mapping_trace
+        assert incomplete_mapping_trace["errors"] == [
+            "semantic access is missing source mapping metadata"
+        ]
+
+        invalid_source_map_output = Path(directory) / "invalid-source-map.json"
+        os.environ["CACHESCOPE_TRACE_FILE"] = str(invalid_source_map_output)
+        reset()
+        register_source_map(b"{")
+        register(102, -1, 0, 1)
+        fallback(102, 0x1000, 4, 0)
+        flush()
+        invalid_source_map_trace = read_trace(invalid_source_map_output)
+        validate_trace(invalid_source_map_trace)
+        assert invalid_source_map_trace["valid"] is False
+        assert "source_map" not in invalid_source_map_trace
+        assert invalid_source_map_trace["errors"] == [
+            "source map payload fingerprint is invalid"
         ]
 
     print("runtime suite OK")

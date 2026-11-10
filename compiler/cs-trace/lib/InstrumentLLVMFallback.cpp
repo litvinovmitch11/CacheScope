@@ -19,7 +19,6 @@
 #include <map>
 #include <optional>
 #include <set>
-#include <sstream>
 #include <string>
 #include <tuple>
 
@@ -34,8 +33,14 @@ constexpr StringLiteral kRegisterSourceFunction =
     "__cachescope_register_source_v1";
 constexpr StringLiteral kRegisterSourceMapFunction =
     "__cachescope_register_source_map_v1";
-constexpr StringLiteral kRegisterMappingFunction =
-    "__cachescope_register_mapping_v1";
+constexpr StringLiteral kRegisterStageFunction =
+    "__cachescope_register_stage_v1";
+constexpr StringLiteral kRegisterOriginFunction =
+    "__cachescope_register_origin_v1";
+constexpr StringLiteral kRegisterAccessOriginFunction =
+    "__cachescope_register_access_origin_v1";
+constexpr StringLiteral kRegisterStageLocationFunction =
+    "__cachescope_register_stage_location_v1";
 constexpr StringLiteral kAccessIdMetadata = "cachescope.access_id";
 constexpr StringLiteral kMemrefIdMetadata = "cachescope.memref_id";
 constexpr StringLiteral kOriginIdMetadata = "cachescope.origin_id";
@@ -106,6 +111,12 @@ struct StaticAccess {
   std::string sourceLocation;
   SmallVector<OriginDescription> origins;
   SmallVector<StageLocation> stageLocations;
+};
+
+struct SourceMapRegistration {
+  std::string payloadFingerprint;
+  SmallVector<std::pair<std::string, std::string>> stages;
+  std::map<std::int64_t, OriginDescription> origins;
 };
 
 class InstrumentLLVMFallbackPass
@@ -300,7 +311,10 @@ static bool isAllowedRuntimeCall(LLVM::CallOp call) {
          *callee == kRegisterAccessFunction ||
          *callee == kRegisterSourceFunction ||
          *callee == kRegisterSourceMapFunction ||
-         *callee == kRegisterMappingFunction ||
+         *callee == kRegisterStageFunction ||
+         *callee == kRegisterOriginFunction ||
+         *callee == kRegisterAccessOriginFunction ||
+         *callee == kRegisterStageLocationFunction ||
          *callee == kFallbackTraceFunction;
 }
 
@@ -362,14 +376,14 @@ static LLVM::LLVMFuncOp getOrCreateSourceMapDeclaration(ModuleOp module) {
                                   LLVM::Linkage::External);
 }
 
-static LLVM::LLVMFuncOp getOrCreateMappingDeclaration(ModuleOp module) {
+static LLVM::LLVMFuncOp getOrCreateStageDeclaration(ModuleOp module) {
   auto i64 = IntegerType::get(module.getContext(), 64);
   auto pointer = LLVM::LLVMPointerType::get(module.getContext());
   auto type = LLVM::LLVMFunctionType::get(
       LLVM::LLVMVoidType::get(module.getContext()), {i64, pointer, pointer});
 
   if (auto existing =
-          module.lookupSymbol<LLVM::LLVMFuncOp>(kRegisterMappingFunction)) {
+          module.lookupSymbol<LLVM::LLVMFuncOp>(kRegisterStageFunction)) {
     if (existing.getFunctionType() == type)
       return existing;
     return {};
@@ -378,7 +392,68 @@ static LLVM::LLVMFuncOp getOrCreateMappingDeclaration(ModuleOp module) {
   OpBuilder builder(module.getContext());
   builder.setInsertionPointToStart(module.getBody());
   return LLVM::LLVMFuncOp::create(builder, module.getLoc(),
-                                  kRegisterMappingFunction, type,
+                                  kRegisterStageFunction, type,
+                                  LLVM::Linkage::External);
+}
+
+static LLVM::LLVMFuncOp getOrCreateOriginDeclaration(ModuleOp module) {
+  auto i64 = IntegerType::get(module.getContext(), 64);
+  auto pointer = LLVM::LLVMPointerType::get(module.getContext());
+  auto type =
+      LLVM::LLVMFunctionType::get(LLVM::LLVMVoidType::get(module.getContext()),
+                                  {i64, pointer, i64, i64, pointer});
+
+  if (auto existing =
+          module.lookupSymbol<LLVM::LLVMFuncOp>(kRegisterOriginFunction)) {
+    if (existing.getFunctionType() == type)
+      return existing;
+    return {};
+  }
+
+  OpBuilder builder(module.getContext());
+  builder.setInsertionPointToStart(module.getBody());
+  return LLVM::LLVMFuncOp::create(builder, module.getLoc(),
+                                  kRegisterOriginFunction, type,
+                                  LLVM::Linkage::External);
+}
+
+static LLVM::LLVMFuncOp getOrCreateAccessOriginDeclaration(ModuleOp module) {
+  auto i64 = IntegerType::get(module.getContext(), 64);
+  auto type = LLVM::LLVMFunctionType::get(
+      LLVM::LLVMVoidType::get(module.getContext()), {i64, i64});
+
+  if (auto existing = module.lookupSymbol<LLVM::LLVMFuncOp>(
+          kRegisterAccessOriginFunction)) {
+    if (existing.getFunctionType() == type)
+      return existing;
+    return {};
+  }
+
+  OpBuilder builder(module.getContext());
+  builder.setInsertionPointToStart(module.getBody());
+  return LLVM::LLVMFuncOp::create(builder, module.getLoc(),
+                                  kRegisterAccessOriginFunction, type,
+                                  LLVM::Linkage::External);
+}
+
+static LLVM::LLVMFuncOp getOrCreateStageLocationDeclaration(ModuleOp module) {
+  auto i64 = IntegerType::get(module.getContext(), 64);
+  auto pointer = LLVM::LLVMPointerType::get(module.getContext());
+  auto type =
+      LLVM::LLVMFunctionType::get(LLVM::LLVMVoidType::get(module.getContext()),
+                                  {i64, pointer, i64, i64, pointer});
+
+  if (auto existing = module.lookupSymbol<LLVM::LLVMFuncOp>(
+          kRegisterStageLocationFunction)) {
+    if (existing.getFunctionType() == type)
+      return existing;
+    return {};
+  }
+
+  OpBuilder builder(module.getContext());
+  builder.setInsertionPointToStart(module.getBody());
+  return LLVM::LLVMFuncOp::create(builder, module.getLoc(),
+                                  kRegisterStageLocationFunction, type,
                                   LLVM::Linkage::External);
 }
 
@@ -426,47 +501,6 @@ static void insertFallbackCall(const LLVMAccess &access,
   LLVM::CallOp::create(builder, location, traceFunction, arguments);
 }
 
-static std::string jsonEscape(StringRef value) {
-  std::ostringstream result;
-  result << std::hex;
-  for (unsigned char character : value.bytes()) {
-    switch (character) {
-    case '\\':
-      result << "\\\\";
-      break;
-    case '"':
-      result << "\\\"";
-      break;
-    case '\b':
-      result << "\\b";
-      break;
-    case '\f':
-      result << "\\f";
-      break;
-    case '\n':
-      result << "\\n";
-      break;
-    case '\r':
-      result << "\\r";
-      break;
-    case '\t':
-      result << "\\t";
-      break;
-    default:
-      if (character < 0x20) {
-        result << "\\u";
-        result.width(4);
-        result.fill('0');
-        result << static_cast<unsigned>(character);
-      } else {
-        result << static_cast<char>(character);
-      }
-      break;
-    }
-  }
-  return result.str();
-}
-
 static bool isPayloadFingerprint(StringRef value) {
   if (!value.consume_front("sha256:") || value.size() != 64)
     return false;
@@ -493,9 +527,9 @@ static bool isPortableArtifactPath(StringRef path) {
   });
 }
 
-static FailureOr<std::string>
-buildSourceMapJson(const std::map<std::int64_t, StaticAccess> &accesses,
-                   StringRef payloadFingerprint) {
+static FailureOr<SourceMapRegistration>
+buildSourceMapRegistration(const std::map<std::int64_t, StaticAccess> &accesses,
+                           StringRef payloadFingerprint) {
   if (!isPayloadFingerprint(payloadFingerprint))
     return failure();
 
@@ -540,74 +574,16 @@ buildSourceMapJson(const std::map<std::int64_t, StaticAccess> &accesses,
     (void)originId;
   }
 
-  std::ostringstream json;
-  json << "{\"schema\":\"cachescope.source-map.v1\","
-       << "\"payload_fingerprint\":\"" << payloadFingerprint.str()
-       << "\",\"stages\":[";
-  bool first = true;
+  SourceMapRegistration registration;
+  registration.payloadFingerprint = payloadFingerprint.str();
   for (StringRef stageId : kCanonicalStages) {
     auto path = stagePaths.find(stageId.str());
     if (path == stagePaths.end())
       continue;
-    if (!first)
-      json << ',';
-    first = false;
-    json << "{\"stage_id\":\"" << stageId.str() << "\",\"path\":\""
-         << jsonEscape(path->second) << "\"}";
+    registration.stages.emplace_back(stageId.str(), path->second);
   }
-  json << "],\"origins\":[";
-  first = true;
-  for (const auto &[originId, origin] : origins) {
-    if (!first)
-      json << ',';
-    first = false;
-    json << "{\"origin_id\":" << originId
-         << ",\"stage_id\":\"input\",\"line\":" << origin.position.line
-         << ",\"column\":" << origin.position.column << ",\"operation\":\""
-         << jsonEscape(origin.operation) << "\"}";
-  }
-  json << "]}";
-  return json.str();
-}
-
-static std::string buildOriginIdsJson(const StaticAccess &access) {
-  std::ostringstream json;
-  json << '[';
-  for (std::size_t index = 0; index < access.origins.size(); ++index) {
-    if (index != 0)
-      json << ',';
-    json << access.origins[index].originId;
-  }
-  json << ']';
-  return json.str();
-}
-
-static std::string buildStageLocationsJson(const StaticAccess &access) {
-  SmallVector<const StageLocation *> ordered;
-  ordered.reserve(access.stageLocations.size());
-  for (const StageLocation &stage : access.stageLocations)
-    ordered.push_back(&stage);
-  llvm::sort(
-      ordered, [](const StageLocation *left, const StageLocation *right) {
-        return std::tuple(*stageOrdinal(left->stageId), left->position.line,
-                          left->position.column, left->operation) <
-               std::tuple(*stageOrdinal(right->stageId), right->position.line,
-                          right->position.column, right->operation);
-      });
-
-  std::ostringstream json;
-  json << '[';
-  for (std::size_t index = 0; index < ordered.size(); ++index) {
-    if (index != 0)
-      json << ',';
-    const StageLocation &stage = *ordered[index];
-    json << "{\"stage_id\":\"" << jsonEscape(stage.stageId)
-         << "\",\"line\":" << stage.position.line
-         << ",\"column\":" << stage.position.column << ",\"operation\":\""
-         << jsonEscape(stage.operation) << "\"}";
-  }
-  json << ']';
-  return json.str();
+  registration.origins = std::move(origins);
+  return registration;
 }
 
 static LLVM::GlobalOp createStringGlobal(ModuleOp module, StringRef value,
@@ -639,44 +615,82 @@ static Value getStringAddress(OpBuilder &builder, Location location,
                              indices);
 }
 
-static void insertStaticRegistrations(ModuleOp module,
-                                      LLVM::LLVMFuncOp function,
-                                      SmallVectorImpl<StaticAccess> &accesses,
-                                      LLVM::LLVMFuncOp registrationFunction,
-                                      LLVM::LLVMFuncOp sourceFunction,
-                                      StringRef sourceMapJson,
-                                      LLVM::LLVMFuncOp sourceMapFunction,
-                                      LLVM::LLVMFuncOp mappingFunction) {
+static void insertStaticRegistrations(
+    ModuleOp module, LLVM::LLVMFuncOp function,
+    SmallVectorImpl<StaticAccess> &accesses,
+    LLVM::LLVMFuncOp registrationFunction, LLVM::LLVMFuncOp sourceFunction,
+    const SourceMapRegistration *sourceMap, LLVM::LLVMFuncOp sourceMapFunction,
+    LLVM::LLVMFuncOp stageFunction, LLVM::LLVMFuncOp originFunction,
+    LLVM::LLVMFuncOp accessOriginFunction,
+    LLVM::LLVMFuncOp stageLocationFunction) {
   llvm::sort(accesses, [](const StaticAccess &left, const StaticAccess &right) {
     return left.accessId < right.accessId;
   });
 
+  struct StageLocationGlobals {
+    StageLocation *location;
+    LLVM::GlobalOp stageId;
+    LLVM::GlobalOp operation;
+  };
   struct RegistrationGlobals {
     StaticAccess *access;
     LLVM::GlobalOp source;
-    LLVM::GlobalOp originIds;
-    LLVM::GlobalOp stageLocations;
+    SmallVector<StageLocationGlobals> stageLocations;
   };
   SmallVector<RegistrationGlobals> globals;
   for (StaticAccess &access : accesses) {
     const std::string id = std::to_string(access.accessId);
     LLVM::GlobalOp source = createStringGlobal(module, access.sourceLocation,
                                                "__cachescope_source_" + id);
-    LLVM::GlobalOp originIds;
-    LLVM::GlobalOp stageLocations;
-    if (!sourceMapJson.empty() && access.addressKind == kSemanticAddress) {
-      originIds = createStringGlobal(module, buildOriginIdsJson(access),
-                                     "__cachescope_origin_ids_" + id);
-      stageLocations =
-          createStringGlobal(module, buildStageLocationsJson(access),
-                             "__cachescope_stage_locations_" + id);
+    SmallVector<StageLocationGlobals> locationGlobals;
+    for (auto indexed : llvm::enumerate(access.stageLocations)) {
+      StageLocation &location = indexed.value();
+      const std::string suffix = id + "_" + std::to_string(indexed.index());
+      LLVM::GlobalOp stageId = createStringGlobal(
+          module, location.stageId, "__cachescope_location_stage_" + suffix);
+      LLVM::GlobalOp operation = createStringGlobal(
+          module, location.operation, "__cachescope_location_op_" + suffix);
+      locationGlobals.push_back({&location, stageId, operation});
     }
-    globals.push_back({&access, source, originIds, stageLocations});
+    globals.push_back({&access, source, std::move(locationGlobals)});
   }
-  LLVM::GlobalOp sourceMapGlobal;
-  if (!sourceMapJson.empty())
-    sourceMapGlobal =
-        createStringGlobal(module, sourceMapJson, "__cachescope_source_map");
+
+  struct StageGlobals {
+    std::int64_t ordinal;
+    LLVM::GlobalOp stageId;
+    LLVM::GlobalOp path;
+  };
+  struct OriginGlobals {
+    std::int64_t originId;
+    const OriginDescription *origin;
+    LLVM::GlobalOp stageId;
+    LLVM::GlobalOp operation;
+  };
+  LLVM::GlobalOp fingerprintGlobal;
+  SmallVector<StageGlobals> stageGlobals;
+  SmallVector<OriginGlobals> originGlobals;
+  if (sourceMap) {
+    fingerprintGlobal = createStringGlobal(
+        module, sourceMap->payloadFingerprint, "__cachescope_fingerprint");
+    for (auto [ordinal, stage] : llvm::enumerate(sourceMap->stages)) {
+      const std::string suffix = std::to_string(ordinal);
+      stageGlobals.push_back(
+          {static_cast<std::int64_t>(ordinal),
+           createStringGlobal(module, stage.first,
+                              "__cachescope_stage_id_" + suffix),
+           createStringGlobal(module, stage.second,
+                              "__cachescope_stage_path_" + suffix)});
+    }
+    for (auto &[originId, origin] : sourceMap->origins) {
+      const std::string suffix = std::to_string(originId);
+      originGlobals.push_back(
+          {originId, &origin,
+           createStringGlobal(module, "input",
+                              "__cachescope_origin_stage_" + suffix),
+           createStringGlobal(module, origin.operation,
+                              "__cachescope_origin_op_" + suffix)});
+    }
+  }
 
   OpBuilder builder(module.getContext());
   builder.setInsertionPointToStart(&function.getBody().front());
@@ -685,11 +699,31 @@ static void insertStaticRegistrations(ModuleOp module,
     return LLVM::ConstantOp::create(builder, function.getLoc(), i64, value);
   };
 
-  if (sourceMapGlobal) {
-    Value sourceMap =
-        getStringAddress(builder, function.getLoc(), sourceMapGlobal);
+  if (fingerprintGlobal) {
+    Value fingerprint =
+        getStringAddress(builder, function.getLoc(), fingerprintGlobal);
     LLVM::CallOp::create(builder, function.getLoc(), sourceMapFunction,
-                         ValueRange{sourceMap});
+                         ValueRange{fingerprint});
+    for (const StageGlobals &stage : stageGlobals) {
+      Value stageId =
+          getStringAddress(builder, function.getLoc(), stage.stageId);
+      Value path = getStringAddress(builder, function.getLoc(), stage.path);
+      SmallVector<Value, 3> arguments{constant(stage.ordinal), stageId, path};
+      LLVM::CallOp::create(builder, function.getLoc(), stageFunction,
+                           arguments);
+    }
+    for (const OriginGlobals &entry : originGlobals) {
+      Value stageId =
+          getStringAddress(builder, function.getLoc(), entry.stageId);
+      Value operation =
+          getStringAddress(builder, function.getLoc(), entry.operation);
+      SmallVector<Value, 5> arguments{constant(entry.originId), stageId,
+                                      constant(entry.origin->position.line),
+                                      constant(entry.origin->position.column),
+                                      operation};
+      LLVM::CallOp::create(builder, function.getLoc(), originFunction,
+                           arguments);
+    }
   }
   for (RegistrationGlobals &entry : globals) {
     StaticAccess *access = entry.access;
@@ -702,15 +736,25 @@ static void insertStaticRegistrations(ModuleOp module,
     SmallVector<Value, 2> sourceArguments{constant(access->accessId), source};
     LLVM::CallOp::create(builder, function.getLoc(), sourceFunction,
                          sourceArguments);
-    if (entry.originIds) {
-      Value originIds =
-          getStringAddress(builder, function.getLoc(), entry.originIds);
-      Value stageLocations =
-          getStringAddress(builder, function.getLoc(), entry.stageLocations);
-      SmallVector<Value, 3> mappingArguments{constant(access->accessId),
-                                             originIds, stageLocations};
-      LLVM::CallOp::create(builder, function.getLoc(), mappingFunction,
-                           mappingArguments);
+    if (sourceMap && access->addressKind == kSemanticAddress) {
+      for (const OriginDescription &origin : access->origins) {
+        SmallVector<Value, 2> originArguments{constant(access->accessId),
+                                              constant(origin.originId)};
+        LLVM::CallOp::create(builder, function.getLoc(), accessOriginFunction,
+                             originArguments);
+      }
+      for (const StageLocationGlobals &location : entry.stageLocations) {
+        Value stageId =
+            getStringAddress(builder, function.getLoc(), location.stageId);
+        Value operation =
+            getStringAddress(builder, function.getLoc(), location.operation);
+        SmallVector<Value, 5> locationArguments{
+            constant(access->accessId), stageId,
+            constant(location.location->position.line),
+            constant(location.location->position.column), operation};
+        LLVM::CallOp::create(builder, function.getLoc(), stageLocationFunction,
+                             locationArguments);
+      }
     }
   }
 }
@@ -858,21 +902,28 @@ void InstrumentLLVMFallbackPass::runOnOperation() {
                        << " exists with an incompatible type";
     return signalPassFailure();
   }
-  std::string sourceMapJson;
+  std::optional<SourceMapRegistration> sourceMap;
   LLVM::LLVMFuncOp sourceMapFunction;
-  LLVM::LLVMFuncOp mappingFunction;
+  LLVM::LLVMFuncOp stageFunction;
+  LLVM::LLVMFuncOp originFunction;
+  LLVM::LLVMFuncOp accessOriginFunction;
+  LLVM::LLVMFuncOp stageLocationFunction;
   if (!payloadFingerprint.empty()) {
-    FailureOr<std::string> sourceMap =
-        buildSourceMapJson(staticAccesses, payloadFingerprint);
-    if (failed(sourceMap)) {
+    FailureOr<SourceMapRegistration> registration =
+        buildSourceMapRegistration(staticAccesses, payloadFingerprint);
+    if (failed(registration)) {
       module.emitError(
           "cannot build a complete source map from the tagged locations");
       return signalPassFailure();
     }
-    sourceMapJson = std::move(*sourceMap);
+    sourceMap.emplace(std::move(*registration));
     sourceMapFunction = getOrCreateSourceMapDeclaration(module);
-    mappingFunction = getOrCreateMappingDeclaration(module);
-    if (!sourceMapFunction || !mappingFunction) {
+    stageFunction = getOrCreateStageDeclaration(module);
+    originFunction = getOrCreateOriginDeclaration(module);
+    accessOriginFunction = getOrCreateAccessOriginDeclaration(module);
+    stageLocationFunction = getOrCreateStageLocationDeclaration(module);
+    if (!sourceMapFunction || !stageFunction || !originFunction ||
+        !accessOriginFunction || !stageLocationFunction) {
       module.emitError(
           "source mapping runtime symbol has an incompatible type");
       return signalPassFailure();
@@ -882,9 +933,10 @@ void InstrumentLLVMFallbackPass::runOnOperation() {
   registrations.reserve(staticAccesses.size());
   for (auto &[id, access] : staticAccesses)
     registrations.push_back(std::move(access));
-  insertStaticRegistrations(module, function, registrations,
-                            registrationFunction, sourceFunction, sourceMapJson,
-                            sourceMapFunction, mappingFunction);
+  insertStaticRegistrations(
+      module, function, registrations, registrationFunction, sourceFunction,
+      sourceMap ? &*sourceMap : nullptr, sourceMapFunction, stageFunction,
+      originFunction, accessOriginFunction, stageLocationFunction);
   module->setAttr(kInstrumentedAttribute, UnitAttr::get(&getContext()));
 }
 

@@ -32,6 +32,8 @@
 - marked load/store: считаются уже покрытыми;
 - unmarked load/store/atomics: получают pointer fallback calls;
 - все semantic/fallback sites регистрируются в прологе вместе с location;
+- source-map metadata передаётся в runtime типизированными ABI calls, без
+  готовых JSON-фрагментов;
 - unknown direct memory effect или call: pass failure.
 
 ## Required order
@@ -65,6 +67,7 @@ input snapshot → assign origins → tag input
 - unsupported access не пропускается молча;
 - semantic и fallback ID spaces не пересекаются в текущем MVP;
 - static access table не зависит от выполненных control-flow paths;
+- JSON сериализует только runtime после проверки ссылок и полноты mapping;
 - при включённом `payload-fingerprint` потеря provenance завершает pass
   ошибкой;
 - plugin не выполняет I/O и не хранит runtime state.
