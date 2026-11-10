@@ -42,6 +42,7 @@
     "recorded_events": {"type": "integer", "minimum": 0},
     "truncated": {"type": "boolean"},
     "errors": {"type": "array", "items": {"type": "string"}},
+    "source_map": {"$ref": "#/$defs/source_map"},
     "accesses": {
       "type": "array",
       "items": {"$ref": "#/$defs/access"}
@@ -55,6 +56,69 @@
     "kind": {"enum": ["read", "write", "read_write"]},
     "event_kind": {"enum": ["read", "write", "read_write", "invalid"]},
     "address_kind": {"enum": ["memref_offset", "process_address"]},
+    "stage_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$"
+    },
+    "stage": {
+      "type": "object",
+      "required": ["stage_id", "path"],
+      "properties": {
+        "stage_id": {"$ref": "#/$defs/stage_id"},
+        "path": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": true
+    },
+    "origin": {
+      "type": "object",
+      "required": [
+        "origin_id",
+        "stage_id",
+        "line",
+        "column",
+        "operation"
+      ],
+      "properties": {
+        "origin_id": {"type": "integer", "minimum": 0},
+        "stage_id": {"$ref": "#/$defs/stage_id"},
+        "line": {"type": "integer", "minimum": 1},
+        "column": {"type": "integer", "minimum": 1},
+        "operation": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": true
+    },
+    "stage_location": {
+      "type": "object",
+      "required": ["stage_id", "line", "column", "operation"],
+      "properties": {
+        "stage_id": {"$ref": "#/$defs/stage_id"},
+        "line": {"type": "integer", "minimum": 1},
+        "column": {"type": "integer", "minimum": 1},
+        "operation": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": true
+    },
+    "source_map": {
+      "type": "object",
+      "required": ["schema", "payload_fingerprint", "stages", "origins"],
+      "properties": {
+        "schema": {"const": "cachescope.source-map.v1"},
+        "payload_fingerprint": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "stages": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/stage"}
+        },
+        "origins": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/origin"}
+        }
+      },
+      "additionalProperties": true
+    },
     "access": {
       "type": "object",
       "required": [
@@ -69,7 +133,16 @@
         "memref_id": {"type": "integer"},
         "kind": {"$ref": "#/$defs/kind"},
         "address_kind": {"$ref": "#/$defs/address_kind"},
-        "source_location": {"type": "string"}
+        "source_location": {"type": "string"},
+        "origin_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "integer", "minimum": 0}
+        },
+        "stage_locations": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/stage_location"}
+        }
       },
       "additionalProperties": true
     },

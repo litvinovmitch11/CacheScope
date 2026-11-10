@@ -39,6 +39,14 @@
 
 Отказ является частью контракта полноты, а не случайным ограничением parser.
 
+## Контракт готов, producer implementation ожидается
+
+| Возможность | Состояние |
+|---|---|
+| `cachescope.source-map.v1` | schema, validator, fixture и UI navigation rules |
+| Stage-aware MLIR dumps | контракт определён, locations ещё не публикуются producer-ом |
+| Cross-variant `origin_id` | контракт определён, propagation ещё не реализован |
+
 ## Пока не поддерживается
 
 - `memref.copy` как semantic operation;
