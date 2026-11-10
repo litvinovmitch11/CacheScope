@@ -1,0 +1,244 @@
+:root {
+  --bg: #fafafa;
+  --fg: #1c1c1e;
+  --muted: #6b7280;
+  --line: #e5e7eb;
+  --card: #fff;
+  --rh: #16a34a;
+  --wh: #86efac;
+  --rm: #dc2626;
+  --wm: #fca5a5;
+  font-family: system-ui, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #151517;
+    --fg: #ececec;
+    --muted: #9ca3af;
+    --line: #2e2e33;
+    --card: #1e1e22;
+  }
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+main {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.picker {
+  display: inline-block;
+  padding: 10px 16px;
+  border: 1px dashed var(--muted);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.picker input {
+  display: none;
+}
+
+.errors,
+.warn {
+  color: #dc2626;
+}
+
+.group {
+  margin-top: 32px;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(460px, 1fr));
+  gap: 16px;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.card header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.card h3 {
+  margin: 0;
+}
+
+.metrics {
+  display: flex;
+  gap: 32px;
+  margin: 12px 0;
+}
+
+.metric-value {
+  font-size: 1.8rem;
+  font-weight: 600;
+}
+
+.bar {
+  display: flex;
+  height: 14px;
+  border-radius: 7px;
+  overflow: hidden;
+  background: var(--line);
+}
+
+.legend {
+  display: flex;
+  gap: 12px;
+  margin-top: 6px;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.legend i {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+.seg-rh {
+  background: var(--rh);
+}
+
+.seg-wh {
+  background: var(--wh);
+}
+
+.seg-rm {
+  background: var(--rm);
+}
+
+.seg-wm {
+  background: var(--wm);
+}
+
+.totals {
+  margin: 12px 0 0;
+}
+
+.totals div {
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.9rem;
+}
+
+.totals dt {
+  color: var(--muted);
+}
+
+.totals dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.cmp {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0 20px;
+  background: var(--card);
+}
+
+.cmp th,
+.cmp td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+  text-align: right;
+}
+
+.cmp th:first-child,
+.cmp td:first-child {
+  text-align: left;
+}
+
+.cmp tr.base {
+  font-weight: 600;
+}
+
+.cmp.small {
+  font-size: 0.8rem;
+  margin: 8px 0;
+}
+
+.cmp.small th,
+.cmp.small td {
+  padding: 4px 6px;
+}
+
+.levels tbody tr {
+  cursor: pointer;
+}
+
+.levels tbody tr.sel {
+  background: var(--line);
+}
+
+.tabs {
+  display: flex;
+  gap: 6px;
+  margin: 10px 0 4px;
+}
+
+.tab {
+  padding: 4px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--fg);
+  cursor: pointer;
+}
+
+.tab.active {
+  background: var(--fg);
+  color: var(--bg);
+}
+
+details {
+  margin-top: 12px;
+}
+
+summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.instructions-table-wrap {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  min-width: 0;
+}
+
+.instructions-table {
+  width: 100%;
+  min-width: 850px;
+  table-layout: auto;
+}
+
+.instructions-table th,
+.instructions-table td {
+  white-space: nowrap;
+}
