@@ -1,0 +1,207 @@
+{
+  "schema": "cachescope.simulation-events.v1",
+  "variant": "fixture",
+  "levels": [
+    {
+      "level": 1,
+      "name": "L1",
+      "cache_config": {
+        "size_bytes": 256,
+        "line_size_bytes": 64,
+        "associativity": 2,
+        "set_count": 2,
+        "replacement_policy": "scripted"
+      }
+    },
+    {
+      "level": 2,
+      "name": "L2",
+      "cache_config": {
+        "size_bytes": 256,
+        "line_size_bytes": 64,
+        "associativity": 2,
+        "set_count": 2,
+        "replacement_policy": "scripted"
+      }
+    },
+    {
+      "level": 3,
+      "name": "L3",
+      "cache_config": {
+        "size_bytes": 256,
+        "line_size_bytes": 64,
+        "associativity": 2,
+        "set_count": 2,
+        "replacement_policy": "scripted"
+      }
+    }
+  ],
+  "events": [
+    {
+      "sequence": 0,
+      "access_id": 10,
+      "kind": "read",
+      "address": "0x1000003c",
+      "size_bytes": 8,
+      "lines": [
+        {
+          "line_address": "0x10000000",
+          "hit": true,
+          "set": 0,
+          "way": 0,
+          "evicted_address": null,
+          "evicted_dirty": null
+        },
+        {
+          "line_address": "0x10000040",
+          "hit": false,
+          "set": 1,
+          "way": 1,
+          "evicted_address": "0x0",
+          "evicted_dirty": false
+        }
+      ],
+      "level_results": [
+        {
+          "level": 1,
+          "lines": [
+            {
+              "line_address": "0x10000000",
+              "hit": true,
+              "set": 0,
+              "way": 0,
+              "evicted_address": null,
+              "evicted_dirty": null
+            },
+            {
+              "line_address": "0x10000040",
+              "hit": false,
+              "set": 1,
+              "way": 1,
+              "evicted_address": "0x0",
+              "evicted_dirty": false
+            }
+          ]
+        },
+        {
+          "level": 2,
+          "lines": [
+            {
+              "line_address": "0x10000040",
+              "hit": true,
+              "set": 0,
+              "way": 0,
+              "evicted_address": null,
+              "evicted_dirty": null
+            }
+          ]
+        }
+      ],
+      "evictions": [
+        {
+          "level": 1,
+          "line_address": "0x0",
+          "dirty": false
+        }
+      ],
+      "memory_reads": 0,
+      "memory_writebacks": 0
+    },
+    {
+      "sequence": 1,
+      "access_id": 20,
+      "kind": "write",
+      "address": "0x10000080",
+      "size_bytes": 4,
+      "lines": [
+        {
+          "line_address": "0x10000080",
+          "hit": false,
+          "set": 0,
+          "way": 0,
+          "evicted_address": null,
+          "evicted_dirty": null
+        }
+      ],
+      "level_results": [
+        {
+          "level": 1,
+          "lines": [
+            {
+              "line_address": "0x10000080",
+              "hit": false,
+              "set": 0,
+              "way": 0,
+              "evicted_address": null,
+              "evicted_dirty": null
+            }
+          ]
+        },
+        {
+          "level": 2,
+          "lines": [
+            {
+              "line_address": "0x10000080",
+              "hit": false,
+              "set": 0,
+              "way": null,
+              "evicted_address": null,
+              "evicted_dirty": null
+            }
+          ]
+        },
+        {
+          "level": 3,
+          "lines": [
+            {
+              "line_address": "0x10000080",
+              "hit": true,
+              "set": 0,
+              "way": 0,
+              "evicted_address": null,
+              "evicted_dirty": null
+            }
+          ]
+        }
+      ],
+      "evictions": [],
+      "memory_reads": 0,
+      "memory_writebacks": 0
+    },
+    {
+      "sequence": 2,
+      "access_id": 10,
+      "kind": "read",
+      "address": "0x10000000",
+      "size_bytes": 4,
+      "lines": [
+        {
+          "line_address": "0x10000000",
+          "hit": true,
+          "set": 0,
+          "way": 0,
+          "evicted_address": null,
+          "evicted_dirty": null
+        }
+      ],
+      "level_results": [
+        {
+          "level": 1,
+          "lines": [
+            {
+              "line_address": "0x10000000",
+              "hit": true,
+              "set": 0,
+              "way": 0,
+              "evicted_address": null,
+              "evicted_dirty": null
+            }
+          ]
+        }
+      ],
+      "evictions": [],
+      "memory_reads": 0,
+      "memory_writebacks": 0
+    }
+  ]
+}
