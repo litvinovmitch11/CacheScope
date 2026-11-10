@@ -317,7 +317,7 @@ trace.v1 JSON
   → Cache runner: проверка трассы, адреса, статистика, JSON-отчёт
     → CacheHierarchy: read/write(address, size), политики между уровнями
       → ICacheLevel: lookup / touch / insert / invalidate / clear
-        → IReplacementPolicy: on_hit / on_insert / choose_victim / clear
+        → IReplacementPolicy: on_hit / on_insert / on_invalidate / choose_victim / clear
 ```
 
 ### Ответственность и владение
@@ -341,18 +341,15 @@ trace.v1 JSON
 
 - `on_hit(way)` обновляет порядок использования после обращения к существующей
   строке; его вызывает уровень при `touch`.
-- `on_insert(way)` учитывает размещение новой строки.
+- `on_insert(way)` учитывает размещение новой строки и обновляет состояние
+  переиспользуемого way.
+- `on_invalidate(way)` удаляет way из replacement state; неизвестный way
+  игнорируется. Уровень вызывает его при удалении существующей строки.
 - `choose_victim()` выбирает way для вытеснения, когда свободных ways нет.
 - `clear()` сбрасывает состояние политики данного set.
 
 Свободный way выбирает сам уровень; valid/dirty хранятся в уровне. Состояние LRU
 для разных sets должно быть независимым.
-
-Текущий интерфейс политики не содержит `on_invalidate(way)`. При реализации
-удаления нужно согласовать, как исключать освобождённый way из replacement
-state: расширить контракт уведомлением либо обеспечить корректность внутри
-реализации уровня и политики. Само наличие `invalidate` у уровня эту задачу
-не решает; изменение API политики в рамках этой документации не выполняется.
 
 ### Cache level
 

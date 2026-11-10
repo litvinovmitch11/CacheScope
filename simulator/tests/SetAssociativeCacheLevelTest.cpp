@@ -12,10 +12,15 @@ namespace {
 struct Policy final : IReplacementPolicy {
   std::vector<std::size_t> order;
   bool invalid_victim = false;
+  std::vector<std::size_t> invalidations;
   void on_hit(std::size_t way) override { on_insert(way); }
   void on_insert(std::size_t way) override {
     order.erase(std::remove(order.begin(), order.end(), way), order.end());
     order.push_back(way);
+  }
+  void on_invalidate(std::size_t way) override {
+    invalidations.push_back(way);
+    order.erase(std::remove(order.begin(), order.end(), way), order.end());
   }
   std::size_t choose_victim() override {
     if (order.empty()) {
@@ -24,7 +29,10 @@ struct Policy final : IReplacementPolicy {
     return invalid_victim ? std::numeric_limits<std::size_t>::max()
                           : order.front();
   }
-  void clear() override { order.clear(); }
+  void clear() override {
+    order.clear();
+    invalidations.clear();
+  }
 };
 
 ReplacementPolicyFactory factory() {
@@ -159,6 +167,11 @@ TEST(SetAssociativeCacheLevelTest, PolicyContract) {
   cache.insert({0, false});
   cache.insert({128, false});
   cache.invalidate(0);
+  EXPECT_EQ(policies[0]->order, (std::vector<std::size_t>{1}));
+  EXPECT_EQ(policies[0]->invalidations, (std::vector<std::size_t>{0}));
+  EXPECT_TRUE(policies[1]->invalidations.empty());
+  EXPECT_FALSE(cache.invalidate(0).has_value());
+  EXPECT_EQ(policies[0]->invalidations.size(), 1u);
   EXPECT_FALSE(cache.insert({256, false}).evicted.has_value());
   EXPECT_EQ(policies[0]->order, (std::vector<std::size_t>{1, 0}));
   EXPECT_TRUE(policies[1]->order.empty());
