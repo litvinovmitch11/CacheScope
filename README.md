@@ -32,7 +32,7 @@ ctest --test-dir build/runner --output-on-failure
 ```
 
 API и smoke-тест: [runner](runner/README.md). Владение уровнями и exclusive:
-[CacheHierarchy](hierarchy/README.md). [Контракт UI](docs/SIMULATION_FORMAT.md)
+[CacheHierarchy](simulator/README.md). [Контракт UI](docs/SIMULATION_FORMAT.md)
 и [дополнительные поля отчёта](docs/STATISTICS_FORMAT.md).
 
 ## Быстрый старт
@@ -108,9 +108,11 @@ python3 scripts/validate_trace.py output/trace-demo/baseline/trace.json
 ```text
 compiler/cs-trace/     MLIR pass plugin
 compiler/runtime/      runtime trace producer
-schemas/               machine-readable shared contracts
+simulator/             include/lib/tests: уровни кеша, политики и иерархия
+runner/                include/lib/tests: replay, статистика и JSON-отчёты
+schemas/               общие контракты и fixtures
 examples/              один канонический pipeline и optional PyTorch frontend
-tests/                 integration/contract suites
+tests/                 compiler, ABI и проверки общих контрактов
 docs/                  архитектура и межкомпонентные контракты
 llvm-project/          закреплённый upstream LLVM submodule
 output/                локальные generated artifacts, ignored

@@ -5,6 +5,11 @@ C++17-библиотека воспроизводит полный `cachescope.t
 на строки и выполняет exclusive-переносы с сохранением dirty. Раннер назначает
 адреса буферам, собирает статистику и записывает отчёт для UI.
 
+Публичный интерфейс находится в `include/cache_simulator/trace_runner.hpp`,
+реализация — в `lib/`, тесты и их ожидаемые отчёты — в `tests/`.
+Общие trace-fixtures берутся из `schemas/fixtures/`. Уровни кеша и иерархия
+реализованы в `simulator/`.
+
 ## Сборка без LLVM
 
 ```bash
@@ -44,7 +49,7 @@ cache_simulator::RunSummary replay() {
 Конфигурация должна соответствовать реальному уровню. Уровни реализуют
 `lookup/touch/invalidate/insert/clear`; иерархия получает исключительное владение ими.
 Используется актуальный `ICacheLevel` из `CacheLevel.h`.
-Подробнее: [CacheHierarchy](../hierarchy/README.md).
+Подробнее: [CacheHierarchy](../simulator/README.md).
 
 Перед запуском раннер проверяет весь файл, автоматически назначает буферам
 непересекающиеся адреса и вызывает `hierarchy.clear()`. Вторым проходом он

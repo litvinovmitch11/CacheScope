@@ -240,8 +240,8 @@ Compiler runtime отвечает за создание trace. Cache simulator �
 Оно добавляет поля в существующие схемы `v1`, сохраняя прежние поля и их типы.
 Отдельная директория `<config-name>` соответствует конфигурации всей иерархии.
 
-Примеры для UI: [statistics.json](examples/cache-hierarchy/statistics.json) и
-[events.json](examples/cache-hierarchy/events.json). Это статические fixtures
+Примеры для UI: [statistics.json](../schemas/fixtures/cache-hierarchy/statistics.json) и
+[events.json](../schemas/fixtures/cache-hierarchy/events.json). Это статические fixtures
 с заданными исходами проверок, предназначенные для проверки формата и счётчиков.
 
 ### 6.1. Идентификаторы и статистика уровней

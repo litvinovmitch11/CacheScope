@@ -1,6 +1,6 @@
 #pragma once
 
-#include "cache_hierarchy.hpp"
+#include "cache_simulator/cache_hierarchy.hpp"
 
 #include <filesystem>
 #include <map>

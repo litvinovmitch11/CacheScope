@@ -91,7 +91,7 @@ Emulator обязан:
 - вернуть детерминированные statistics для одинаковых trace/config;
 - не использовать `source_location` как memory address или origin identity.
 
-Реализованы [runner](../runner/README.md) и [CacheHierarchy](../hierarchy/README.md).
+Реализованы [runner](../runner/README.md) и [CacheHierarchy](../simulator/README.md).
 Раннер получает иерархию по ссылке, проверяет trace, очищает уровни и вызывает
 `read/write(address, size)`. Иерархия владеет уровнями `ICacheLevel` и выполняет
 exclusive-переносы; SetAssociativeCacheLevel и LRU находятся в `simulator/`.

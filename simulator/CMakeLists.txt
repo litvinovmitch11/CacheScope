@@ -16,7 +16,19 @@ target_include_directories(cachescope_simulator PUBLIC
   "${CMAKE_CURRENT_SOURCE_DIR}/include"
 )
 
+add_library(cachescope_hierarchy lib/cache_hierarchy.cpp)
+add_library(CacheScope::Hierarchy ALIAS cachescope_hierarchy)
+target_compile_features(cachescope_hierarchy PUBLIC cxx_std_17)
+target_link_libraries(cachescope_hierarchy PUBLIC cachescope_simulator)
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+  target_compile_options(cachescope_hierarchy PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
 if(BUILD_TESTING)
+  add_executable(cachescope_hierarchy_tests tests/hierarchy_tests.cpp)
+  target_link_libraries(cachescope_hierarchy_tests PRIVATE CacheScope::Hierarchy)
+  add_test(NAME cachescope.hierarchy COMMAND cachescope_hierarchy_tests)
+
   if(POLICY CMP0135)
     cmake_policy(SET CMP0135 NEW)
   endif()

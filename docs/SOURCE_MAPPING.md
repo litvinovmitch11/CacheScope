@@ -254,4 +254,4 @@ UI обязан показывать все совпадения, а не выб
   печати того же MLIR.
 
 Golden fixture находится в
-[`tests/fixtures/source-map-v1`](../tests/fixtures/source-map-v1).
+[`schemas/fixtures/source-map-v1`](../schemas/fixtures/source-map-v1).

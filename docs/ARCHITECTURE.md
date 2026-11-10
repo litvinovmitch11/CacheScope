@@ -17,8 +17,8 @@ frontend
 ```
 
 `runner/` потребляет trace независимо от LLVM/MLIR, вызывает `CacheHierarchy`
-и пишет JSON для UI. `hierarchy/` владеет уровнями из `simulator/`, где
-реализованы SetAssociativeCacheLevel и LRU. Разделение ответственности описано
+и пишет JSON для UI. `simulator/` содержит CacheHierarchy,
+SetAssociativeCacheLevel и replacement policies. Разделение ответственности описано
 в разделе 13; API — в [runner README](../runner/README.md).
 
 ## 2. Компоненты
