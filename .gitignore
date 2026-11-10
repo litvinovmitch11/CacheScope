@@ -1,9 +1,7 @@
 build/
 .deps/
-/llvm-project/
 output/
 compile_commands.json
-/CMakePresets.json
 venv/
 .venv/
 **/__pycache__/
