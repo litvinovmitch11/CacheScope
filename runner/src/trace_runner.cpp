@@ -11,6 +11,7 @@
 #include <set>
 #include <sstream>
 #include <stdexcept>
+#include <string_view>
 #include <unistd.h>
 #include <utility>
 
@@ -55,9 +56,9 @@ static I64 signed_value(const Json &value, const std::string &name) {
   fail(name + " must be a signed 64-bit integer");
 }
 
-static const Json &field(const Json &object, const std::string &name) {
+static const Json &field(const Json &object, std::string_view name) {
   if (!object.contains(name))
-    fail("missing field: " + name);
+    fail("missing field: " + std::string(name));
   return object.at(name);
 }
 
