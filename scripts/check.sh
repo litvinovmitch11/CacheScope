@@ -41,6 +41,7 @@ if [[ "${with_torch}" -eq 1 ]]; then
     exit 1
   fi
   LLVM_BUILD_DIR="${llvm_build_dir}" \
+    BUILD_DIR="${build_dir}" \
     "${python_bin}" "${repo_dir}/examples/torch-demo/run.py"
 fi
 

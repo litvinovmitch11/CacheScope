@@ -122,7 +122,7 @@ static FailureOr<std::int64_t> getElementSizeBytes(MemRefType type) {
 
 static func::FuncOp getOrCreateTraceDeclaration(ModuleOp module) {
   auto i64 = IntegerType::get(module.getContext(), 64);
-  SmallVector<Type, 7> arguments(7, i64);
+  SmallVector<Type, 5> arguments(5, i64);
   auto expectedType = FunctionType::get(module.getContext(), arguments, {});
 
   if (auto existing = module.lookupSymbol<func::FuncOp>(kTraceFunction)) {
@@ -244,21 +244,12 @@ static void instrumentAccess(const AccessSite &site,
       arith::MulIOp::create(builder, location, elementOffset, elementSize);
   Value byteOffset =
       arith::IndexCastOp::create(builder, location, i64, byteOffsetIndex);
-  Value index0 =
-      arith::IndexCastOp::create(builder, location, i64, site.indices[0]);
-  Value index1 =
-      arith::IndexCastOp::create(builder, location, i64, site.indices[1]);
-
   auto constantI64 = [&](std::int64_t value) -> Value {
     return arith::ConstantIntOp::create(builder, location, value, 64);
   };
-  SmallVector<Value, 7> arguments{constantI64(site.accessId),
-                                  constantI64(site.key.memrefId),
-                                  byteOffset,
-                                  constantI64(elementSizeBytes),
-                                  constantI64(site.key.kind),
-                                  index0,
-                                  index1};
+  SmallVector<Value, 5> arguments{
+      constantI64(site.accessId), constantI64(site.key.memrefId), byteOffset,
+      constantI64(elementSizeBytes), constantI64(site.key.kind)};
   func::CallOp::create(builder, location, kTraceFunction, TypeRange{},
                        arguments);
 }

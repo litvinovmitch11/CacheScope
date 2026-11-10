@@ -25,20 +25,20 @@
 - версией trace schema.
 
 Его внешний результат — данные в `output/<experiment>/`, а не MLIR plugin или
-внутренние runtime calls. Для Torch-демо bundle выглядит так:
+внутренние runtime calls. Канонический compiler experiment выглядит так:
 
 ```text
-output/torch-demo/
-  input.json                 воспроизводимое описание входа
-  inputs.npz                 точные входные tensors
-  comparison.json            self-check compiler variants
+output/trace-demo/
+  summary.json               self-check compiler variants
   baseline/trace.json        baseline trace
   tile4/trace.json           tiled trace
   tile4-ikj/trace.json       tiled + interchanged trace
 ```
 
-`input.json` и `inputs.npz` нужны для воспроизведения эксперимента и UI. Cache
-emulator для replay использует только `trace.json` и собственную cache config.
+Payload и transform programs хранятся в Git под `examples/`. Cache emulator
+для replay использует только `trace.json` и собственную cache config. PyTorch
+integration дополнительно сохраняет точные tensors и input manifest, но это не
+обязательная часть базового trace contract.
 
 Compiler-разработчик гарантирует:
 
@@ -46,14 +46,20 @@ Compiler-разработчик гарантирует:
 2. trace либо полон в рамках support matrix, либо compilation завершается
    ошибкой;
 3. `truncated` не скрывается;
-4. schema меняется только с новой версией и compatibility test;
-5. generated IR и binaries не являются командным API.
+4. consumer проверяет `valid` и `complete` до replay;
+5. static access table не зависит от записанного event prefix;
+6. schema меняется только с новой версией и compatibility test;
+7. generated IR и binaries не являются командным API.
 
 Его обязательная проверка:
 
 ```bash
-scripts/check.sh --with-torch --with-lint
+scripts/check.sh --with-lint
+python3 examples/trace_demo.py
 ```
+
+Изменения optional PyTorch frontend дополнительно требуют
+`scripts/check.sh --with-torch`.
 
 ## 2–3. Cache emulator
 
@@ -79,11 +85,11 @@ model_address = deterministic_base[memref_id] + byte_offset
 Emulator обязан:
 
 - проверить `schema` до replay;
-- отклонить или явно отметить `truncated = true`;
+- отклонить `valid = false` и `complete = false` до replay;
 - назначить непересекающиеся deterministic bases;
 - разбить доступ, пересекающий cache-line boundary;
 - вернуть детерминированные statistics для одинаковых trace/config;
-- не интерпретировать MLIR indices как физический адрес.
+- не использовать `source_location` как memory address или origin identity.
 
 Рекомендуемый результат emulator:
 
@@ -136,3 +142,8 @@ consumer. Не следует импортировать исходники со
 
 Текущий trace contract подробно описан в [TRACE_FORMAT.md](TRACE_FORMAT.md), а
 поддерживаемые compiler operations — в [SUPPORT_MATRIX.md](SUPPORT_MATRIX.md).
+Перед передачей fixture consumer-команде запускается:
+
+```bash
+python3 scripts/validate_trace.py path/to/trace.json
+```

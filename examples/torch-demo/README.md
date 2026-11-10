@@ -1,5 +1,9 @@
 # PyTorch → MLIR → native trace
 
+Это дополнительная frontend-интеграция. Для основного compiler/trace пути без
+PyTorch используйте [`../trace_demo.py`](../trace_demo.py); он быстрее,
+самодостаточнее и запускается в обязательном end-to-end test.
+
 Демо принимает обычный `torch.nn.Module`, экспортирует его в
 Linalg-on-Tensors и строит три варианта одного `forward`:
 
@@ -34,6 +38,7 @@ object/shared libraries и traces.
 - total/recorded events;
 - semantic event count;
 - LLVM fallback event count;
+- `valid`/`complete` trace status;
 - первую разницу dynamic order для каждой пары variants.
 
 В текущем matmul все `16 640` events semantic и fallback count равен нулю.

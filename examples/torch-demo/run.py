@@ -34,15 +34,17 @@ class Strategy:
 
 ROOT = Path(__file__).resolve().parents[2]
 LLVM_BUILD = Path(os.environ.get("LLVM_BUILD_DIR", ROOT / "llvm-project" / "build"))
+BUILD = Path(os.environ.get("BUILD_DIR", ROOT / "build"))
 TOOLS = LLVM_BUILD / "bin"
 OUTPUT = Path(os.environ.get("CACHESCOPE_OUTPUT_DIR", ROOT / "output")) / "torch-demo"
-PLUGIN = ROOT / "build" / "lib" / "CacheScopePassPlugin.so"
+PLUGIN = BUILD / "lib" / "CacheScopePassPlugin.so"
+RUNTIME = BUILD / "compiler/runtime/libcachescope_trace_runtime.so"
 
 STRATEGIES = (
     Strategy("baseline", None),
-    Strategy("tile4", ROOT / "examples/live-demo/matmul-tile4.transform.mlir"),
+    Strategy("tile4", ROOT / "examples/transforms/matmul-tile4.transform.mlir"),
     Strategy(
-        "tile4-ikj", ROOT / "examples/live-demo/matmul-tile4-ikj.transform.mlir"
+        "tile4-ikj", ROOT / "examples/transforms/matmul-tile4-ikj.transform.mlir"
     ),
 )
 
@@ -70,13 +72,13 @@ def configure_and_build_plugin() -> None:
         "-S",
         ROOT,
         "-B",
-        ROOT / "build",
+        BUILD,
         "-G",
         "Ninja",
         f"-DMLIR_DIR={LLVM_BUILD / 'lib/cmake/mlir'}",
         "-DCMAKE_BUILD_TYPE=Release",
     )
-    run("cmake", "--build", ROOT / "build")
+    run("cmake", "--build", BUILD)
 
 
 def export_pytorch(left: torch.Tensor, right: torch.Tensor) -> Path:
@@ -126,26 +128,7 @@ def add_native_entry(module_path: Path, output_path: Path) -> None:
     )
 
 
-def compile_runtime_object() -> Path:
-    runtime_object = OUTPUT / "cachescope-runtime.o"
-    run(
-        shutil.which("c++") or "c++",
-        "-std=c++17",
-        "-O2",
-        "-fPIC",
-        "-I",
-        ROOT / "compiler/runtime/include",
-        "-c",
-        ROOT / "compiler/runtime/lib/TraceRuntime.cpp",
-        "-o",
-        runtime_object,
-    )
-    return runtime_object
-
-
-def compile_strategy(
-    strategy: Strategy, payload: Path, runtime_object: Path
-) -> dict[str, Path]:
+def compile_strategy(strategy: Strategy, payload: Path) -> dict[str, Path]:
     directory = OUTPUT / strategy.name
     directory.mkdir(parents=True, exist_ok=True)
     transformed = directory / "01-transformed.mlir"
@@ -216,7 +199,8 @@ def compile_strategy(
         shutil.which("c++") or "c++",
         "-shared",
         object_file,
-        runtime_object,
+        RUNTIME,
+        f"-Wl,-rpath,{RUNTIME.parent}",
         "-o",
         library,
     )
@@ -255,6 +239,9 @@ def execute_strategy(
 
     os.environ["CACHESCOPE_TRACE_FILE"] = str(artifacts["trace"])
     os.environ["CACHESCOPE_VARIANT"] = strategy.name
+    os.environ["CACHESCOPE_PIPELINE_FINGERPRINT"] = (
+        f"torch-mlir-matmul-{strategy.name}-v1"
+    )
     os.environ.setdefault("CACHESCOPE_TRACE_LIMIT", "1000000")
     reset()
     entry(
@@ -275,7 +262,15 @@ def event_key(event: dict) -> tuple:
         event["memref_id"],
         event["byte_offset"],
         event["kind"],
-        tuple(event["indices"]),
+    )
+
+
+def access_key(access: dict) -> tuple:
+    return (
+        access["access_id"],
+        access["memref_id"],
+        access["kind"],
+        access["address_kind"],
     )
 
 
@@ -290,7 +285,9 @@ def compare_traces(traces: dict[str, dict]) -> dict:
         left_trace = traces[left_name]
         right_trace = traces[right_name]
         pair_name = f"{left_name}_vs_{right_name}"
-        if left_trace["accesses"] != right_trace["accesses"]:
+        if [access_key(access) for access in left_trace["accesses"]] != [
+            access_key(access) for access in right_trace["accesses"]
+        ]:
             raise RuntimeError(f"{pair_name}: static access tables differ")
         if left_trace["total_events"] != right_trace["total_events"]:
             raise RuntimeError(f"{pair_name}: dynamic event count differs")
@@ -313,6 +310,9 @@ def compare_traces(traces: dict[str, dict]) -> dict:
 
 
 def main() -> int:
+    sys.path.insert(0, str(ROOT / "scripts"))
+    from validate_trace import validate_trace
+
     for dependency in ("mlir-opt", "mlir-transform-opt", "mlir-translate", "llc"):
         tool(dependency)
     OUTPUT.mkdir(parents=True, exist_ok=True)
@@ -343,13 +343,14 @@ def main() -> int:
         json.dumps(input_manifest, indent=2) + "\n", encoding="utf-8"
     )
     payload = export_pytorch(left, right)
-    runtime_object = compile_runtime_object()
-
     traces: dict[str, dict] = {}
     for strategy in STRATEGIES:
-        artifacts = compile_strategy(strategy, payload, runtime_object)
+        artifacts = compile_strategy(strategy, payload)
         actual, trace = execute_strategy(strategy, artifacts, left, right)
+        validate_trace(trace)
         torch.testing.assert_close(actual, expected, rtol=1e-5, atol=1e-5)
+        if not trace.get("valid") or not trace.get("complete"):
+            raise RuntimeError(f"{strategy.name}: trace is invalid or incomplete")
         traces[strategy.name] = trace
         fallback_events = sum(
             event.get("address_kind") == "process_address"
@@ -368,6 +369,8 @@ def main() -> int:
             name: {
                 "total_events": trace["total_events"],
                 "recorded_events": trace["recorded_events"],
+                "valid": trace["valid"],
+                "complete": trace["complete"],
                 "semantic_events": sum(
                     event.get("address_kind") == "memref_offset"
                     for event in trace["events"]

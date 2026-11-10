@@ -95,6 +95,12 @@ def test_marker_survives_lowering(
         raise AssertionError("expected lowered LLVM memory operations")
     if "__cachescope_trace_fallback_v1" in text:
         raise AssertionError("covered MemRef accesses were instrumented twice")
+    if "__cachescope_register_access_v1" not in text:
+        raise AssertionError("static access registrations are missing")
+    if "__cachescope_register_source_v1" not in text:
+        raise AssertionError("source location registrations are missing")
+    if "__cachescope_source_0" not in text:
+        raise AssertionError("source location table is missing")
 
 
 def main() -> None:

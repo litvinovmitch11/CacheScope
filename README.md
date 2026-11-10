@@ -1,30 +1,27 @@
 # CacheScope
 
-CacheScope — trace producer для исследования того, как compiler
-transformations меняют обращения к памяти. Текущая вертикаль принимает
-PyTorch/MLIR kernel, выполняет его после гибридной MemRef/LLVM-инструментации и
-создаёт воспроизводимый trace для будущего cache emulator.
+CacheScope показывает, как compiler transformations меняют порядок обращений
+к памяти. Текущая вертикаль компилирует MLIR kernel, выполняет его после
+гибридной MemRef/LLVM-инструментации и создаёт воспроизводимый
+`cachescope.trace.v1` для будущего cache simulator и UI.
 
-Cache emulator и UI разрабатываются как отдельные компоненты и не зависят от
-LLVM/MLIR libraries.
+## Что уже работает
 
-## Что работает
-
-- PyTorch → torch-mlir → Linalg/SCF/MemRef → LLVM → native execution;
+- out-of-tree MLIR pass plugin;
 - semantic trace для `memref.load/store` с `memref_id` и byte offset;
 - LLVM fallback для `load/store/atomicrmw/cmpxchg`;
-- строгий отказ на неизвестных memory effects;
-- baseline, tiling и loop interchange одного kernel;
-- JSON trace, input manifest и точные входные tensors;
-- pass, runtime, end-to-end и documentation tests.
+- fail-closed диагностика неизвестных memory effects;
+- static access/source table и producer metadata;
+- trace status: `valid`, `complete`, `truncated`, `errors`;
+- JSON Schema, standalone validator и compatibility fixtures;
+- один канонический baseline/tile/interchange example;
+- pass, runtime, schema, end-to-end и documentation tests.
 
-Границы поддержки перечислены в [support matrix](docs/SUPPORT_MATRIX.md).
+Точные границы перечислены в [support matrix](docs/SUPPORT_MATRIX.md).
 
-## С нуля до первого trace
+## Быстрый старт
 
-Клонируйте LLVM submodule, закреплённый на `24.0.0git` commit
-`40e5c847efaca209a9823e950fc5f26dc60cad4e`, и соберите необходимые
-инструменты:
+Клонируйте закреплённый LLVM submodule и соберите необходимые инструменты:
 
 ```bash
 git clone --recurse-submodules https://github.com/litvinovmitch11/CacheScope.git
@@ -32,7 +29,35 @@ cd CacheScope
 scripts/build-llvm.sh
 ```
 
-Соберите CacheScope и запустите тесты:
+Запустите канонический пример:
+
+```bash
+python3 examples/trace_demo.py
+```
+
+Одна команда:
+
+1. собирает plugin и trace runtime;
+2. создаёт `baseline`, `tile4` и `tile4-ikj`;
+3. инструментирует каждый вариант через plugin;
+4. выполняет код и проверяет численный результат;
+5. создаёт и валидирует три traces;
+6. проверяет, что compiler schedules действительно изменили dynamic order.
+
+Результат:
+
+```text
+output/trace-demo/
+  summary.json
+  baseline/trace.json
+  tile4/trace.json
+  tile4-ikj/trace.json
+```
+
+Подробное описание стадий и артефактов находится в
+[examples/README.md](examples/README.md).
+
+## Сборка и проверки
 
 ```bash
 cmake -S . -B build -G Ninja \
@@ -43,16 +68,42 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-То же самое одной командой после сборки LLVM:
+Эквивалентная команда:
 
 ```bash
 scripts/check.sh
 ```
 
-Подробная установка зависимостей и альтернативные команды находятся в
-[development guide](docs/DEVELOPMENT.md).
+Перед merge:
 
-## PyTorch demo
+```bash
+scripts/check.sh --with-lint
+git diff --check
+```
+
+Готовый trace можно проверить без LLVM libraries:
+
+```bash
+python3 scripts/validate_trace.py output/trace-demo/baseline/trace.json
+```
+
+## Компоненты
+
+```text
+compiler/cs-trace/     MLIR pass plugin
+compiler/runtime/      runtime trace producer
+schemas/               machine-readable shared contracts
+examples/              один канонический pipeline и optional PyTorch frontend
+tests/                 integration/contract suites
+docs/                  архитектура и межкомпонентные контракты
+llvm-project/          закреплённый upstream LLVM submodule
+output/                локальные generated artifacts, ignored
+```
+
+## Дополнительный PyTorch frontend
+
+Основной пример не требует Python ML packages. Отдельная PyTorch-интеграция
+проверяется так:
 
 ```bash
 python3 -m venv venv
@@ -60,79 +111,19 @@ venv/bin/pip install -r requirements-torch-demo.lock
 scripts/check.sh --with-torch
 ```
 
-Результат находится в `output/torch-demo/`:
-
-```text
-input.json
-inputs.npz
-comparison.json
-baseline/trace.json
-tile4/trace.json
-tile4-ikj/trace.json
-```
-
-Все варианты получают одинаковые входы и проверяются относительно PyTorch.
-
-## CMake и developer tools
-
-Configure всегда создаёт `build/compile_commands.json`. LLVM-style formatter и
-clang-tidy запускаются через CMake:
-
-```bash
-cmake --build build --target format-check
-cmake --build build --target tidy
-cmake --build build --target format
-```
-
-Полная проверка compiler-изменения:
-
-```bash
-scripts/check.sh --with-torch --with-lint
-```
-
-Основные build artifacts:
-
-```text
-build/lib/CacheScopePassPlugin.so
-build/compiler/runtime/libcachescope_trace_runtime.so
-build/compile_commands.json
-```
-
-Экспериментальные IR, traces и input bundles всегда пишутся в игнорируемый
-`output/`, а не смешиваются с CMake build tree.
-
-## Примеры
-
-| Пример | Назначение | Команда |
-|---|---|---|
-| [hybrid instrumentation](examples/hybrid-instrumentation/README.md) | semantic, fallback, strict failure | `examples/hybrid-instrumentation/run.sh` |
-| [live transformations](examples/live-demo/README.md) | baseline/tiling/interchange | `examples/live-demo/run-demo.sh` |
-| [manual ABI oracle](examples/manual-instrumentation/README.md) | независимая проверка runtime ABI | `examples/manual-instrumentation/run.sh` |
-| [PyTorch demo](examples/torch-demo/README.md) | полный frontend и native execution | `venv/bin/python examples/torch-demo/run.py` |
-
-## Структура
-
-```text
-llvm-project/          закреплённый upstream LLVM submodule
-compiler/cs-trace/     MLIR pass plugin
-compiler/runtime/      runtime только для compiler trace producer
-tests/                 CTest integration suites
-examples/              воспроизводимые compiler scenarios
-output/                локальные результаты экспериментов, ignored
-docs/                  архитектура и межкомпонентные контракты
-```
-
-Runtime намеренно находится под `compiler/`: он является частью trace producer
-и не имеет отношения к runtime будущего cache emulator или UI.
+Она экспортирует `torch.nn.Module` через torch-mlir и использует тот же plugin
+и trace contract. Это расширенная интеграция, а не основной путь знакомства с
+репозиторием.
 
 ## Документация
 
-- [Архитектура](docs/ARCHITECTURE.md)
-- [Командная интеграция для четырёх участников](docs/INTEGRATION.md)
-- [Сборка и разработка](docs/DEVELOPMENT.md)
-- [Формат trace](docs/TRACE_FORMAT.md)
-- [Support matrix](docs/SUPPORT_MATRIX.md)
-- [Roadmap](ROADMAP.md)
+- [канонический пример](examples/README.md);
+- [архитектура](docs/ARCHITECTURE.md);
+- [сборка и разработка](docs/DEVELOPMENT.md);
+- [формат trace](docs/TRACE_FORMAT.md);
+- [командная интеграция](docs/INTEGRATION.md);
+- [support matrix](docs/SUPPORT_MATRIX.md);
+- [roadmap](ROADMAP.md).
 
 CacheScope сейчас рассчитан на однопоточные CPU kernels. Это не
 cycle-accurate simulator и не предсказатель wall-clock производительности.

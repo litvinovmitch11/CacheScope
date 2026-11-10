@@ -19,6 +19,7 @@ add_test(
   COMMAND ${Python3_EXECUTABLE}
           ${CMAKE_CURRENT_SOURCE_DIR}/runtime_suite.py
           --runtime $<TARGET_FILE:cachescope_trace_runtime>
+          --repo ${PROJECT_SOURCE_DIR}
 )
 
 add_test(
@@ -35,10 +36,18 @@ add_test(
           --repo ${PROJECT_SOURCE_DIR}
 )
 
+add_test(
+  NAME cachescope.schema-suite
+  COMMAND ${Python3_EXECUTABLE}
+          ${CMAKE_CURRENT_SOURCE_DIR}/schema_suite.py
+          --repo ${PROJECT_SOURCE_DIR}
+)
+
 set_tests_properties(
   cachescope.pass-suite
   cachescope.runtime-suite
   cachescope.end-to-end
   cachescope.documentation-suite
+  cachescope.schema-suite
   PROPERTIES TIMEOUT 120
 )

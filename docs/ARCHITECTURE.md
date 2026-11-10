@@ -38,6 +38,13 @@ C ABI, назначает динамический `sequence`, применяе�
 JSON. Runtime расположен внутри `compiler/`, потому что является последней
 частью trace producer. Он не является runtime cache emulator.
 
+### `examples/trace_demo.py`
+
+Канонический orchestration driver. Он строит baseline/tile/interchange одного
+MLIR payload, запускает оба instrumentation passes, выполняет код, валидирует
+traces и сравнивает dynamic order. PyTorch frontend оставлен дополнительной
+интеграцией, а не основным способом понять систему.
+
 ### `examples/torch-demo`
 
 Frontend и orchestration layer. Он экспортирует `torch.nn.Module` через
@@ -46,11 +53,13 @@ LLVM lowering, AOT compilation и вызов через `ctypes`.
 
 ### `tests`
 
-Три независимых уровня:
+Независимые уровни проверки:
 
 - pass unit/integration tests;
 - runtime ABI/serialization tests;
-- полный baseline/tiled MLIR execution test.
+- schema/validator compatibility tests;
+- полный canonical baseline/tile/interchange execution test;
+- documentation link checks.
 
 ## 3. Почему instrumentation гибридная
 
@@ -154,8 +163,10 @@ cachescope-instrument-llvm-fallback{target-func=kernel}
 1. найти все явные memory operations внутри LLVM target function;
 2. пропустить load/store с semantic marker;
 3. вставить fallback call для немаркированных load/store/atomic operations;
-4. отклонить операцию с неизвестной memory policy;
-5. отклонить неизвестный direct или indirect call.
+4. собрать static access descriptions и source locations;
+5. вставить регистрации всех access sites в пролог target function;
+6. отклонить операцию с неизвестной memory policy;
+7. отклонить неизвестный direct или indirect call.
 
 Разрешённые calls ограничены allocation lifecycle и CacheScope runtime:
 `malloc`, `calloc`, `aligned_alloc`, `free` и trace ABI.
@@ -173,10 +184,25 @@ void __cachescope_trace_v1(
     int64_t memref_id,
     int64_t byte_offset,
     int64_t size_bytes,
-    int64_t access_kind,
-    int64_t index0,
-    int64_t index1);
+    int64_t access_kind);
 ```
+
+Static access ABI:
+
+```c
+void __cachescope_register_access_v1(
+    int64_t access_id,
+    int64_t memref_id,
+    int64_t access_kind,
+    int64_t address_kind);
+void __cachescope_register_source_v1(
+    int64_t access_id,
+    const char *source_location);
+```
+
+LLVM pass вставляет эти calls в пролог. Runtime поэтому знает sites, которые
+не исполнились либо оказались за trace limit. Logical indices не входят в
+dynamic ABI: cache contract использует нормализованный byte offset.
 
 Fallback ABI:
 
@@ -207,9 +233,29 @@ Runtime буферизует события в памяти. File I/O на ка�
 - `total_events` считает все события;
 - `recorded_events` ограничивается `CACHESCOPE_TRACE_LIMIT`;
 - `truncated` явно сообщает о потере хвоста;
+- `valid` отражает нарушения ABI, а `complete = valid && !truncated`;
+- trace публикуется через временный файл;
 - runtime сейчас не thread-safe.
 
-## 8. PyTorch frontend
+## 8. Канонический compiler example
+
+`examples/trace_demo.py` является executable specification основного пути:
+
+```text
+один matmul payload
+  → baseline / tile4 / tile4-ikj
+  → linalg-to-loops
+  → semantic instrumentation
+  → LLVM lowering и coverage audit
+  → mlir-runner
+  → trace validation и comparison
+```
+
+Тест `cachescope.end-to-end` вызывает этот же driver с уже собранными plugin и
+runtime. Поэтому документационный пример и CI не расходятся на две копии
+pipeline.
+
+## 9. PyTorch frontend
 
 Текущий frontend намеренно AOT и сохраняет каждый IR stage:
 
@@ -233,7 +279,7 @@ Wrapper принимает два input и один output buffer. Возвра�
 PyTorch одновременно является понятным frontend и numerical oracle:
 `torch.testing.assert_close` проверяет каждый compiled variant.
 
-## 9. Отказ вместо неполной трассы
+## 10. Отказ вместо неполной трассы
 
 Основной инвариант проекта:
 
@@ -243,7 +289,7 @@ PyTorch одновременно является понятным frontend и n
 Поэтому текущая ограниченная поддержка безопаснее широкого best-effort режима.
 Новая операция добавляется только вместе с policy, ABI mapping и тестом.
 
-## 10. Расширение
+## 11. Расширение
 
 Для добавления новой memory operation нужно определить:
 
