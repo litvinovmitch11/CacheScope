@@ -14,6 +14,8 @@ CacheScope показывает, как compiler transformations меняют п
 - static access/source table и producer metadata;
 - trace status: `valid`, `complete`, `truncated`, `errors`;
 - JSON Schema, standalone validator и compatibility fixtures;
+- stage-aware mapping от input `linalg` operation до конкретных
+  `memref.load/store` и `llvm.load/store`;
 - один канонический baseline/tile/interchange example;
 - pass, runtime, schema, end-to-end и documentation tests;
 - SetAssociativeCacheLevel с LRU, exclusive CacheHierarchy и независимый trace
@@ -63,9 +65,9 @@ python3 examples/trace_demo.py
 ```text
 output/trace-demo/
   summary.json
-  baseline/trace.json
-  tile4/trace.json
-  tile4-ikj/trace.json
+  baseline/{input.mlir,01-transformed.mlir,...,trace.json}
+  tile4/{input.mlir,01-transformed.mlir,...,trace.json}
+  tile4-ikj/{input.mlir,01-transformed.mlir,...,trace.json}
 ```
 
 Подробное описание стадий и артефактов находится в

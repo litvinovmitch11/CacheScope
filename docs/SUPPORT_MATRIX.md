@@ -22,6 +22,8 @@
 | Example | three MLIR compiler variants | canonical end-to-end driver |
 | Frontend | static `16×16 f32` PyTorch matmul | end-to-end demo |
 | Transform | tiling и loop interchange | проверено на примерах |
+| Source map | input → transformed → loops → instrumentation → LLVM | embedded `cachescope.source-map.v1` |
+| Provenance | один high-level origin → несколько access sites | проверено на baseline/tile/interchange |
 
 ## Обнаруживается, но отклоняется
 
@@ -39,14 +41,6 @@
 
 Отказ является частью контракта полноты, а не случайным ограничением parser.
 
-## Контракт готов, producer implementation ожидается
-
-| Возможность | Состояние |
-|---|---|
-| `cachescope.source-map.v1` | schema, validator, fixture и UI navigation rules |
-| Stage-aware MLIR dumps | контракт определён, locations ещё не публикуются producer-ом |
-| Cross-variant `origin_id` | контракт определён, propagation ещё не реализован |
-
 ## Пока не поддерживается
 
 - `memref.copy` как semantic operation;
@@ -58,8 +52,8 @@
 - recursion;
 - многопоточность;
 - GPU/NVVM/ROCDL memory spaces;
-- перенос access identity через cloning/fusion/unrolling;
-- реализация cache hierarchy и UI (раннер готов, модель передаётся извне).
+- доказанная корректность provenance для произвольных fusion/unrolling passes;
+- UI.
 
 ## Trace runner
 
@@ -83,6 +77,7 @@ invalid и truncated traces, `process_address` и `read_write` отклоняю�
 - semantic access ID пока основан на IR ordinal;
 - runtime event ordering определён только для одного потока;
 - trace limit отбрасывает хвост, но всегда выставляет `truncated`;
-- source location описывает post-transform site, а не cross-variant origin;
+- legacy `source_location` не является cross-variant identity; для этого
+  используется `source_map`;
 - allocation/deallocation не считаются data accesses;
 - разрешённые allocator calls не трассируют внутреннюю работу allocator.

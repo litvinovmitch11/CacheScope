@@ -90,6 +90,10 @@ function. Поэтому `accesses` не строится из записанн�
 `source_location` остаётся диагностическим текстом и не является
 cross-variant identity. Если producer публикует `source_map`, structured
 `origin_ids` и `stage_locations` являются источником истины для UI.
+Compiler передаёт эти metadata в runtime типизированными ABI calls. Runtime
+проверяет ссылки между stages, origins и accesses и сериализует расширение
+только целиком; при нарушении ABI трасса остаётся валидным JSON с
+`valid = false`, а неполный `source_map` не публикуется.
 
 Для LLVM fallback используются `memref_id = -1` и
 `address_kind = "process_address"`.

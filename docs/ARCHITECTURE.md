@@ -25,20 +25,24 @@ frontend
 
 ### `compiler/cs-trace`
 
-Out-of-tree plugin для `mlir-opt`. Регистрирует два module passes:
+Out-of-tree plugin для `mlir-opt`. Регистрирует четыре module passes:
 
+- `cachescope-assign-origins`;
+- `cachescope-tag-stage`;
 - `cachescope-instrument-memory`;
 - `cachescope-instrument-llvm-fallback`.
 
 Plugin не занимается JSON и файловым вводом-выводом. Его задача — определить
-access sites, вычислить аргументы ABI и вставить runtime calls.
+origins и access sites, вычислить типизированные аргументы ABI и вставить
+runtime calls.
 
 ### `compiler/runtime`
 
-Небольшая shared library без зависимости от MLIR. Она принимает события через
-C ABI, назначает динамический `sequence`, применяет trace limit и сериализует
-JSON. Runtime расположен внутри `compiler/`, потому что является последней
-частью trace producer. Он не является runtime cache emulator.
+Небольшая shared library без зависимости от MLIR. Она принимает типизированные
+static metadata и события через C ABI, проверяет целостность source mapping,
+назначает динамический `sequence`, применяет trace limit и сериализует JSON.
+Runtime расположен внутри `compiler/`, потому что является последней частью
+trace producer. Он не является runtime cache emulator.
 
 ### `examples/trace_demo.py`
 
@@ -312,9 +316,9 @@ Optional `cachescope.source-map.v1` связывает high-level origins, opera
 только `access_id`, поэтому mapping не зависит от event limit и truncation.
 
 Контракт и UI navigation rules описаны в
-[SOURCE_MAPPING.md](SOURCE_MAPPING.md). Producer implementation должна
-использовать MLIR location snapshots и сохранять tagged locations через
-Transform Dialect и lowering. Эта реализация пока не завершена.
+[SOURCE_MAPPING.md](SOURCE_MAPPING.md). Producer использует MLIR location
+snapshots, CacheScope origin/stage tags и fail-closed сборку mapping в финальном
+LLVM pass. Канонический пример проверяет координаты во всех пяти dumps.
 
 ## 13. Симулятор кеша: разделение ответственности
 

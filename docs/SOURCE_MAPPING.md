@@ -10,9 +10,9 @@
   → результат cache simulation
 ```
 
-Контракт описан и проверяется validator-ом. Producer implementation,
-назначение origins и сохранение locations через transformations входят в
-следующий MR и пока не заявлены как готовая возможность.
+Контракт описан и проверяется validator-ом. Канонический producer назначает
+origins, переносит tagged locations через transformations, публикует пять
+stage dumps и встраивает mapping в итоговый trace.
 
 ## Почему одного source location недостаточно
 
@@ -141,6 +141,31 @@ Canonical stage IDs первой producer implementation:
 
 Будущие producers могут добавлять stages. Consumer не должен полагаться на
 фиксированное число стадий.
+
+## Producer pipeline
+
+Канонический driver использует штатный MLIR `snapshot-op-locations` и два
+CacheScope passes:
+
+- `cachescope-assign-origins` детерминированно нумерует high-level memory
+  operations до Transform Dialect;
+- `cachescope-tag-stage` сохраняет полное имя operation рядом с location
+  snapshot выбранной стадии.
+
+Transformations переносят вложенные locations на созданные operations.
+`cachescope-instrument-memory` добавляет `access_id`, а финальный
+`cachescope-instrument-llvm-fallback` собирает origin lineage и stage
+locations, после чего регистрирует типизированное static metadata в runtime.
+JSON-фрагменты через ABI не передаются: runtime проверяет ссылки и полноту
+mapping, а затем сам сериализует `source_map`, `origin_ids` и
+`stage_locations`.
+
+Если driver передал `payload-fingerprint`, но хотя бы один semantic access
+потерял origin или stage location, compilation завершается ошибкой. Producer
+не выпускает частично размеченный `source_map`. Если неконсистентные metadata
+всё же поступили через C ABI, runtime записывает структурно валидную
+диагностическую трассу с `valid = false` и атомарно исключает всё расширение
+source mapping.
 
 ## Origins
 
