@@ -1,27 +1,333 @@
 {
   "schema": "cachescope.simulation-statistics.v1",
-  "variant": "tile4-ikj-l1",
+  "variant": "tile4-ikj-l1-fixture",
   "producer": "instrumented-mlir-execution",
   "cache_config": {
-    "size_bytes": 32768,
+    "size_bytes": 256,
     "line_size_bytes": 64,
-    "associativity": 8,
-    "set_count": 64,
-    "replacement_policy": "LRU"
+    "associativity": 2,
+    "set_count": 2,
+    "replacement_policy": "scripted"
   },
   "processed": {
-    "trace_events": 10000,
-    "line_accesses": 18000
+    "trace_events": 6,
+    "line_accesses": 8
   },
   "totals": {
-    "read_line_accesses": 12000,
-    "write_line_accesses": 6000,
-    "hits": 17100,
-    "misses": 900,
-    "read_hits": 11600,
-    "read_misses": 400,
-    "write_hits": 5500,
-    "write_misses": 500,
-    "evictions": 40
-  }
+    "read_line_accesses": 5,
+    "write_line_accesses": 3,
+    "hits": 5,
+    "misses": 3,
+    "read_hits": 3,
+    "read_misses": 2,
+    "write_hits": 2,
+    "write_misses": 1,
+    "evictions": 2,
+    "writebacks": 0,
+    "hit_rate_percent": 62.5
+  },
+  "levels": [
+    {
+      "level": 1,
+      "processed": {
+        "trace_events": 6,
+        "line_accesses": 8
+      },
+      "totals": {
+        "read_line_accesses": 5,
+        "write_line_accesses": 3,
+        "hits": 5,
+        "misses": 3,
+        "read_hits": 3,
+        "read_misses": 2,
+        "write_hits": 2,
+        "write_misses": 1,
+        "evictions": 2,
+        "writebacks": 0,
+        "hit_rate_percent": 62.5
+      },
+      "name": "L1",
+      "cache_config": {
+        "size_bytes": 256,
+        "line_size_bytes": 64,
+        "associativity": 2,
+        "set_count": 2,
+        "replacement_policy": "scripted"
+      }
+    },
+    {
+      "level": 2,
+      "processed": {
+        "trace_events": 3,
+        "line_accesses": 3
+      },
+      "totals": {
+        "read_line_accesses": 2,
+        "write_line_accesses": 1,
+        "hits": 2,
+        "misses": 1,
+        "read_hits": 1,
+        "read_misses": 1,
+        "write_hits": 1,
+        "write_misses": 0,
+        "evictions": 0,
+        "writebacks": 0,
+        "hit_rate_percent": 66.66666666666666
+      },
+      "name": "L2",
+      "cache_config": {
+        "size_bytes": 256,
+        "line_size_bytes": 64,
+        "associativity": 2,
+        "set_count": 2,
+        "replacement_policy": "scripted"
+      }
+    },
+    {
+      "level": 3,
+      "processed": {
+        "trace_events": 1,
+        "line_accesses": 1
+      },
+      "totals": {
+        "read_line_accesses": 1,
+        "write_line_accesses": 0,
+        "hits": 0,
+        "misses": 1,
+        "read_hits": 0,
+        "read_misses": 1,
+        "write_hits": 0,
+        "write_misses": 0,
+        "evictions": 0,
+        "writebacks": 0,
+        "hit_rate_percent": 0.0
+      },
+      "name": "L3",
+      "cache_config": {
+        "size_bytes": 256,
+        "line_size_bytes": 64,
+        "associativity": 2,
+        "set_count": 2,
+        "replacement_policy": "scripted"
+      }
+    }
+  ],
+  "hierarchy": {
+    "inclusion_policy": "exclusive",
+    "write_policy": "write_back",
+    "allocation_policy": "write_allocate"
+  },
+  "memory": {
+    "reads": 1,
+    "writebacks": 0
+  },
+  "instructions": [
+    {
+      "access_id": 101,
+      "memref_id": 0,
+      "kind": "read",
+      "events": 3,
+      "requested_bytes": 16,
+      "levels": [
+        {
+          "level": 1,
+          "processed": {
+            "trace_events": 3,
+            "line_accesses": 4
+          },
+          "totals": {
+            "read_line_accesses": 4,
+            "write_line_accesses": 0,
+            "hits": 3,
+            "misses": 1,
+            "read_hits": 3,
+            "read_misses": 1,
+            "write_hits": 0,
+            "write_misses": 0,
+            "evictions": 1,
+            "writebacks": 0,
+            "hit_rate_percent": 75.0
+          }
+        },
+        {
+          "level": 2,
+          "processed": {
+            "trace_events": 1,
+            "line_accesses": 1
+          },
+          "totals": {
+            "read_line_accesses": 1,
+            "write_line_accesses": 0,
+            "hits": 1,
+            "misses": 0,
+            "read_hits": 1,
+            "read_misses": 0,
+            "write_hits": 0,
+            "write_misses": 0,
+            "evictions": 0,
+            "writebacks": 0,
+            "hit_rate_percent": 100.0
+          }
+        },
+        {
+          "level": 3,
+          "processed": {
+            "trace_events": 0,
+            "line_accesses": 0
+          },
+          "totals": {
+            "read_line_accesses": 0,
+            "write_line_accesses": 0,
+            "hits": 0,
+            "misses": 0,
+            "read_hits": 0,
+            "read_misses": 0,
+            "write_hits": 0,
+            "write_misses": 0,
+            "evictions": 0,
+            "writebacks": 0,
+            "hit_rate_percent": null
+          }
+        }
+      ]
+    },
+    {
+      "access_id": 102,
+      "memref_id": 1,
+      "kind": "read",
+      "events": 2,
+      "requested_bytes": 8,
+      "levels": [
+        {
+          "level": 1,
+          "processed": {
+            "trace_events": 2,
+            "line_accesses": 1
+          },
+          "totals": {
+            "read_line_accesses": 1,
+            "write_line_accesses": 0,
+            "hits": 0,
+            "misses": 1,
+            "read_hits": 0,
+            "read_misses": 1,
+            "write_hits": 0,
+            "write_misses": 0,
+            "evictions": 0,
+            "writebacks": 0,
+            "hit_rate_percent": 0.0
+          }
+        },
+        {
+          "level": 2,
+          "processed": {
+            "trace_events": 1,
+            "line_accesses": 1
+          },
+          "totals": {
+            "read_line_accesses": 1,
+            "write_line_accesses": 0,
+            "hits": 0,
+            "misses": 1,
+            "read_hits": 0,
+            "read_misses": 1,
+            "write_hits": 0,
+            "write_misses": 0,
+            "evictions": 0,
+            "writebacks": 0,
+            "hit_rate_percent": 0.0
+          }
+        },
+        {
+          "level": 3,
+          "processed": {
+            "trace_events": 1,
+            "line_accesses": 1
+          },
+          "totals": {
+            "read_line_accesses": 1,
+            "write_line_accesses": 0,
+            "hits": 0,
+            "misses": 1,
+            "read_hits": 0,
+            "read_misses": 1,
+            "write_hits": 0,
+            "write_misses": 0,
+            "evictions": 0,
+            "writebacks": 0,
+            "hit_rate_percent": 0.0
+          }
+        }
+      ]
+    },
+    {
+      "access_id": 103,
+      "memref_id": 2,
+      "kind": "write",
+      "events": 1,
+      "requested_bytes": 4,
+      "levels": [
+        {
+          "level": 1,
+          "processed": {
+            "trace_events": 1,
+            "line_accesses": 3
+          },
+          "totals": {
+            "read_line_accesses": 0,
+            "write_line_accesses": 3,
+            "hits": 2,
+            "misses": 1,
+            "read_hits": 0,
+            "read_misses": 0,
+            "write_hits": 2,
+            "write_misses": 1,
+            "evictions": 1,
+            "writebacks": 0,
+            "hit_rate_percent": 66.66666666666666
+          }
+        },
+        {
+          "level": 2,
+          "processed": {
+            "trace_events": 1,
+            "line_accesses": 1
+          },
+          "totals": {
+            "read_line_accesses": 0,
+            "write_line_accesses": 1,
+            "hits": 1,
+            "misses": 0,
+            "read_hits": 0,
+            "read_misses": 0,
+            "write_hits": 1,
+            "write_misses": 0,
+            "evictions": 0,
+            "writebacks": 0,
+            "hit_rate_percent": 100.0
+          }
+        },
+        {
+          "level": 3,
+          "processed": {
+            "trace_events": 0,
+            "line_accesses": 0
+          },
+          "totals": {
+            "read_line_accesses": 0,
+            "write_line_accesses": 0,
+            "hits": 0,
+            "misses": 0,
+            "read_hits": 0,
+            "read_misses": 0,
+            "write_hits": 0,
+            "write_misses": 0,
+            "evictions": 0,
+            "writebacks": 0,
+            "hit_rate_percent": null
+          }
+        }
+      ]
+    }
+  ]
 }

@@ -1,43 +1,106 @@
 import { z } from "zod";
 
+const Int = z.number().int();
+// Необязательные счётчики: null или отсутствие = «недоступно», а НЕ ноль.
+const OptCount = Int.nullable().optional();
+
 export const Totals = z.object({
-  read_line_accesses: z.number().int(),
-  write_line_accesses: z.number().int(),
-  hits: z.number().int(),
-  misses: z.number().int(),
-  read_hits: z.number().int(),
-  read_misses: z.number().int(),
-  write_hits: z.number().int(),
-  write_misses: z.number().int(),
-  evictions: z.number().int(),
+  read_line_accesses: Int,
+  write_line_accesses: Int,
+  hits: Int,
+  misses: Int,
+  read_hits: Int,
+  read_misses: Int,
+  write_hits: Int,
+  write_misses: Int,
+  evictions: Int,
+  writebacks: OptCount,
+  hit_rate_percent: z.number().nullable().optional(), // справочно, UI не использует
 });
 
-// Неизвестные поля zod по умолчанию отбрасывает — это требование спеки (v1).
+export const CacheConfig = z.object({
+  size_bytes: Int,
+  line_size_bytes: Int,
+  associativity: Int,
+  set_count: Int,
+  replacement_policy: z.string(),
+});
+
+export const Processed = z.object({
+  trace_events: Int,
+  line_accesses: Int,
+});
+
+export const LevelStats = z.object({
+  level: Int,
+  name: z.string(),
+  cache_config: CacheConfig,
+  processed: Processed,
+  totals: Totals,
+});
+
+export const InstructionLevel = z.object({
+  level: Int,
+  processed: Processed,
+  totals: Totals,
+});
+
+export const Instruction = z.object({
+  access_id: Int,
+  memref_id: Int,
+  kind: z.string(),
+  events: Int,
+  requested_bytes: Int,
+  levels: z.array(InstructionLevel),
+});
+
+// Неизвестные поля zod отбрасывает — это требование спеки (раздел 4).
 export const Statistics = z.object({
   schema: z.literal("cachescope.simulation-statistics.v1"),
   variant: z.string(),
   producer: z.string(),
-  cache_config: z.object({
-    size_bytes: z.number().int(),
-    line_size_bytes: z.number().int(),
-    associativity: z.number().int(),
-    set_count: z.number().int(),
-    replacement_policy: z.string(),
-  }),
-  processed: z.object({
-    trace_events: z.number().int(),
-    line_accesses: z.number().int(),
-  }),
+  // верхний уровень = представление L1
+  cache_config: CacheConfig,
+  processed: Processed,
   totals: Totals,
+  // расширение для иерархии (раздел 6)
+  levels: z.array(LevelStats).optional(),
+  hierarchy: z
+    .object({
+      inclusion_policy: z.string().nullable().optional(),
+      write_policy: z.string().nullable().optional(),
+      allocation_policy: z.string().nullable().optional(),
+    })
+    .optional(),
+  memory: z.object({ reads: OptCount, writebacks: OptCount }).optional(),
+  instructions: z.array(Instruction).optional(),
 });
 
 export type Statistics = z.infer<typeof Statistics>;
-export type Totals = Statistics["totals"];
+export type Totals = z.infer<typeof Totals>;
+export type CacheConfig = z.infer<typeof CacheConfig>;
+export type Processed = z.infer<typeof Processed>;
+export type LevelStats = z.infer<typeof LevelStats>;
+export type Instruction = z.infer<typeof Instruction>;
+
+export const TraceSummary = z.object({
+  schema: z.literal("cachescope.trace.v1"),
+  variant: z.string(),
+  total_events: Int,
+  recorded_events: Int,
+  truncated: z.boolean(),
+  valid: z.boolean(),
+  complete: z.boolean().optional(),
+});
+
+export type TraceSummary = z.infer<typeof TraceSummary>;
+export type TraceHeader = TraceSummary;
 
 export interface Run {
-  path: string; // например "torch-demo/simulation/l1-32k/statistics.json"
+  path: string;
   stats: Statistics;
-  warnings: string[]; // нарушенные инварианты
+  trace: TraceSummary | null;
+  warnings: string[];
 }
 
 export interface LoadError {

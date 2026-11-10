@@ -2,12 +2,12 @@ import { useState } from "react";
 import { FolderPicker } from "./components/FolderPicker";
 import { RunCard } from "./components/RunCard";
 import { ComparisonTable } from "./components/ComparisonTable";
-import { loadExperiment } from "./loadExperiment";
+import { loadEmbedded, loadExperiment } from "./loadExperiment";
 import { describeConfig, groupByConfig } from "./metrics";
 import type { LoadResult } from "./types";
 
 export default function App() {
-  const [result, setResult] = useState<LoadResult | null>(null);
+  const [result, setResult] = useState<LoadResult | null>(loadEmbedded);
   const [busy, setBusy] = useState(false);
 
   async function onFiles(files: FileList) {
