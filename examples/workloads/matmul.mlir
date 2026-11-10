@@ -1,5 +1,5 @@
-// One payload for all matmul demo variants.
-// Expected result: C[0, 0] == 16, so @main returns 16.
+// One deterministic payload for all canonical trace variants.
+// C[0, 0] == 16, so @main returns 16 after a correct execution.
 module {
   func.func private @matmul_kernel(
       %a: memref<16x16xf32>,

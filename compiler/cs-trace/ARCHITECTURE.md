@@ -19,6 +19,7 @@
 - scope: одна `llvm.func`, выбранная через `target-func`;
 - marked load/store: считаются уже покрытыми;
 - unmarked load/store/atomics: получают pointer fallback calls;
+- все semantic/fallback sites регистрируются в прологе вместе с location;
 - unknown direct memory effect или call: pass failure.
 
 ## Required order
@@ -40,6 +41,7 @@ structured lowering
 - pass нельзя безопасно запускать повторно;
 - unsupported access не пропускается молча;
 - semantic и fallback ID spaces не пересекаются в текущем MVP;
+- static access table не зависит от выполненных control-flow paths;
 - plugin не выполняет I/O и не хранит runtime state.
 
 Текущие ограничения перечислены в

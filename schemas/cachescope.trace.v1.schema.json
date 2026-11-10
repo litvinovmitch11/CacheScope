@@ -1,0 +1,194 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CacheScope trace v1",
+  "type": "object",
+  "required": [
+    "schema",
+    "producer",
+    "variant",
+    "valid",
+    "complete",
+    "total_events",
+    "recorded_events",
+    "truncated",
+    "errors",
+    "accesses",
+    "events"
+  ],
+  "properties": {
+    "schema": {"const": "cachescope.trace.v1"},
+    "producer": {
+      "type": "object",
+      "required": [
+        "name",
+        "version",
+        "llvm_version",
+        "llvm_revision",
+        "pipeline_fingerprint"
+      ],
+      "properties": {
+        "name": {"const": "CacheScope"},
+        "version": {"type": "string"},
+        "llvm_version": {"type": "string"},
+        "llvm_revision": {"type": "string"},
+        "pipeline_fingerprint": {"type": "string"}
+      },
+      "additionalProperties": true
+    },
+    "variant": {"type": "string"},
+    "valid": {"type": "boolean"},
+    "complete": {"type": "boolean"},
+    "total_events": {"type": "integer", "minimum": 0},
+    "recorded_events": {"type": "integer", "minimum": 0},
+    "truncated": {"type": "boolean"},
+    "errors": {"type": "array", "items": {"type": "string"}},
+    "source_map": {"$ref": "#/$defs/source_map"},
+    "accesses": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/access"}
+    },
+    "events": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/event"}
+    }
+  },
+  "$defs": {
+    "kind": {"enum": ["read", "write", "read_write"]},
+    "event_kind": {"enum": ["read", "write", "read_write", "invalid"]},
+    "address_kind": {"enum": ["memref_offset", "process_address"]},
+    "stage_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$"
+    },
+    "stage": {
+      "type": "object",
+      "required": ["stage_id", "path"],
+      "properties": {
+        "stage_id": {"$ref": "#/$defs/stage_id"},
+        "path": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": true
+    },
+    "origin": {
+      "type": "object",
+      "required": [
+        "origin_id",
+        "stage_id",
+        "line",
+        "column",
+        "operation"
+      ],
+      "properties": {
+        "origin_id": {"type": "integer", "minimum": 0},
+        "stage_id": {"$ref": "#/$defs/stage_id"},
+        "line": {"type": "integer", "minimum": 1},
+        "column": {"type": "integer", "minimum": 0},
+        "operation": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": true
+    },
+    "stage_location": {
+      "type": "object",
+      "required": ["stage_id", "line", "column", "operation"],
+      "properties": {
+        "stage_id": {"$ref": "#/$defs/stage_id"},
+        "line": {"type": "integer", "minimum": 1},
+        "column": {"type": "integer", "minimum": 0},
+        "operation": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": true
+    },
+    "source_map": {
+      "type": "object",
+      "required": ["schema", "payload_fingerprint", "stages", "origins"],
+      "properties": {
+        "schema": {"const": "cachescope.source-map.v1"},
+        "payload_fingerprint": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "stages": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/stage"}
+        },
+        "origins": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/origin"}
+        }
+      },
+      "additionalProperties": true
+    },
+    "access": {
+      "type": "object",
+      "required": [
+        "access_id",
+        "memref_id",
+        "kind",
+        "address_kind",
+        "source_location"
+      ],
+      "properties": {
+        "access_id": {"type": "integer"},
+        "memref_id": {"type": "integer"},
+        "kind": {"$ref": "#/$defs/kind"},
+        "address_kind": {"$ref": "#/$defs/address_kind"},
+        "source_location": {"type": "string"},
+        "origin_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "integer", "minimum": 0}
+        },
+        "stage_locations": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/stage_location"}
+        }
+      },
+      "additionalProperties": true
+    },
+    "event": {
+      "type": "object",
+      "required": [
+        "sequence",
+        "access_id",
+        "memref_id",
+        "byte_offset",
+        "size_bytes",
+        "kind",
+        "address_kind"
+      ],
+      "properties": {
+        "sequence": {"type": "integer", "minimum": 0},
+        "access_id": {"type": "integer", "minimum": 0},
+        "memref_id": {"type": "integer"},
+        "byte_offset": {"type": "integer"},
+        "size_bytes": {"type": "integer"},
+        "kind": {"$ref": "#/$defs/event_kind"},
+        "address_kind": {"$ref": "#/$defs/address_kind"}
+      },
+      "additionalProperties": true
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {"valid": {"const": true}},
+        "required": ["valid"]
+      },
+      "then": {
+        "properties": {
+          "events": {
+            "items": {
+              "properties": {
+                "access_id": {"minimum": 0},
+                "size_bytes": {"minimum": 1},
+                "kind": {"$ref": "#/$defs/kind"}
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "additionalProperties": true
+}

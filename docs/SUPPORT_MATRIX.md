@@ -13,8 +13,13 @@
 | Views | `ViewLikeOpInterface`, включая subview | root ID сохраняется |
 | LLVM | unmarked `llvm.load/store` | pointer fallback event |
 | LLVM | unmarked `llvm.atomicrmw/cmpxchg` | `read_write` fallback event |
+| Manifest | static access table | все sites регистрируются до выполнения kernel body |
+| Manifest | source location | строковая MLIR location для каждого site |
+| Runtime | trace status | `valid`, `complete`, `errors`, truncation invariants |
 | Runtime | trace limit | `total`, `recorded`, `truncated` |
+| Schema | `cachescope.trace.v1` | JSON Schema, validator и golden fixtures |
 | Runtime | explicit reset/flush и `atexit` | поддержано |
+| Example | three MLIR compiler variants | canonical end-to-end driver |
 | Frontend | static `16×16 f32` PyTorch matmul | end-to-end demo |
 | Transform | tiling и loop interchange | проверено на примерах |
 
@@ -28,11 +33,19 @@
 | неизвестный direct call | callee может скрывать memory accesses |
 | indirect call | нет доказательства memory effects |
 | scalable vector access | размер неизвестен compile-time |
-| rank != 2 на semantic stage | текущий ABI хранит два индекса |
+| rank != 2 на semantic stage | pass пока реализует только rank-2 normalization |
 | non-strided memref | нельзя вычислить текущую нормализованную формулу |
 | `i1` | не определён byte-level access size |
 
 Отказ является частью контракта полноты, а не случайным ограничением parser.
+
+## Контракт готов, producer implementation ожидается
+
+| Возможность | Состояние |
+|---|---|
+| `cachescope.source-map.v1` | schema, validator, fixture и UI navigation rules |
+| Stage-aware MLIR dumps | контракт определён, locations ещё не публикуются producer-ом |
+| Cross-variant `origin_id` | контракт определён, propagation ещё не реализован |
 
 ## Пока не поддерживается
 
@@ -45,7 +58,6 @@
 - recursion;
 - многопоточность;
 - GPU/NVVM/ROCDL memory spaces;
-- source location table в JSON;
 - перенос access identity через cloning/fusion/unrolling;
 - реализация cache hierarchy и UI (раннер готов, модель передаётся извне).
 
@@ -67,5 +79,6 @@
 - semantic access ID пока основан на IR ordinal;
 - runtime event ordering определён только для одного потока;
 - trace limit отбрасывает хвост, но всегда выставляет `truncated`;
+- source location описывает post-transform site, а не cross-variant origin;
 - allocation/deallocation не считаются data accesses;
 - разрешённые allocator calls не трассируют внутреннюю работу allocator.

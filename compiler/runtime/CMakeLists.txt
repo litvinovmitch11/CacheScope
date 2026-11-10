@@ -8,6 +8,11 @@ target_include_directories(cachescope_trace_runtime
 )
 
 target_compile_features(cachescope_trace_runtime PRIVATE cxx_std_17)
+target_compile_definitions(cachescope_trace_runtime PRIVATE
+  CACHESCOPE_PROJECT_VERSION="${PROJECT_VERSION}"
+  CACHESCOPE_LLVM_PACKAGE_VERSION="${LLVM_PACKAGE_VERSION}"
+  CACHESCOPE_LLVM_REVISION="${CACHESCOPE_LLVM_REVISION}"
+)
 set_target_properties(cachescope_trace_runtime PROPERTIES
   CXX_VISIBILITY_PRESET hidden
   VISIBILITY_INLINES_HIDDEN YES

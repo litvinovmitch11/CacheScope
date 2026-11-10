@@ -33,7 +33,11 @@ def main() -> None:
         ".clang-tidy",
         ".gitmodules",
         "cmake/LLVMVersion.cmake",
+        "schemas/cachescope.trace.v1.schema.json",
+        "examples/trace_demo.py",
+        "tests/fixtures/source-map-v1/trace.json",
         "scripts/build-llvm.sh",
+        "scripts/validate_trace.py",
     )
     for relative_path in required_files:
         if not (args.repo / relative_path).is_file():

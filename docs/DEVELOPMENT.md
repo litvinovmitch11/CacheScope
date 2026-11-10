@@ -77,6 +77,16 @@ ctest --test-dir build --output-on-failure
 scripts/check.sh
 ```
 
+Канонический пользовательский pipeline запускается отдельно и использует ту
+же сборку:
+
+```bash
+python3 examples/trace_demo.py
+```
+
+Он создаёт три variants, traces и `output/trace-demo/summary.json`. Подробное
+описание находится в [`examples/README.md`](../examples/README.md).
+
 ## PyTorch frontend
 
 Compiler и MLIR тесты не требуют PyTorch. Для полного frontend demo создайте
@@ -140,6 +150,7 @@ git diff --check
 - `cachescope.pass-suite` — positive/negative pass behavior и marker lowering;
 - `cachescope.runtime-suite` — ABI, JSON, truncation, reset/flush;
 - `cachescope.end-to-end` — baseline/tiled compilation, execution и trace diff;
+- `cachescope.schema-suite` — schema fixtures, compatibility и invariants;
 - `cachescope.documentation-suite` — существование локальных Markdown links.
 - `cachescope.runner-*` — integration, validation, random-miss и streaming;
   запускаются из отдельного `build/runner`.
@@ -157,7 +168,8 @@ ctest --test-dir build -R pass-suite --output-on-failure
 3. Для ошибки проверить точную диагностику.
 4. Подключить fixture в `tests/pass_suite.py`.
 5. При изменении ABI обновить `compiler/runtime`, runtime suite и trace format.
-6. При изменении порядка событий объяснить ожидаемую разницу в тесте.
+6. При изменении trace contract обновить JSON Schema, validator и fixtures.
+7. При изменении порядка событий объяснить ожидаемую разницу в тесте.
 
 ## Установка
 
@@ -165,10 +177,11 @@ ctest --test-dir build -R pass-suite --output-on-failure
 cmake --install build --prefix /desired/prefix
 ```
 
-Устанавливаются plugin, trace-producer runtime и публичный ABI header:
+Устанавливаются plugin, trace-producer runtime, schema и compiler ABI:
 
 ```text
 lib/cachescope/CacheScopePassPlugin.so
 lib/libcachescope_trace_runtime.so
 include/cachescope/TraceABI.h
+share/cachescope/schema/cachescope.trace.v1.schema.json
 ```

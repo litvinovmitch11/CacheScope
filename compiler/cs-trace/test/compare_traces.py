@@ -20,14 +20,24 @@ def event_key(event: dict) -> tuple:
         event["memref_id"],
         event["byte_offset"],
         event["kind"],
-        tuple(event["indices"]),
+    )
+
+
+def access_key(access: dict) -> tuple:
+    return (
+        access["access_id"],
+        access["memref_id"],
+        access["kind"],
+        access["address_kind"],
     )
 
 
 baseline = load(sys.argv[1])
 tiled = load(sys.argv[2])
 
-if baseline["accesses"] != tiled["accesses"]:
+if [access_key(access) for access in baseline["accesses"]] != [
+    access_key(access) for access in tiled["accesses"]
+]:
     raise SystemExit("trace comparison failed: static access tables differ")
 if baseline["total_events"] != tiled["total_events"]:
     raise SystemExit("trace comparison failed: event counts differ")

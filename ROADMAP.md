@@ -18,23 +18,41 @@ PyTorch или MLIR payload
 ```
 
 Численная эквивалентность и различие traces проверяются автоматически.
+Канонический pipeline находится в `examples/trace_demo.py`.
 
-Независимый `runner/` уже воспроизводит полные semantic-трассы через переданный
-`ICacheSimulator`, автоматически размещает buffers и пишет
-`cachescope.statistics.v1`: локальные показатели инструкций/уровней и каждый
-исход. Есть smoke-тест с 50% вероятностью miss; сама cache model остаётся
-задачей следующего этапа.
+## M0: контракт trace producer — выполнено
 
-## P0: завершить контракт trace producer
+- `cachescope.trace.v1` исправлен до появления внешних consumers;
+- logical indices удалены из core event и ABI;
+- static access table не зависит от dynamic events и truncation;
+- каждый site содержит `source_location` и `address_kind`;
+- header содержит producer/toolchain metadata и pipeline fingerprint;
+- `valid`, `complete`, `errors` формализуют состояние trace;
+- добавлены JSON Schema, validator, golden fixtures и compatibility tests;
+- готовый JSON публикуется через временный файл.
+
+## M1: provenance через transformations
+
+- stage-aware `cachescope.source-map.v1` contract, validator и fixture готовы;
+- назначать `origin_id` до Transform Dialect pipeline;
+- разделить logical origin и конкретный post-transform `access_id`;
+- переносить lineage через cloning/fusion/unrolling;
+- добавить source table исходного payload и cross-variant matching tests.
+
+## M2: расширить memory coverage
 
 - добавить semantic policies для `memref.copy` и atomics;
 - нормализовать или поддержать `vector.load/store/transfer_*`;
 - добавить LLVM handlers для memcpy/memmove/memset;
 - определить поведение masked load/store и gather/scatter;
-- перенести provenance через transformations, которые клонируют access sites;
-- добавить source-location table в JSON;
+
+## M3: укрепить runtime и driver
+
 - сделать runtime thread-safe либо явно отклонять многопоточные запуски;
-- формализовать schema versioning и compatibility tests.
+- выделить единый compiler driver вместо дублирования pipeline в demos;
+- добавить installed-plugin smoke test и CI.
+
+## Общие продуктовые этапы
 
 ## P1: cache simulator
 

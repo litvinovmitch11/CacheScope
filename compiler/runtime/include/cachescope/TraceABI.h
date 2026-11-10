@@ -12,10 +12,21 @@
 extern "C" CACHESCOPE_EXPORT void
 __cachescope_trace_v1(std::int64_t accessId, std::int64_t memrefId,
                       std::int64_t byteOffset, std::int64_t sizeBytes,
-                      std::int64_t accessKind, std::int64_t index0,
-                      std::int64_t index1);
+                      std::int64_t accessKind);
 
-// LLVM fallback events have no stable memref/indices. They carry the concrete
+// The compiler emits one registration call for every static access site in the
+// target function. Registrations execute in the function prologue, so the
+// access table does not depend on control flow or the dynamic trace limit.
+// addressKind is 0 for a semantic memref offset and 1 for a process address.
+extern "C" CACHESCOPE_EXPORT void
+__cachescope_register_access_v1(std::int64_t accessId, std::int64_t memrefId,
+                                std::int64_t accessKind,
+                                std::int64_t addressKind);
+extern "C" CACHESCOPE_EXPORT void
+__cachescope_register_source_v1(std::int64_t accessId,
+                                const char *sourceLocation);
+
+// LLVM fallback events have no stable memref identity. They carry the concrete
 // process address so no explicit LLVM memory operation is silently omitted.
 extern "C" CACHESCOPE_EXPORT void
 __cachescope_trace_fallback_v1(std::int64_t accessId, std::int64_t address,

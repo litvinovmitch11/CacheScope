@@ -1,0 +1,44 @@
+{
+  "schema": "cachescope.trace.v1",
+  "producer": {
+    "name": "CacheScope",
+    "version": "0.1.0",
+    "llvm_version": "24.0.0git",
+    "llvm_revision": "40e5c847efaca209a9823e950fc5f26dc60cad4e",
+    "pipeline_fingerprint": "fixture-pipeline-v1"
+  },
+  "variant": "limited",
+  "valid": true,
+  "complete": false,
+  "total_events": 2,
+  "recorded_events": 1,
+  "truncated": true,
+  "errors": [],
+  "accesses": [
+    {
+      "access_id": 0,
+      "memref_id": 0,
+      "kind": "read",
+      "address_kind": "memref_offset",
+      "source_location": "loc(\"fixture.mlir\":4:3)"
+    },
+    {
+      "access_id": 1,
+      "memref_id": 1,
+      "kind": "write",
+      "address_kind": "memref_offset",
+      "source_location": "loc(\"fixture.mlir\":5:3)"
+    }
+  ],
+  "events": [
+    {
+      "sequence": 0,
+      "access_id": 0,
+      "memref_id": 0,
+      "byte_offset": 0,
+      "size_bytes": 4,
+      "kind": "read",
+      "address_kind": "memref_offset"
+    }
+  ]
+}

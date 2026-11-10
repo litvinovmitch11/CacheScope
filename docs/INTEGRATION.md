@@ -25,20 +25,20 @@
 - версией trace schema.
 
 Его внешний результат — данные в `output/<experiment>/`, а не MLIR plugin или
-внутренние runtime calls. Для Torch-демо bundle выглядит так:
+внутренние runtime calls. Канонический compiler experiment выглядит так:
 
 ```text
-output/torch-demo/
-  input.json                 воспроизводимое описание входа
-  inputs.npz                 точные входные tensors
-  comparison.json            self-check compiler variants
+output/trace-demo/
+  summary.json               self-check compiler variants
   baseline/trace.json        baseline trace
   tile4/trace.json           tiled trace
   tile4-ikj/trace.json       tiled + interchanged trace
 ```
 
-`input.json` и `inputs.npz` нужны для воспроизведения эксперимента и UI. Cache
-emulator для replay использует только `trace.json` и собственную cache config.
+Payload и transform programs хранятся в Git под `examples/`. Cache emulator
+для replay использует только `trace.json` и собственную cache config. PyTorch
+integration дополнительно сохраняет точные tensors и input manifest, но это не
+обязательная часть базового trace contract.
 
 Compiler-разработчик гарантирует:
 
@@ -46,14 +46,20 @@ Compiler-разработчик гарантирует:
 2. trace либо полон в рамках support matrix, либо compilation завершается
    ошибкой;
 3. `truncated` не скрывается;
-4. schema меняется только с новой версией и compatibility test;
-5. generated IR и binaries не являются командным API.
+4. consumer проверяет `valid` и `complete` до replay;
+5. static access table не зависит от записанного event prefix;
+6. schema меняется только с новой версией и compatibility test;
+7. generated IR и binaries не являются командным API.
 
 Его обязательная проверка:
 
 ```bash
-scripts/check.sh --with-torch --with-lint
+scripts/check.sh --with-lint
+python3 examples/trace_demo.py
 ```
+
+Изменения optional PyTorch frontend дополнительно требуют
+`scripts/check.sh --with-torch`.
 
 ## 2–3. Cache emulator
 
@@ -79,34 +85,22 @@ model_address = deterministic_base[memref_id] + byte_offset
 Emulator обязан:
 
 - проверить `schema` до replay;
-- отклонить или явно отметить `truncated = true`;
+- отклонить `valid = false` и `complete = false` до replay;
 - назначить непересекающиеся deterministic bases;
 - разбить доступ, пересекающий cache-line boundary;
 - вернуть детерминированные statistics для одинаковых trace/config;
-- не интерпретировать MLIR indices как физический адрес.
+- не использовать `source_location` как memory address или origin identity.
 
-В emulator уже есть [runner](../runner/README.md), который принимает готовый
-`ICacheSimulator`; сама модель и её конфигурация реализуются отдельно.
-Раннер вызывает `clear()`, затем `read/write`. Модель сообщает названия уровней
-через `level_names()` и возвращает demand probes всех посещённых уровней
-с 1-based `LineAccessResult.level`. Разбиение запроса на строки выполняет модель.
-
-Раннер v1 принимает полные semantic-трассы `memref_offset` с `read/write`;
-`process_address`, `read_write` и truncated traces отклоняются. Адреса массивов
-назначаются автоматически и сохраняются в отчёте; YAML buffer names не
-используются для сопоставления с числовыми memref_id.
-
-Результат runner:
+Рекомендуемый результат emulator:
 
 ```text
 output/<experiment>/simulation/<config-name>/
-  statistics.json            totals + instructions + every event/level outcome
+  statistics.json            totals: hits, misses, evictions, writebacks
+  events.json                optional per-access cache outcome
 ```
 
-Контракт [cachescope.statistics.v1](STATISTICS_FORMAT.md) версионируется
-отдельно от trace. Он содержит hits, misses и evictions; writebacks пока
-не наблюдаемы через интерфейс модели. Первый разработчик не должен добавлять
-cache outcomes в compiler runtime.
+Версию схемы statistics нужно завести отдельно от trace schema. Первый
+разработчик не должен добавлять cache outcomes в compiler runtime.
 
 ## 4. UI
 
@@ -117,11 +111,16 @@ UI получает:
 
 - `input.json` и при необходимости `inputs.npz` от trace producer;
 - `trace.json` от trace producer;
-- `statistics.json`, включая подробный массив events, от runner.
+- stage dumps и embedded `source_map` при поддержке producer-ом;
+- `statistics.json` и опциональный `events.json` от emulator.
 
 UI может показывать порядок обращений, offsets, read/write kind и формальный
 результат cache model. Он не должен делать выводы о wall-clock performance или
 CPU cycles только по trace.
+
+Stage-aware navigation определена в [SOURCE_MAPPING.md](SOURCE_MAPPING.md).
+До producer implementation UI обязан feature-detect поле `source_map`, а не
+пытаться разобрать legacy `source_location` как стабильную структуру.
 
 На первом этапе UI разумно поддержать импорт готовой директории experiment.
 Запуск compiler pipeline из UI лучше добавлять только после стабилизации bundle
@@ -133,7 +132,7 @@ manifest и отдельного CLI/API orchestration слоя.
 |---|---|---|---|
 | Compiler | Emulator | `cachescope.trace.v1` | участник 1 |
 | Compiler | UI | `cachescope.input.v1`, tensors | участник 1 |
-| Emulator | UI | `cachescope.statistics.v1` | участники 2–3 |
+| Emulator | UI | будущая statistics schema | участники 2–3 |
 | Все компоненты | Все | experiment directory layout | совместно |
 
 Изменение общего контракта делается отдельным commit и включает fixture для
@@ -148,3 +147,8 @@ consumer. Не следует импортировать исходники со
 
 Текущий trace contract подробно описан в [TRACE_FORMAT.md](TRACE_FORMAT.md), а
 поддерживаемые compiler operations — в [SUPPORT_MATRIX.md](SUPPORT_MATRIX.md).
+Перед передачей fixture consumer-команде запускается:
+
+```bash
+python3 scripts/validate_trace.py path/to/trace.json
+```
