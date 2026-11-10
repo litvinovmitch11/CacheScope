@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import itertools
 import json
 import os
@@ -77,12 +78,13 @@ def run(
     *,
     env: dict[str, str] | None = None,
     capture: bool = False,
+    cwd: Path = ROOT,
 ) -> subprocess.CompletedProcess[str]:
     rendered = [str(argument) for argument in command]
     print("+", shlex.join(rendered), flush=True)
     return subprocess.run(
         rendered,
-        cwd=ROOT,
+        cwd=cwd,
         env=env,
         check=True,
         text=True,
@@ -167,52 +169,134 @@ def compile_variant(
 
     output = output_root / variant.name
     output.mkdir(parents=True, exist_ok=True)
-    transformed = output / "01-transformed.mlir"
-    loops = output / "02-loops.mlir"
-    instrumented = output / "03-instrumented.mlir"
-    llvm_mlir = output / "04-llvm.mlir"
+    input_dump = output / "input.mlir"
+    input_tagged = output / ".00-input-tagged.mlir"
+    transformed_raw = output / ".01-transformed-raw.mlir"
+    transformed_tagged = output / ".01-transformed-tagged.mlir"
+    loops_tagged = output / ".02-loops-tagged.mlir"
+    instrumented_tagged = output / ".03-instrumented-tagged.mlir"
+    llvm_tagged = output / ".04-llvm-tagged.mlir"
+    executable = output / "05-executable.mlir"
     trace_path = output / "trace.json"
 
+    run(
+        [
+            mlir_opt,
+            payload,
+            f"--load-pass-plugin={plugin}",
+            "--pass-pipeline=builtin.module("
+            "snapshot-op-locations{filename=input.mlir tag=cachescope.stage.input},"
+            "cachescope-assign-origins{target-func=matmul_kernel},"
+            "cachescope-tag-stage{target-func=matmul_kernel stage-id=input})",
+            "--mlir-print-debuginfo",
+            "-o",
+            input_tagged.name,
+        ],
+        cwd=output,
+    )
+
     if variant.transform is None:
-        run([mlir_opt, payload, "-o", transformed])
+        run(
+            [
+                mlir_opt,
+                input_tagged.name,
+                "--mlir-print-debuginfo",
+                "-o",
+                transformed_raw.name,
+            ],
+            cwd=output,
+        )
     else:
         transformed_text = run(
-            [transform_opt, payload, f"--transform={variant.transform}"],
+            [
+                transform_opt,
+                input_tagged.name,
+                f"--transform={variant.transform}",
+                "--mlir-print-debuginfo",
+            ],
             capture=True,
+            cwd=output,
         ).stdout
-        transformed.write_text(transformed_text, encoding="utf-8")
+        transformed_raw.write_text(transformed_text, encoding="utf-8")
 
     run(
         [
             mlir_opt,
-            transformed,
-            "--convert-linalg-to-loops",
-            "--canonicalize",
-            "--cse",
-            "-o",
-            loops,
-        ]
-    )
-    run(
-        [
-            mlir_opt,
-            loops,
+            transformed_raw.name,
             f"--load-pass-plugin={plugin}",
-            "--pass-pipeline=builtin.module(cachescope-instrument-memory{target-func=matmul_kernel},canonicalize,cse)",
+            "--pass-pipeline=builtin.module("
+            "snapshot-op-locations{filename=01-transformed.mlir tag=cachescope.stage.after-transform},"
+            "cachescope-tag-stage{target-func=matmul_kernel stage-id=after-transform})",
             "--mlir-print-debuginfo",
             "-o",
-            instrumented,
-        ]
+            transformed_tagged.name,
+        ],
+        cwd=output,
+    )
+
+    run(
+        [
+            mlir_opt,
+            transformed_tagged.name,
+            f"--load-pass-plugin={plugin}",
+            "--pass-pipeline=builtin.module("
+            "convert-linalg-to-loops,canonicalize,cse,"
+            "snapshot-op-locations{filename=02-loops.mlir tag=cachescope.stage.after-linalg-to-loops},"
+            "cachescope-tag-stage{target-func=matmul_kernel stage-id=after-linalg-to-loops})",
+            "--mlir-print-debuginfo",
+            "-o",
+            loops_tagged.name,
+        ],
+        cwd=output,
     )
     run(
         [
             mlir_opt,
-            instrumented,
+            loops_tagged.name,
             f"--load-pass-plugin={plugin}",
-            "--pass-pipeline=builtin.module(expand-strided-metadata,lower-affine,convert-scf-to-cf,convert-to-llvm,reconcile-unrealized-casts,cachescope-instrument-llvm-fallback{target-func=matmul_kernel})",
+            "--pass-pipeline=builtin.module("
+            "cachescope-instrument-memory{target-func=matmul_kernel},canonicalize,cse,"
+            "snapshot-op-locations{filename=03-instrumented.mlir tag=cachescope.stage.after-instrumentation},"
+            "cachescope-tag-stage{target-func=matmul_kernel stage-id=after-instrumentation})",
+            "--mlir-print-debuginfo",
             "-o",
-            llvm_mlir,
-        ]
+            instrumented_tagged.name,
+        ],
+        cwd=output,
+    )
+    run(
+        [
+            mlir_opt,
+            instrumented_tagged.name,
+            f"--load-pass-plugin={plugin}",
+            "--pass-pipeline=builtin.module("
+            "expand-strided-metadata,lower-affine,convert-scf-to-cf,"
+            "convert-to-llvm,reconcile-unrealized-casts,"
+            "snapshot-op-locations{filename=04-llvm.mlir tag=cachescope.stage.after-llvm-lowering},"
+            "cachescope-tag-stage{target-func=matmul_kernel stage-id=after-llvm-lowering})",
+            "--mlir-print-debuginfo",
+            "-o",
+            llvm_tagged.name,
+        ],
+        cwd=output,
+    )
+
+    payload_fingerprint = "sha256:" + hashlib.sha256(
+        input_dump.read_bytes()
+    ).hexdigest()
+    run(
+        [
+            mlir_opt,
+            llvm_tagged.name,
+            f"--load-pass-plugin={plugin}",
+            "--pass-pipeline=builtin.module("
+            "cachescope-instrument-llvm-fallback{"
+            f"target-func=matmul_kernel payload-fingerprint={payload_fingerprint}"
+            "})",
+            "-o",
+            executable.name,
+        ],
+        cwd=output,
     )
 
     environment = os.environ.copy()
@@ -227,7 +311,7 @@ def compile_variant(
     execution = run(
         [
             mlir_runner,
-            llvm_mlir,
+            executable,
             "-e",
             "main",
             "-entry-point-result=i32",
@@ -244,7 +328,7 @@ def compile_variant(
 
     with trace_path.open(encoding="utf-8") as trace_file:
         trace = json.load(trace_file)
-    validate_trace(trace)
+    validate_trace(trace, artifact_root=output)
     if not trace["valid"] or not trace["complete"]:
         raise RuntimeError(f"{variant.name}: trace is invalid or incomplete")
     fallback_events = sum(

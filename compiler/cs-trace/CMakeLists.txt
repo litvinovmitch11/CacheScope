@@ -2,6 +2,7 @@ add_llvm_library(CacheScopePassPlugin
   MODULE BUILDTREE_ONLY
   lib/InstrumentMemory.cpp
   lib/InstrumentLLVMFallback.cpp
+  lib/SourceMapping.cpp
   plugin/CacheScopePassPlugin.cpp
 
   PLUGIN_TOOL

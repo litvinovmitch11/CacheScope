@@ -66,6 +66,7 @@ def test_marker_survives_lowering(
     mlir_opt: Path, plugin: Path, source: Path, temporary: Path
 ) -> None:
     marked = temporary / "marked.mlir"
+    converted = temporary / "converted.mlir"
     lowered = temporary / "lowered.mlir"
     run(
         [
@@ -83,7 +84,18 @@ def test_marker_survives_lowering(
             mlir_opt,
             marked,
             f"--load-pass-plugin={plugin}",
-            "--pass-pipeline=builtin.module(expand-strided-metadata,lower-affine,convert-scf-to-cf,convert-to-llvm,reconcile-unrealized-casts,cachescope-instrument-llvm-fallback{target-func=kernel})",
+            "--pass-pipeline=builtin.module(expand-strided-metadata,lower-affine,convert-scf-to-cf,convert-to-llvm,reconcile-unrealized-casts)",
+            "--mlir-print-debuginfo",
+            "-o",
+            converted,
+        ]
+    )
+    run(
+        [
+            mlir_opt,
+            converted,
+            f"--load-pass-plugin={plugin}",
+            "--pass-pipeline=builtin.module(cachescope-instrument-llvm-fallback{target-func=kernel})",
             "-o",
             lowered,
         ]
@@ -101,6 +113,52 @@ def test_marker_survives_lowering(
         raise AssertionError("source location registrations are missing")
     if "__cachescope_source_0" not in text:
         raise AssertionError("source location table is missing")
+
+    incomplete_mapping = run(
+        [
+            mlir_opt,
+            converted,
+            f"--load-pass-plugin={plugin}",
+            "--pass-pipeline=builtin.module("
+            "cachescope-instrument-llvm-fallback{"
+            f"target-func=kernel payload-fingerprint=sha256:{'0' * 64}"
+            "})",
+        ],
+        check=False,
+    )
+    if incomplete_mapping.returncode == 0:
+        raise AssertionError("incomplete source mapping was accepted")
+    if "cannot build a complete source map" not in incomplete_mapping.stderr:
+        raise AssertionError("missing fail-closed source mapping diagnostic")
+
+
+def test_source_mapping_markers(
+    mlir_opt: Path, plugin: Path, source: Path, temporary: Path
+) -> None:
+    snapshot = temporary / "input.mlir"
+    result = run(
+        [
+            mlir_opt,
+            source,
+            f"--load-pass-plugin={plugin}",
+            "--pass-pipeline=builtin.module("
+            f"snapshot-op-locations{{filename={snapshot} tag=cachescope.stage.input}},"
+            "cachescope-assign-origins{target-func=kernel},"
+            "cachescope-tag-stage{target-func=kernel stage-id=input})",
+            "--mlir-print-debuginfo",
+        ]
+    )
+    for marker in (
+        "cachescope.origin_id",
+        "cachescope.origin_operation",
+        "cachescope.stage.input",
+        "cachescope.stage_id",
+        "cachescope.stage_operation",
+    ):
+        if marker not in result.stdout:
+            raise AssertionError(f"source mapping marker is missing: {marker}")
+    if not snapshot.is_file():
+        raise AssertionError("source mapping input snapshot is missing")
 
 
 def main() -> None:
@@ -153,11 +211,18 @@ def main() -> None:
     )
 
     with tempfile.TemporaryDirectory(prefix="cachescope-pass-") as directory:
+        temporary = Path(directory)
+        test_source_mapping_markers(
+            mlir_opt,
+            args.plugin,
+            tests / "instrument-memory.mlir",
+            temporary,
+        )
         test_marker_survives_lowering(
             mlir_opt,
             args.plugin,
             tests / "instrument-memory.mlir",
-            Path(directory),
+            temporary,
         )
 
     print("pass suite OK")

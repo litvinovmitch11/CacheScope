@@ -28,6 +28,7 @@ python3 examples/trace_demo.py
 
 ```text
 payload / Transform Dialect
+  → origin assignment + tagged stage snapshots
   → linalg-to-loops
   → cachescope-instrument-memory
   → LLVM lowering
@@ -48,6 +49,7 @@ Driver требует, чтобы результат каждого запуск
 ```text
 summary.json
 baseline/
+  input.mlir
   01-transformed.mlir
   02-loops.mlir
   03-instrumented.mlir
@@ -59,10 +61,15 @@ tile4-ikj/
   ...
 ```
 
-`trace.json` — контрактный результат producer. Промежуточные MLIR-файлы нужны
-только для разбора compiler pipeline и не являются API. `summary.json`
-содержит пути к traces, их размеры/status и позицию первой динамической разницы
-для каждой пары variants.
+`trace.json` вместе с пятью MLIR dumps образует переносимый UI bundle.
+`source_map.stages[].path` ссылается на эти файлы, а line/column — на их точные
+байты. Скрытые `.NN-*-tagged.mlir` являются внутренними файлами driver и не
+входят в контракт. `summary.json` содержит пути к traces, их размеры/status и
+позицию первой динамической разницы для каждой пары variants.
+
+Для всех трёх variants `origin_id = 0` указывает на один input
+`linalg.matmul`. После выбора `after-linalg-to-loops` UI получает четыре
+раздельных sites: три `memref.load` и один `memref.store`.
 
 Trace можно повторно проверить отдельно:
 
