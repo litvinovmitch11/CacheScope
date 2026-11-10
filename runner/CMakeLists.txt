@@ -36,7 +36,8 @@ if(BUILD_TESTING)
     CACHESCOPE_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures"
     CACHESCOPE_TRACE_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../schemas/fixtures"
     CACHESCOPE_SMOKE_OUTPUT_DIR="${CMAKE_CURRENT_BINARY_DIR}/smoke")
-  foreach(suite IN ITEMS integration real-cache validation random-miss streaming)
+  foreach(suite IN ITEMS integration real-cache fifo-cache random-cache
+                         validation random-miss streaming)
     add_test(NAME cachescope.runner-${suite}
       COMMAND cachescope_runner_tests ${suite})
   endforeach()

@@ -1,4 +1,6 @@
+#include "cache_simulator/FIFO.h"
 #include "cache_simulator/LRU.h"
+#include "cache_simulator/Random.h"
 #include "cache_simulator/SetAssociativeCacheLevel.h"
 #include "cache_simulator/trace_runner.hpp"
 
@@ -378,6 +380,127 @@ static void real_cache() {
   }
 }
 
+static Json replacement_trace() {
+  auto trace = fixture();
+  for (auto &access : trace["accesses"])
+    access["memref_id"] = 0;
+  trace["events"] = Json::array();
+  for (const U64 offset : {0, 64, 0, 128, 0, 192, 256, 320}) {
+    const auto sequence = trace["events"].size();
+    trace["events"].push_back({{"sequence", sequence},
+                               {"access_id", sequence == 0 ? 20 : 10},
+                               {"memref_id", 0},
+                               {"byte_offset", offset},
+                               {"size_bytes", 4},
+                               {"kind", sequence == 0 ? "write" : "read"},
+                               {"address_kind", "memref_offset"}});
+  }
+  trace["total_events"] = trace["recorded_events"] = trace["events"].size();
+  return trace;
+}
+
+static CacheHierarchy
+replacement_hierarchy(const std::string &policy,
+                      const ReplacementPolicyFactory &factory) {
+  std::vector<CacheLevel> levels;
+  for (const std::size_t ways : {2, 1})
+    levels.push_back({"L" + std::to_string(levels.size() + 1),
+                      {64 * ways, 64, ways, policy},
+                      std::make_unique<SetAssociativeCacheLevel>(
+                          CacheLevelConfig{64 * ways, 64, ways}, factory)});
+  return CacheHierarchy(std::move(levels));
+}
+
+static void fifo_cache() {
+  Directory directory;
+  const auto input = directory.path / "trace.json";
+  const auto output = directory.path / "statistics.json";
+  write_text(input, replacement_trace().dump());
+  auto hierarchy =
+      replacement_hierarchy("FIFO", [] { return std::make_unique<FIFO>(); });
+  const auto summary = run_trace(input, hierarchy, output);
+  check(summary.events == 8 && summary.reads == 7 && summary.writes == 1 &&
+            summary.levels[0].total.hits == 1 &&
+            summary.levels[0].total.misses == 7 &&
+            summary.levels[1].total.hits == 1 &&
+            summary.levels[1].total.misses == 6,
+        "FIFO preserves insertion order through runner and hierarchy");
+  check(
+      summary.memory_reads == 6 && summary.memory_writebacks == 1 &&
+          summary.levels[0].total.evictions == 5 &&
+          summary.levels[1].total.evictions == 3,
+      "FIFO cascades victims and writes the dirty last-level victim to memory");
+  check(summary.instructions.at(10).events == 7 &&
+            summary.instructions.at(10).levels[0].total.hits == 1 &&
+            summary.instructions.at(20).events == 1 &&
+            summary.instructions.at(20).levels[0].total.misses == 1,
+        "FIFO instruction statistics distinguish reads and writes");
+  const auto report = read_json(output);
+  const auto events = read_json(directory.path / "events.json")["events"];
+  check(
+      report["levels"].size() == 2 &&
+          report["levels"][0]["cache_config"]["replacement_policy"] == "FIFO" &&
+          report["levels"][1]["cache_config"]["replacement_policy"] == "FIFO" &&
+          report["totals"]["hit_rate_percent"] == 12.5 &&
+          report["memory"]["writebacks"] == 1 && events.size() == 8,
+      "FIFO reports contain both levels, their statistics and all events");
+  check(events[3]["lines"][0]["evicted_address"] == "0x10000000" &&
+            events[3]["lines"][0]["evicted_dirty"] == true &&
+            events[4]["level_results"][1]["lines"][0]["hit"] == true &&
+            events[4]["memory_reads"] == 0 &&
+            events[7]["evictions"].back()["line_address"] == "0x10000000" &&
+            events[7]["evictions"].back()["dirty"] == true &&
+            events[7]["memory_writebacks"] == 1,
+        "FIFO timeline retains dirty through L2 promotion and final writeback");
+}
+
+static void random_cache() {
+  Directory directory;
+  const auto input = directory.path / "trace.json";
+  const auto output = directory.path / "statistics.json";
+  const auto events_path = directory.path / "events.json";
+  write_text(input, replacement_trace().dump());
+  auto hierarchy = replacement_hierarchy(
+      "Random", [] { return std::make_unique<Random>(42); });
+  const auto summary = run_trace(input, hierarchy, output);
+  const auto l1_hits = summary.levels[0].total.hits;
+  check(summary.events == 8 && summary.reads == 7 && summary.writes == 1 &&
+            summary.levels[0].total.probes == 8 && l1_hits >= 1 &&
+            l1_hits <= 2 && summary.levels[1].total.hits == 2 - l1_hits &&
+            summary.levels[1].total.misses == 6 && summary.memory_reads == 6 &&
+            summary.memory_writebacks <= 1,
+        "Random hierarchy serves two resident accesses and six cold lines");
+  const auto report = read_json(output);
+  const auto events = read_json(events_path)["events"];
+  check(report["levels"].size() == 2 &&
+            report["levels"][0]["cache_config"]["replacement_policy"] ==
+                "Random" &&
+            report["levels"][1]["cache_config"]["replacement_policy"] ==
+                "Random" &&
+            report["memory"]["reads"] == 6 &&
+            report["instructions"][0]["events"] == 7 &&
+            report["instructions"][0]["levels"][0]["totals"]["hits"] ==
+                l1_hits &&
+            report["instructions"][1]["events"] == 1 && events.size() == 8,
+        "Random reports retain per-level and per-instruction statistics");
+  const auto &victim = events[3]["lines"][0]["evicted_address"];
+  check((victim == "0x10000000" || victim == "0x10000040") &&
+            events[3]["lines"][0]["evicted_dirty"] ==
+                (victim == "0x10000000") &&
+            events[2]["lines"][0]["hit"] == true &&
+            events[4]["level_results"].back()["lines"][0]["hit"] == true &&
+            events[4]["memory_reads"] == 0,
+        "Random evicts a resident line and retains the later hierarchy hit");
+  const auto previous_statistics = read_text(output);
+  const auto previous_events = read_text(events_path);
+  for (unsigned repetition = 0; repetition < 4; ++repetition) {
+    run_trace(input, hierarchy, output);
+    check(read_text(output) == previous_statistics &&
+              read_text(events_path) == previous_events,
+          "fixed Random seed resets with hierarchy on every runner invocation");
+  }
+}
+
 template <class Action>
 static void expect_error(Action action, const std::string &message) {
   try {
@@ -714,6 +837,10 @@ int main(int argc, char **argv) {
       integration();
     else if (suite == "real-cache")
       real_cache();
+    else if (suite == "fifo-cache")
+      fifo_cache();
+    else if (suite == "random-cache")
+      random_cache();
     else if (suite == "validation")
       validation();
     else if (suite == "random-miss")
