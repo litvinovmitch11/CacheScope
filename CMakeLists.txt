@@ -66,6 +66,7 @@ include_directories(${MLIR_INCLUDE_DIRS})
 include_directories(${PROJECT_SOURCE_DIR}/compiler/cs-trace/include)
 link_directories(${LLVM_BUILD_LIBRARY_DIR})
 
+add_subdirectory(simulator)
 add_subdirectory(compiler/runtime)
 add_subdirectory(compiler/cs-trace)
 
