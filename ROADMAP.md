@@ -33,6 +33,7 @@ PyTorch или MLIR payload
 
 ## M1: provenance через transformations
 
+- stage-aware `cachescope.source-map.v1` contract, validator и fixture готовы;
 - назначать `origin_id` до Transform Dialect pipeline;
 - разделить logical origin и конкретный post-transform `access_id`;
 - переносить lineage через cloning/fusion/unrolling;

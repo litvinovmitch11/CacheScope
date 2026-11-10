@@ -7,6 +7,8 @@ cache emulator и UI. Внешних пользователей у ранней 
 
 Машиночитаемая схема находится в
 [`schemas/cachescope.trace.v1.schema.json`](../schemas/cachescope.trace.v1.schema.json).
+Optional stage-aware mapping для UI описан отдельно в
+[`SOURCE_MAPPING.md`](SOURCE_MAPPING.md).
 
 Схема намеренно не объявляет публичный `$id`: канонического опубликованного
 URL у проекта пока нет. Поле `$schema` указывает только на версию стандарта
@@ -53,6 +55,7 @@ python3 scripts/validate_trace.py path/to/trace.json
 | `recorded_events` | integer | сохранённый префикс events |
 | `truncated` | boolean | часть dynamic events отброшена по limit |
 | `errors` | string[] | обнаруженные runtime contract errors |
+| `source_map` | object | optional `cachescope.source-map.v1` metadata |
 
 Обязательные соотношения:
 
@@ -84,9 +87,9 @@ function. Поэтому `accesses` не строится из записанн�
 }
 ```
 
-`source_location` описывает конкретную операцию текущего compiler variant.
-До milestone provenance она не является cross-variant origin identity:
-tiling/unrolling могут изменить файл и позицию post-transform operation.
+`source_location` остаётся диагностическим текстом и не является
+cross-variant identity. Если producer публикует `source_map`, structured
+`origin_ids` и `stage_locations` являются источником истины для UI.
 
 Для LLVM fallback используются `memref_id = -1` и
 `address_kind = "process_address"`.
@@ -163,6 +166,7 @@ Trace limit принимает только непустое десятично�
 - игнорировать неизвестные дополнительные поля;
 - не интерпретировать `byte_offset` без `address_kind`;
 - проверять event против записи с тем же `access_id`;
+- при наличии `source_map` проверять его schema и все ссылки на stages/origins;
 - не сопоставлять fallback addresses между процессами.
 
 Golden fixtures находятся в [`tests/fixtures`](../tests/fixtures). Любое

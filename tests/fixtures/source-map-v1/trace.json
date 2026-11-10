@@ -1,0 +1,80 @@
+{
+  "schema": "cachescope.trace.v1",
+  "producer": {
+    "name": "CacheScope",
+    "version": "0.1.0",
+    "llvm_version": "24.0.0git",
+    "llvm_revision": "40e5c847efaca209a9823e950fc5f26dc60cad4e",
+    "pipeline_fingerprint": "fixture-tile4-v1"
+  },
+  "variant": "tile4",
+  "valid": true,
+  "complete": true,
+  "total_events": 1,
+  "recorded_events": 1,
+  "truncated": false,
+  "errors": [],
+  "source_map": {
+    "schema": "cachescope.source-map.v1",
+    "payload_fingerprint": "sha256:93bbf9dee0d0705016740ff417237fa6d6d8e2577ea0a47464ae07097fb88f91",
+    "stages": [
+      {
+        "stage_id": "input",
+        "path": "input.mlir"
+      },
+      {
+        "stage_id": "after-transform",
+        "path": "tile4/01-transformed.mlir"
+      },
+      {
+        "stage_id": "after-linalg-to-loops",
+        "path": "tile4/02-loops.mlir"
+      }
+    ],
+    "origins": [
+      {
+        "origin_id": 0,
+        "stage_id": "input",
+        "line": 4,
+        "column": 4,
+        "operation": "linalg.matmul"
+      }
+    ],
+    "future_source_map_field": true
+  },
+  "accesses": [
+    {
+      "access_id": 0,
+      "memref_id": 0,
+      "kind": "read",
+      "address_kind": "memref_offset",
+      "source_location": "loc(\"tile4/02-loops.mlir\":5:4)",
+      "origin_ids": [0],
+      "stage_locations": [
+        {
+          "stage_id": "after-transform",
+          "line": 7,
+          "column": 6,
+          "operation": "linalg.matmul"
+        },
+        {
+          "stage_id": "after-linalg-to-loops",
+          "line": 5,
+          "column": 4,
+          "operation": "memref.load"
+        }
+      ]
+    }
+  ],
+  "events": [
+    {
+      "sequence": 0,
+      "access_id": 0,
+      "memref_id": 0,
+      "byte_offset": 0,
+      "size_bytes": 4,
+      "kind": "read",
+      "address_kind": "memref_offset"
+    }
+  ]
+}

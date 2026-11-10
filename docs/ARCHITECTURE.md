@@ -304,8 +304,18 @@ PyTorch одновременно является понятным frontend и n
 
 Практические workflows описаны в [INTEGRATION.md](INTEGRATION.md).
 
+## 12. Stage-aware source mapping
 
-## 12. Симулятор кеша: разделение ответственности
+Optional `cachescope.source-map.v1` связывает high-level origins, operations в
+сохранённых IR stages и static `access_id`. Dynamic events продолжают хранить
+только `access_id`, поэтому mapping не зависит от event limit и truncation.
+
+Контракт и UI navigation rules описаны в
+[SOURCE_MAPPING.md](SOURCE_MAPPING.md). Producer implementation должна
+использовать MLIR location snapshots и сохранять tagged locations через
+Transform Dialect и lowering. Эта реализация пока не завершена.
+
+## 13. Симулятор кеша: разделение ответственности
 
 Ниже описана целевая архитектура потребителя трассы. В текущей ветке объявлены
 `ICacheLevel` и `IReplacementPolicy`; реализация уровней, `CacheHierarchy` и

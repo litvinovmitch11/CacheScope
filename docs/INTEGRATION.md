@@ -111,11 +111,16 @@ UI получает:
 
 - `input.json` и при необходимости `inputs.npz` от trace producer;
 - `trace.json` от trace producer;
+- stage dumps и embedded `source_map` при поддержке producer-ом;
 - `statistics.json` и опциональный `events.json` от emulator.
 
 UI может показывать порядок обращений, offsets, read/write kind и формальный
 результат cache model. Он не должен делать выводы о wall-clock performance или
 CPU cycles только по trace.
+
+Stage-aware navigation определена в [SOURCE_MAPPING.md](SOURCE_MAPPING.md).
+До producer implementation UI обязан feature-detect поле `source_map`, а не
+пытаться разобрать legacy `source_location` как стабильную структуру.
 
 На первом этапе UI разумно поддержать импорт готовой директории experiment.
 Запуск compiler pipeline из UI лучше добавлять только после стабилизации bundle

@@ -121,6 +121,7 @@ scripts/check.sh --with-torch
 - [архитектура](docs/ARCHITECTURE.md);
 - [сборка и разработка](docs/DEVELOPMENT.md);
 - [формат trace](docs/TRACE_FORMAT.md);
+- [stage-aware source mapping](docs/SOURCE_MAPPING.md);
 - [командная интеграция](docs/INTEGRATION.md);
 - [support matrix](docs/SUPPORT_MATRIX.md);
 - [roadmap](ROADMAP.md).
