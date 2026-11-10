@@ -1,0 +1,24 @@
+{
+    "schema": "cachescope.simulation-statistics.v1",
+    "variant": "baseline",
+    "producer": "instrumented-mlir-execution",
+    "cache_config": {
+      "size_bytes": 32768,
+      "line_size_bytes": 64,
+      "associativity": 8,
+      "set_count": 64,
+      "replacement_policy": "LRU"
+    },
+    "processed": { "trace_events": 10000, "line_accesses": 18000 },
+    "totals": {
+      "read_line_accesses": 12000,
+      "write_line_accesses": 6000,
+      "hits": 12000,
+      "misses": 6000,
+      "read_hits": 8000,
+      "read_misses": 4000,
+      "write_hits": 4000,
+      "write_misses": 2000,
+      "evictions": 400
+    }
+  }
