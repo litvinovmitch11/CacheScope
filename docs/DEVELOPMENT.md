@@ -164,7 +164,8 @@ git diff --check
 - `cachescope.end-to-end` — baseline/tiled compilation, execution и trace diff;
 - `cachescope.schema-suite` — schema fixtures, compatibility и invariants;
 - `cachescope.documentation-suite` — существование локальных Markdown links.
-- `cachescope.runner-*` — integration, real-cache, validation, random-miss и streaming;
+- `cachescope.runner-*` — integration, real-cache, fifo-cache, random-cache,
+  validation, random-miss и streaming;
 - `cachescope.hierarchy` — exclusive-переносы, dirty и реальный LRU;
 - `SetAssociativeCacheLevelTest.*`, `LRUTest.*` — upstream-тесты симулятора.
 

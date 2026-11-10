@@ -86,10 +86,19 @@ cache_simulator::RunSummary replay() {
 Базовые поля описывают L1; расширения содержат остальные уровни, инструкции,
 dirty evictions и память. [Контракт и fixtures](../docs/STATISTICS_FORMAT.md).
 
-Шесть suites раннера и иерархии: hierarchy, integration, real-cache, validation,
-random-miss и streaming; также запускаются upstream-тесты симулятора.
+Восемь suites раннера и иерархии: hierarchy, integration, real-cache, fifo-cache,
+random-cache, validation, random-miss и streaming; также запускаются upstream-тесты симулятора.
 Hierarchy и real-cache используют настоящий SetAssociativeCacheLevel с LRU.
 Real-cache проверяет и канонические compiler fixtures, включая source mapping.
+Fifo-cache и random-cache прогоняют короткую трассу через настоящие уровни
+SetAssociativeCacheLevel и двухуровневую иерархию. FIFO проверяет порядок
+вытеснения, продвижение из L2 и dirty writeback. Random использует seed 42 и
+проверяет повторяемость JSON-отчётов после очистки иерархии.
+
+```bash
+ctest --test-dir build/runner -R 'runner-(fifo-cache|random-cache)$' --output-on-failure
+```
+
 Потоковый тест обрабатывает 1 000 001 event
 и проверяет, что сводка остаётся маленькой. Smoke использует отдельный тестовый
 `ICacheLevel` с независимой вероятностью miss 50%, seed 42; точные 50% в выборке
