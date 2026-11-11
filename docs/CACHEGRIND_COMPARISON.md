@@ -50,3 +50,12 @@ Cachegrind output и log, фактические абсолютные адрес
 Это сравнение не проверяет trace producer, runner, модели нижних уровней,
 dirty writeback или поведение реального процессора. Семантика Cachegrind описана
 в [его руководстве](https://valgrind.org/docs/manual/cg-manual.html).
+
+## GitHub Actions
+
+Workflow `.github/workflows/cachegrind.yml` запускает сравнение на
+`ubuntu-24.04-arm` при push, pull request и вручную. Он устанавливает Valgrind
+и компиляторы из репозитория Ubuntu 24.04; версия Valgrind сохраняется в
+`summary.json`. Ошибка компиляции, запуска или расхождение счётчиков приводит
+к ошибке проверки. Созданные к этому моменту отчёты публикуются артефактом
+`cachegrind-comparison` и хранятся семь дней.
