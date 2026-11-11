@@ -1,0 +1,51 @@
+name: UI experiment E2E
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ui-experiment:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and start complete application
+        shell: bash
+        run: |
+          docker compose up --build -d 2>&1 | tee "${RUNNER_TEMP}/cachescope-build.log"
+          for attempt in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:9055/api/v1/experiments; then exit 0; fi
+            sleep 1
+          done
+          docker compose logs
+          exit 1
+      - name: Compiler, runtime and runner regression tests
+        run: docker compose exec -T --user root cachescope ctest --test-dir build/app --output-on-failure
+      - name: Real HTTP upload, execution, cancellation and report
+        run: docker compose exec -T cachescope python3 tests/experiment_suite.py --url http://127.0.0.1:9055 --repo .
+      - name: Browser upload and report without navigation
+        run: >-
+          docker run --rm --network host
+          -v "$PWD:/work" -w /work/ui
+          mcr.microsoft.com/playwright:v1.65.0-noble
+          sh -c 'npm ci && npm run test:e2e'
+      - name: Upload browser evidence and build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-experiment-browser
+          path: |
+            ui/test-results/
+            ${{ runner.temp }}/cachescope-build.log
+          if-no-files-found: ignore
+      - name: Stop application
+        if: always()
+        run: |
+          docker compose logs
+          docker compose down

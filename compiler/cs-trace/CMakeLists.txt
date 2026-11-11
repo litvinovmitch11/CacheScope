@@ -33,3 +33,10 @@ endif()
 install(TARGETS CacheScopePassPlugin
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/cachescope
 )
+
+add_llvm_executable(cachescope-program tools/cachescope-program.cpp)
+target_link_libraries(cachescope-program PRIVATE
+  MLIRParser MLIRIR MLIRSupport MLIRAffineDialect MLIRArithDialect
+  MLIRControlFlowDialect MLIRFuncDialect MLIRLinalgDialect MLIRMemRefDialect
+  MLIRSCFDialect)
+install(TARGETS cachescope-program RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})

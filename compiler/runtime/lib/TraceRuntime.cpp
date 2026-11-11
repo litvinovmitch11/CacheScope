@@ -7,6 +7,7 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <limits>
 #include <map>
 #include <set>
 #include <sstream>
@@ -109,6 +110,10 @@ static void addError(std::string message) {
 static void readTraceLimit() {
   traceLimit = 1'000'000;
   if (const char *limit = std::getenv("CACHESCOPE_TRACE_LIMIT")) {
+    if (std::string_view(limit) == "unlimited") {
+      traceLimit = std::numeric_limits<std::uint64_t>::max();
+      return;
+    }
     std::uint64_t parsed = 0;
     const std::string_view text(limit);
     const auto [end, error] =

@@ -66,9 +66,17 @@ Random принимает воспроизводимый `--random-seed`, по �
 команды для сравнения геометрий и policies приведены в
 [инструкции по cache models](../docs/CACHE_MODELS.md).
 
+`--config FILE` вместо `--cache-level` читает JSON с полем `levels` в формате
+HTTP-контракта (LRU/FIFO/Random и строковый optional random_seed). Это сохраняет
+имена уровней без ограничений разделителя CLI; вместе эти опции запрещены.
+
 ## Интерактивный HTTP backend
 
 Сборка выше создаёт также `build/runner/cachescope_runner_server`.
+Полное приложение с загрузкой MLIR/NPZ, compiler и UI запускается из корня
+через `docker compose up --build`: [пример](../examples/ui-upload/README.md),
+[API экспериментов](../docs/EXPERIMENT_API.md). Самостоятельный runner ниже
+по-прежнему работает без LLVM и обслуживает готовые traces.
 Запуск на `127.0.0.1:9055`:
 
 ```bash

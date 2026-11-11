@@ -1,5 +1,10 @@
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
+add_executable(cachescope_runtime_unlimited runtime_unlimited.cpp)
+target_link_libraries(cachescope_runtime_unlimited PRIVATE cachescope_trace_runtime)
+add_test(NAME cachescope.runtime-unlimited COMMAND cachescope_runtime_unlimited)
+set_tests_properties(cachescope.runtime-unlimited PROPERTIES TIMEOUT 120)
+
 set(CACHESCOPE_TEST_COMMON_ARGS
   --repo ${PROJECT_SOURCE_DIR}
   --mlir-bin ${LLVM_TOOLS_BINARY_DIR}

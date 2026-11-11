@@ -135,3 +135,11 @@ export function loadEmbedded(): LoadResult | null {
     })),
   );
 }
+
+/** The experiment API supplies the same artifact DTOs as a directory import. */
+export function loadReport(report: { statistics: unknown; trace: unknown }): LoadResult {
+  return collect([
+    { path: "experiment/baseline/trace.json", json: report.trace },
+    { path: "experiment/simulation/baseline/statistics.json", json: report.statistics },
+  ]);
+}

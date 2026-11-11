@@ -155,7 +155,7 @@ Diagnostic trace также может сохранить отрицательн
 | `CACHESCOPE_TRACE_FILE` | `trace.json` | output path |
 | `CACHESCOPE_VARIANT` | `unknown` | variant name |
 | `CACHESCOPE_PIPELINE_FINGERPRINT` | `unspecified` | stable ID compiler pipeline |
-| `CACHESCOPE_TRACE_LIMIT` | `1000000` | maximum recorded events |
+| `CACHESCOPE_TRACE_LIMIT` | `1000000` | maximum recorded events; `unlimited` removes the cap |
 
 Runtime сначала пишет `<trace>.tmp`, а затем публикует готовый JSON rename-ом.
 Trace limit принимает только непустое десятичное unsigned-значение; неверная

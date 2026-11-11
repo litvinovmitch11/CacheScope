@@ -140,14 +140,16 @@ UI обязан feature-detect поле `source_map` для совместимо
 и не пытаться разобрать legacy `source_location` как стабильную структуру.
 
 UI поддерживает импорт готовой директории experiment. Compiler и simulator не
-запускаются внутри browser UI: orchestration выполняет отдельный product E2E
-driver поверх compiler driver и runner CLI.
+запускаются внутри browser: для загрузки MLIR и NPZ orchestration выполняет
+локальный [backend экспериментов](EXPERIMENT_API.md), для CLI-сценария —
+product E2E driver. Оба пути используют compiler stages и пакетный runner.
 
 Контракт интерактивного режима: [Runner HTTP API v1](RUNNER_API.md).
 Он определяет session, step/reset, физические снимки cache slots и
 страницы статистики. Локальный HTTP backend реализован в runner;
 запуск описан в [runner README](../runner/README.md). Подключение frontend
-к этому API выполняется отдельно.
+к пошаговым sessions выполняется отдельно; пакетный сценарий UI использует
+API экспериментов.
 
 ## Контракты между участниками
 

@@ -28,6 +28,9 @@ jobs:
           echo "DR_ROOT=${RUNNER_TEMP}/dynamorio/DynamoRIO-AArch64-Linux-11.91.20763" >> "${GITHUB_ENV}"
           echo "DR_RESULTS=${RUNNER_TEMP}/drcachesim-results" >> "${GITHUB_ENV}"
 
+      - name: Configure Ubuntu Ports mirror
+        run: sudo install -m 0644 .github/ubuntu-arm64.sources /etc/apt/sources.list.d/ubuntu.sources
+
       - name: Install dependencies
         run: |
           sudo apt-get update
