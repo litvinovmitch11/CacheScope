@@ -7,6 +7,7 @@ RUN npm run build
 
 FROM ubuntu:24.04 AS toolchain
 ENV DEBIAN_FRONTEND=noninteractive LLVM_ROOT=/usr/lib/llvm-22
+COPY .github/ubuntu-amd64.sources /etc/apt/sources.list.d/ubuntu.sources
 RUN apt-get update && apt-get install -y --no-install-recommends sudo g++ python3-numpy
 WORKDIR /opt/cachescope
 COPY cmake/LLVMVersion.cmake cmake/

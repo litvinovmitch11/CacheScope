@@ -38,6 +38,9 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Configure Ubuntu archive mirror
+        run: sudo install -m 0644 .github/ubuntu-amd64.sources /etc/apt/sources.list.d/ubuntu.sources
+
       - name: Install build tools
         run: |
           sudo apt-get update

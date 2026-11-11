@@ -1,0 +1,8 @@
+# Independent mirror DNS for CI and the minimal amd64 Docker image.
+# HTTP also bootstraps images without CA certificates; Ubuntu signatures remain required.
+Types: deb
+URIs: http://mirrors.kernel.org/ubuntu/
+Suites: noble noble-updates noble-backports noble-security
+Components: main restricted universe multiverse
+Architectures: amd64
+Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg

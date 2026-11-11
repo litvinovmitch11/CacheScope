@@ -30,6 +30,9 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Configure Ubuntu archive mirror
+        run: sudo install -m 0644 .github/ubuntu-amd64.sources /etc/apt/sources.list.d/ubuntu.sources
+
       - name: Install pinned LLVM and MLIR packages
         run: scripts/install-llvm-dependencies.sh
 
