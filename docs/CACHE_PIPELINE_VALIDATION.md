@@ -52,3 +52,6 @@ Workflow `.github/workflows/cache-pipeline.yml` запускает CTest и ср
 устанавливает закреплённый LLVM/MLIR и проверяет SHA-256 архива DynamoRIO
 11.91.20763. Артефакт `cache-pipeline-results` содержит отчёты и доступную
 диагностику, в том числе при ошибке, и хранится семь дней.
+
+Отдельная проверка сверяет semantic trace маленького kernel с независимой
+машинной трассой: [DRMEMTRACE_COMPARISON.md](DRMEMTRACE_COMPARISON.md).
