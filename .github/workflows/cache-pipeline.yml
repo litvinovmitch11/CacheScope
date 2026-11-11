@@ -68,6 +68,24 @@ jobs:
             --dynamorio-launcher "${RUNNER_TEMP}/dynamorio/DynamoRIO-AArch64-Linux-11.91.20763/tools/bin64/drmemtrace_launcher" \
             --output-dir "${RUNNER_TEMP}/cache-pipeline-results"
 
+      - name: Compare semantic and native traces with drmemtrace
+        run: |
+          python3 tests/compare_drmemtrace.py \
+            --mlir-bin /usr/lib/llvm-22/bin \
+            --plugin "${BUILD_DIR}/lib/CacheScopePassPlugin.so" \
+            --runtime "${BUILD_DIR}/compiler/runtime/libcachescope_trace_runtime.so" \
+            --dynamorio "${RUNNER_TEMP}/dynamorio/DynamoRIO-AArch64-Linux-11.91.20763" \
+            --output-dir "${RUNNER_TEMP}/drmemtrace-results"
+
+      - name: Compare matmul semantic and native traces
+        run: |
+          python3 tests/compare_drmemtrace_matmul.py \
+            --mlir-bin /usr/lib/llvm-22/bin \
+            --plugin "${BUILD_DIR}/lib/CacheScopePassPlugin.so" \
+            --runtime "${BUILD_DIR}/compiler/runtime/libcachescope_trace_runtime.so" \
+            --dynamorio "${RUNNER_TEMP}/dynamorio/DynamoRIO-AArch64-Linux-11.91.20763" \
+            --output-dir "${RUNNER_TEMP}/drmemtrace-matmul-results"
+
       - name: Upload pipeline results and diagnostics
         if: always()
         uses: actions/upload-artifact@v4
@@ -75,6 +93,8 @@ jobs:
           name: cache-pipeline-results
           path: |
             ${{ runner.temp }}/cache-pipeline-results/
+            ${{ runner.temp }}/drmemtrace-results/
+            ${{ runner.temp }}/drmemtrace-matmul-results/
             build/cache-pipeline/Testing/Temporary/LastTest.log
             build/cache-pipeline/CMakeFiles/CMakeConfigureLog.yaml
           if-no-files-found: ignore
