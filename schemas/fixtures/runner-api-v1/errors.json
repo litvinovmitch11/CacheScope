@@ -1,0 +1,733 @@
+{
+  "description": "Independent error situations; these exchanges are not one sequential session.",
+  "exchanges": [
+    {
+      "name": "already-occupied",
+      "schema_valid_request": true,
+      "request": {
+        "method": "POST",
+        "path": "/api/v1/sessions",
+        "body": {
+          "trace_path": "/workspace/traces/fifo.json",
+          "levels": [
+            {
+              "name": "L1",
+              "size_bytes": 128,
+              "line_size_bytes": 64,
+              "associativity": 2,
+              "replacement_policy": "FIFO"
+            },
+            {
+              "name": "L2",
+              "size_bytes": 64,
+              "line_size_bytes": 64,
+              "associativity": 1,
+              "replacement_policy": "FIFO"
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 409,
+        "body": {
+          "error": {
+            "code": "session_exists",
+            "message": "session exists",
+            "details": {}
+          },
+          "session_id": "demo-fifo",
+          "revision": "1"
+        }
+      }
+    },
+    {
+      "name": "not-prepared",
+      "schema_valid_request": true,
+      "request": {
+        "method": "POST",
+        "path": "/api/v1/sessions/demo-fifo/step",
+        "body": {
+          "expected_revision": "0"
+        }
+      },
+      "response": {
+        "status": 409,
+        "body": {
+          "error": {
+            "code": "session_not_ready",
+            "message": "session not ready",
+            "details": {}
+          },
+          "session_id": "demo-fifo",
+          "revision": "0"
+        }
+      }
+    },
+    {
+      "name": "poll-busy",
+      "schema_valid_request": true,
+      "request": {
+        "method": "GET",
+        "path": "/api/v1/sessions/demo-fifo"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "session_id": "demo-fifo",
+          "status": "ready",
+          "busy": true,
+          "cursor": "5",
+          "revision": "4",
+          "total_events": "9",
+          "trace_path": "/workspace/traces/fifo.json",
+          "levels": [
+            {
+              "name": "L1",
+              "size_bytes": 128,
+              "line_size_bytes": 64,
+              "associativity": 2,
+              "replacement_policy": "FIFO",
+              "level": 1,
+              "set_count": 1,
+              "random_seed": null
+            },
+            {
+              "name": "L2",
+              "size_bytes": 64,
+              "line_size_bytes": 64,
+              "associativity": 1,
+              "replacement_policy": "FIFO",
+              "level": 2,
+              "set_count": 1,
+              "random_seed": null
+            }
+          ],
+          "hierarchy": {
+            "inclusion_policy": "exclusive",
+            "write_policy": "write_back",
+            "allocation_policy": "write_allocate"
+          },
+          "limits": {
+            "max_step_count": 1000,
+            "max_sets_per_read": 64,
+            "max_instructions_per_read": 100
+          },
+          "error": null
+        }
+      }
+    },
+    {
+      "name": "busy-snapshot",
+      "schema_valid_request": true,
+      "request": {
+        "method": "GET",
+        "path": "/api/v1/sessions/demo-fifo/state",
+        "query": {
+          "expected_revision": "4",
+          "level": 1,
+          "set_limit": 1
+        }
+      },
+      "response": {
+        "status": 409,
+        "body": {
+          "error": {
+            "code": "session_busy",
+            "message": "session busy",
+            "details": {}
+          },
+          "session_id": "demo-fifo",
+          "revision": "4"
+        }
+      }
+    },
+    {
+      "name": "busy-mutation",
+      "schema_valid_request": true,
+      "request": {
+        "method": "POST",
+        "path": "/api/v1/sessions/demo-fifo/reset",
+        "body": {
+          "expected_revision": "4"
+        }
+      },
+      "response": {
+        "status": 409,
+        "body": {
+          "error": {
+            "code": "session_busy",
+            "message": "session busy",
+            "details": {}
+          },
+          "session_id": "demo-fifo",
+          "revision": "4"
+        }
+      }
+    },
+    {
+      "name": "lost-response-retry",
+      "schema_valid_request": true,
+      "request": {
+        "method": "POST",
+        "path": "/api/v1/sessions/demo-fifo/step",
+        "body": {
+          "expected_revision": "3",
+          "count": 2
+        }
+      },
+      "response": {
+        "status": 409,
+        "body": {
+          "error": {
+            "code": "revision_mismatch",
+            "message": "revision mismatch",
+            "details": {
+              "expected_revision": "3",
+              "actual_revision": "4"
+            }
+          },
+          "session_id": "demo-fifo",
+          "revision": "4"
+        }
+      }
+    },
+    {
+      "name": "zero-count",
+      "schema_valid_request": false,
+      "request": {
+        "method": "POST",
+        "path": "/api/v1/sessions/demo-fifo/step",
+        "body": {
+          "expected_revision": "1",
+          "count": 0
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "error": {
+            "code": "invalid_count",
+            "message": "invalid count",
+            "details": {}
+          },
+          "session_id": "demo-fifo",
+          "revision": "1"
+        }
+      }
+    },
+    {
+      "name": "over-step-limit",
+      "schema_valid_request": true,
+      "request": {
+        "method": "POST",
+        "path": "/api/v1/sessions/demo-fifo/step",
+        "body": {
+          "expected_revision": "1",
+          "count": 1001
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "error": {
+            "code": "invalid_count",
+            "message": "invalid count",
+            "details": {
+              "max_step_count": 1000
+            }
+          },
+          "session_id": "demo-fifo",
+          "revision": "1"
+        }
+      }
+    },
+    {
+      "name": "zero-page-size",
+      "schema_valid_request": false,
+      "request": {
+        "method": "GET",
+        "path": "/api/v1/sessions/demo-fifo/state",
+        "query": {
+          "expected_revision": "1",
+          "level": 1,
+          "set_limit": 0
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "error": {
+            "code": "invalid_page",
+            "message": "invalid page",
+            "details": {}
+          },
+          "session_id": "demo-fifo",
+          "revision": "1"
+        }
+      }
+    },
+    {
+      "name": "page-beyond-end",
+      "schema_valid_request": true,
+      "request": {
+        "method": "GET",
+        "path": "/api/v1/sessions/demo-fifo/state",
+        "query": {
+          "expected_revision": "1",
+          "level": 1,
+          "set_limit": 1,
+          "set_offset": 2
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "error": {
+            "code": "invalid_page",
+            "message": "invalid page",
+            "details": {}
+          },
+          "session_id": "demo-fifo",
+          "revision": "1"
+        }
+      }
+    },
+    {
+      "name": "invalid-geometry",
+      "schema_valid_request": true,
+      "request": {
+        "method": "POST",
+        "path": "/api/v1/sessions",
+        "body": {
+          "trace_path": "/workspace/traces/fifo.json",
+          "levels": [
+            {
+              "name": "L1",
+              "size_bytes": 128,
+              "line_size_bytes": 63,
+              "associativity": 2,
+              "replacement_policy": "FIFO"
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "error": {
+            "code": "invalid_config",
+            "message": "invalid config",
+            "details": {}
+          }
+        }
+      }
+    },
+    {
+      "name": "relative-path",
+      "schema_valid_request": false,
+      "request": {
+        "method": "POST",
+        "path": "/api/v1/sessions",
+        "body": {
+          "trace_path": "trace.json",
+          "levels": [
+            {
+              "name": "L1",
+              "size_bytes": 128,
+              "line_size_bytes": 64,
+              "associativity": 2,
+              "replacement_policy": "FIFO"
+            },
+            {
+              "name": "L2",
+              "size_bytes": 64,
+              "line_size_bytes": 64,
+              "associativity": 1,
+              "replacement_policy": "FIFO"
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "error": {
+            "code": "invalid_request",
+            "message": "invalid request",
+            "details": {}
+          }
+        }
+      }
+    },
+    {
+      "name": "execution-failed",
+      "schema_valid_request": true,
+      "request": {
+        "method": "POST",
+        "path": "/api/v1/sessions/demo-fifo/step",
+        "body": {
+          "expected_revision": "4",
+          "count": 99
+        }
+      },
+      "response": {
+        "status": 500,
+        "body": {
+          "error": {
+            "code": "execution_failed",
+            "message": "execution failed",
+            "details": {
+              "completed_cursor": "6"
+            },
+            "recovery": "reset"
+          },
+          "session_id": "demo-fifo",
+          "revision": "5"
+        }
+      }
+    },
+    {
+      "name": "poll-failed-execution",
+      "schema_valid_request": true,
+      "request": {
+        "method": "GET",
+        "path": "/api/v1/sessions/demo-fifo"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "session_id": "demo-fifo",
+          "status": "failed",
+          "busy": false,
+          "cursor": "6",
+          "revision": "5",
+          "total_events": "9",
+          "trace_path": "/workspace/traces/fifo.json",
+          "levels": [
+            {
+              "name": "L1",
+              "size_bytes": 128,
+              "line_size_bytes": 64,
+              "associativity": 2,
+              "replacement_policy": "FIFO",
+              "level": 1,
+              "set_count": 1,
+              "random_seed": null
+            },
+            {
+              "name": "L2",
+              "size_bytes": 64,
+              "line_size_bytes": 64,
+              "associativity": 1,
+              "replacement_policy": "FIFO",
+              "level": 2,
+              "set_count": 1,
+              "random_seed": null
+            }
+          ],
+          "hierarchy": {
+            "inclusion_policy": "exclusive",
+            "write_policy": "write_back",
+            "allocation_policy": "write_allocate"
+          },
+          "limits": {
+            "max_step_count": 1000,
+            "max_sets_per_read": 64,
+            "max_instructions_per_read": 100
+          },
+          "error": {
+            "code": "execution_failed",
+            "message": "execution failed",
+            "details": {},
+            "recovery": "reset"
+          }
+        }
+      }
+    },
+    {
+      "name": "failed-state-is-unavailable",
+      "schema_valid_request": true,
+      "request": {
+        "method": "GET",
+        "path": "/api/v1/sessions/demo-fifo/state",
+        "query": {
+          "expected_revision": "5",
+          "level": 1,
+          "set_limit": 1
+        }
+      },
+      "response": {
+        "status": 409,
+        "body": {
+          "error": {
+            "code": "session_failed",
+            "message": "session failed",
+            "details": {},
+            "recovery": "reset"
+          },
+          "session_id": "demo-fifo",
+          "revision": "5"
+        }
+      }
+    },
+    {
+      "name": "reset-after-failure",
+      "schema_valid_request": true,
+      "request": {
+        "method": "POST",
+        "path": "/api/v1/sessions/demo-fifo/reset",
+        "body": {
+          "expected_revision": "5"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "session_id": "demo-fifo",
+          "status": "ready",
+          "cursor": "0",
+          "revision": "6",
+          "summary": {
+            "processed": {
+              "trace_events": "0",
+              "line_accesses": "0"
+            },
+            "totals": {
+              "read_line_accesses": "0",
+              "write_line_accesses": "0",
+              "hits": "0",
+              "misses": "0",
+              "read_hits": "0",
+              "read_misses": "0",
+              "write_hits": "0",
+              "write_misses": "0",
+              "evictions": "0",
+              "writebacks": "0",
+              "hit_rate_percent": null
+            },
+            "levels": [
+              {
+                "level": 1,
+                "processed": {
+                  "trace_events": "0",
+                  "line_accesses": "0"
+                },
+                "totals": {
+                  "read_line_accesses": "0",
+                  "write_line_accesses": "0",
+                  "hits": "0",
+                  "misses": "0",
+                  "read_hits": "0",
+                  "read_misses": "0",
+                  "write_hits": "0",
+                  "write_misses": "0",
+                  "evictions": "0",
+                  "writebacks": "0",
+                  "hit_rate_percent": null
+                }
+              },
+              {
+                "level": 2,
+                "processed": {
+                  "trace_events": "0",
+                  "line_accesses": "0"
+                },
+                "totals": {
+                  "read_line_accesses": "0",
+                  "write_line_accesses": "0",
+                  "hits": "0",
+                  "misses": "0",
+                  "read_hits": "0",
+                  "read_misses": "0",
+                  "write_hits": "0",
+                  "write_misses": "0",
+                  "evictions": "0",
+                  "writebacks": "0",
+                  "hit_rate_percent": null
+                }
+              }
+            ],
+            "requests": {
+              "events": "0",
+              "reads": "0",
+              "writes": "0",
+              "read_bytes": "0",
+              "write_bytes": "0"
+            },
+            "memory": {
+              "reads": "0",
+              "writebacks": "0"
+            }
+          },
+          "last_event": null
+        }
+      }
+    },
+    {
+      "name": "trace-changed",
+      "schema_valid_request": true,
+      "request": {
+        "method": "POST",
+        "path": "/api/v1/sessions/demo-fifo/step",
+        "body": {
+          "expected_revision": "4"
+        }
+      },
+      "response": {
+        "status": 500,
+        "body": {
+          "error": {
+            "code": "trace_changed",
+            "message": "trace changed",
+            "details": {},
+            "recovery": "recreate"
+          },
+          "session_id": "demo-fifo",
+          "revision": "5"
+        }
+      }
+    },
+    {
+      "name": "trace-changed-reset-forbidden",
+      "schema_valid_request": true,
+      "request": {
+        "method": "POST",
+        "path": "/api/v1/sessions/demo-fifo/reset",
+        "body": {
+          "expected_revision": "5"
+        }
+      },
+      "response": {
+        "status": 409,
+        "body": {
+          "error": {
+            "code": "session_failed",
+            "message": "session failed",
+            "details": {},
+            "recovery": "recreate"
+          },
+          "session_id": "demo-fifo",
+          "revision": "5"
+        }
+      }
+    },
+    {
+      "name": "preflight-invalid-trace",
+      "schema_valid_request": true,
+      "request": {
+        "method": "GET",
+        "path": "/api/v1/sessions/demo-fifo"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "session_id": "demo-fifo",
+          "status": "failed",
+          "busy": false,
+          "cursor": "0",
+          "revision": "1",
+          "total_events": null,
+          "trace_path": "/workspace/traces/fifo.json",
+          "levels": [
+            {
+              "name": "L1",
+              "size_bytes": 128,
+              "line_size_bytes": 64,
+              "associativity": 2,
+              "replacement_policy": "FIFO",
+              "level": 1,
+              "set_count": 1,
+              "random_seed": null
+            },
+            {
+              "name": "L2",
+              "size_bytes": 64,
+              "line_size_bytes": 64,
+              "associativity": 1,
+              "replacement_policy": "FIFO",
+              "level": 2,
+              "set_count": 1,
+              "random_seed": null
+            }
+          ],
+          "hierarchy": {
+            "inclusion_policy": "exclusive",
+            "write_policy": "write_back",
+            "allocation_policy": "write_allocate"
+          },
+          "limits": {
+            "max_step_count": 1000,
+            "max_sets_per_read": 64,
+            "max_instructions_per_read": 100
+          },
+          "error": {
+            "code": "invalid_trace",
+            "message": "invalid trace",
+            "details": {
+              "reason": "truncated trace"
+            },
+            "recovery": "recreate"
+          }
+        }
+      }
+    },
+    {
+      "name": "preflight-unreadable",
+      "schema_valid_request": true,
+      "request": {
+        "method": "GET",
+        "path": "/api/v1/sessions/demo-fifo"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "session_id": "demo-fifo",
+          "status": "failed",
+          "busy": false,
+          "cursor": "0",
+          "revision": "1",
+          "total_events": null,
+          "trace_path": "/workspace/traces/fifo.json",
+          "levels": [
+            {
+              "name": "L1",
+              "size_bytes": 128,
+              "line_size_bytes": 64,
+              "associativity": 2,
+              "replacement_policy": "FIFO",
+              "level": 1,
+              "set_count": 1,
+              "random_seed": null
+            },
+            {
+              "name": "L2",
+              "size_bytes": 64,
+              "line_size_bytes": 64,
+              "associativity": 1,
+              "replacement_policy": "FIFO",
+              "level": 2,
+              "set_count": 1,
+              "random_seed": null
+            }
+          ],
+          "hierarchy": {
+            "inclusion_policy": "exclusive",
+            "write_policy": "write_back",
+            "allocation_policy": "write_allocate"
+          },
+          "limits": {
+            "max_step_count": 1000,
+            "max_sets_per_read": 64,
+            "max_instructions_per_read": 100
+          },
+          "error": {
+            "code": "trace_unreadable",
+            "message": "trace unreadable",
+            "details": {},
+            "recovery": "recreate"
+          }
+        }
+      }
+    }
+  ]
+}

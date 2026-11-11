@@ -1,0 +1,242 @@
+{
+  "description": "Independent prepared single-level session with uint64 values beyond JavaScript safe integers.",
+  "exchanges": [
+    {
+      "name": "metadata-with-source-map-and-wide-ids",
+      "schema_valid_request": true,
+      "request": {
+        "method": "GET",
+        "path": "/api/v1/sessions/wide-values/metadata"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "session_id": "wide-values",
+          "trace_path": "/workspace/traces/wide.json",
+          "source": {
+            "source_schema": "cachescope.trace.v1",
+            "producer": {
+              "name": "CacheScope",
+              "version": "0.1.0",
+              "llvm_version": "22.1.8",
+              "llvm_revision": "fixture",
+              "pipeline_fingerprint": "runner-api-fixture-v1"
+            },
+            "variant": "wide",
+            "valid": true,
+            "complete": true,
+            "truncated": false,
+            "total_events": "9007199254740993",
+            "recorded_events": "9007199254740993",
+            "errors": [],
+            "source_map": {
+              "source_schema": "cachescope.source-map.v1",
+              "payload_fingerprint": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+              "stages": [
+                {
+                  "stage_id": "input",
+                  "path": "input.mlir"
+                },
+                {
+                  "stage_id": "after-linalg-to-loops",
+                  "path": "lowered.mlir"
+                }
+              ],
+              "origins": [
+                {
+                  "origin_id": "9007199254740993",
+                  "stage_id": "input",
+                  "line": 4,
+                  "column": 4,
+                  "operation": "linalg.matmul"
+                }
+              ]
+            }
+          },
+          "buffers": [
+            {
+              "memref_id": "0",
+              "base_address": "0x10000000",
+              "min_offset": "0",
+              "end_offset": "9007199254740997"
+            },
+            {
+              "memref_id": "9007199254740993",
+              "base_address": "0x20000010000040",
+              "min_offset": "-4",
+              "end_offset": "0"
+            }
+          ],
+          "accesses": [
+            {
+              "access_id": "2",
+              "memref_id": "0",
+              "kind": "read",
+              "address_kind": "memref_offset",
+              "source_location": "loc(\"fixture.mlir\":2:0)",
+              "origin_ids": [
+                "9007199254740993"
+              ],
+              "stage_locations": [
+                {
+                  "stage_id": "after-linalg-to-loops",
+                  "line": 5,
+                  "column": 4,
+                  "operation": "memref.load"
+                }
+              ]
+            },
+            {
+              "access_id": "9007199254740993",
+              "memref_id": "9007199254740993",
+              "kind": "read",
+              "address_kind": "memref_offset",
+              "source_location": "loc(\"fixture.mlir\":9007199254740993:0)",
+              "origin_ids": [
+                "9007199254740993"
+              ],
+              "stage_locations": [
+                {
+                  "stage_id": "after-linalg-to-loops",
+                  "line": 5,
+                  "column": 4,
+                  "operation": "memref.load"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "wide-counters-address-and-negative-offset",
+      "schema_valid_request": true,
+      "request": {
+        "method": "GET",
+        "path": "/api/v1/sessions/wide-values/state",
+        "query": {
+          "expected_revision": "9007199254740995",
+          "level": 1,
+          "set_limit": 1
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "session_id": "wide-values",
+          "status": "finished",
+          "cursor": "9007199254740993",
+          "revision": "9007199254740995",
+          "summary": {
+            "processed": {
+              "trace_events": "9007199254740993",
+              "line_accesses": "9007199254740993"
+            },
+            "totals": {
+              "read_line_accesses": "9007199254740993",
+              "write_line_accesses": "0",
+              "hits": "9007199254740991",
+              "misses": "2",
+              "read_hits": "9007199254740991",
+              "read_misses": "2",
+              "write_hits": "0",
+              "write_misses": "0",
+              "evictions": "0",
+              "writebacks": "0",
+              "hit_rate_percent": 99.99999999999997
+            },
+            "levels": [
+              {
+                "level": 1,
+                "processed": {
+                  "trace_events": "9007199254740993",
+                  "line_accesses": "9007199254740993"
+                },
+                "totals": {
+                  "read_line_accesses": "9007199254740993",
+                  "write_line_accesses": "0",
+                  "hits": "9007199254740991",
+                  "misses": "2",
+                  "read_hits": "9007199254740991",
+                  "read_misses": "2",
+                  "write_hits": "0",
+                  "write_misses": "0",
+                  "evictions": "0",
+                  "writebacks": "0",
+                  "hit_rate_percent": 99.99999999999997
+                }
+              }
+            ],
+            "requests": {
+              "events": "9007199254740993",
+              "reads": "9007199254740993",
+              "writes": "0",
+              "read_bytes": "36028797018963972",
+              "write_bytes": "0"
+            },
+            "memory": {
+              "reads": "2",
+              "writebacks": "0"
+            }
+          },
+          "last_event": {
+            "trace_event": {
+              "sequence": "9007199254740992",
+              "access_id": "9007199254740993",
+              "memref_id": "9007199254740993",
+              "byte_offset": "-4",
+              "size_bytes": "4",
+              "kind": "read",
+              "address_kind": "memref_offset"
+            },
+            "address": "0x2000001000003c",
+            "level_results": [
+              {
+                "level": 1,
+                "lines": [
+                  {
+                    "line_address": "0x20000010000000",
+                    "hit": true,
+                    "set": 0,
+                    "way": 0,
+                    "evicted_address": null,
+                    "evicted_dirty": null
+                  }
+                ]
+              }
+            ],
+            "evictions": [],
+            "memory_reads": "0",
+            "memory_writebacks": "0"
+          },
+          "cache": {
+            "level": 1,
+            "set_offset": 0,
+            "set_limit": 1,
+            "total_sets": 1,
+            "next_set_offset": null,
+            "sets": [
+              {
+                "set": 0,
+                "ways": [
+                  {
+                    "way": 0,
+                    "valid": true,
+                    "line_address": "0x20000010000000",
+                    "dirty": false
+                  },
+                  {
+                    "way": 1,
+                    "valid": true,
+                    "line_address": "0x10000000",
+                    "dirty": false
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

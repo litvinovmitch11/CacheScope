@@ -141,6 +141,7 @@ scripts/check.sh --with-torch
 - [формат trace](docs/TRACE_FORMAT.md);
 - [stage-aware source mapping](docs/SOURCE_MAPPING.md);
 - [командная интеграция](docs/INTEGRATION.md);
+- [контракт интерактивного runner HTTP API](docs/RUNNER_API.md);
 - [support matrix](docs/SUPPORT_MATRIX.md);
 - [roadmap](ROADMAP.md).
 
