@@ -9,6 +9,7 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "report": "npm run build && node scripts/make-report.mjs",
+    "pretest:e2e": "npm run build",
     "test:e2e": "playwright test tests/experiment.spec.ts --workers=1 --reporter=line"
   },
   "dependencies": {
