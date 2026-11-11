@@ -1,0 +1,4 @@
+# The curated output is generated; review instructions and results first.
+output/product-e2e/** linguist-generated=true
+output/product-e2e/README.md linguist-generated=false
+output/product-e2e/RESULTS.md linguist-generated=false

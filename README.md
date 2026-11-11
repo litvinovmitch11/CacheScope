@@ -26,6 +26,15 @@ CacheScope показывает, как compiler transformations меняют п
 
 Точные границы перечислены в [support matrix](docs/SUPPORT_MATRIX.md).
 
+## Готовый отчёт без установки
+
+Скачайте [готовый report.html](output/product-e2e/report.html) через
+**Download raw file** и откройте его в браузере. Docker, LLVM, Node.js и
+backend для просмотра не нужны: UI и результаты уже встроены в файл.
+
+В [output/product-e2e](output/product-e2e/README.md) также сохранены полные
+трассы, результаты runner и MLIR-стадии трёх вариантов matmul.
+
 ## Запуск из браузера
 
 ```bash
@@ -143,7 +152,7 @@ schemas/               общие контракты и fixtures
 examples/              compiler demo, product E2E и optional PyTorch frontend
 tests/                 compiler, ABI и проверки общих контрактов
 docs/                  архитектура и межкомпонентные контракты
-output/                локальные generated artifacts, ignored
+output/                готовый product-e2e отчёт и локальные generated artifacts
 ```
 
 ## Дополнительный PyTorch frontend
