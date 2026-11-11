@@ -4,4 +4,5 @@ import { viteSingleFile } from "vite-plugin-singlefile";
 
 export default defineConfig({
   plugins: [react(), viteSingleFile()],
+  server: { proxy: { "/api": "http://127.0.0.1:9055" } },
 });

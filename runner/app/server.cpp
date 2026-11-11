@@ -1,13 +1,20 @@
+#include "experiments.hpp"
+#include "http_json.hpp"
 #include "runner_api.hpp"
 #include <httplib.h>
 
 #include <algorithm>
 #include <cctype>
 #include <charconv>
+#include <csignal>
 #include <exception>
+#include <filesystem>
 #include <iostream>
+#include <limits>
+#include <pthread.h>
 #include <set>
 #include <stdexcept>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -19,33 +26,30 @@ static Json error(const std::string &code, const std::string &message) {
        {{"code", code}, {"message", message}, {"details", Json::object()}}}};
 }
 
-static Json parse(const std::string &body) {
-  std::vector<std::set<std::string>> objects;
-  return Json::parse(body, [&](int, Json::parse_event_t event, Json &value) {
-    if (event == Json::parse_event_t::object_start)
-      objects.emplace_back();
-    else if (event == Json::parse_event_t::object_end)
-      objects.pop_back();
-    else if (event == Json::parse_event_t::key &&
-             !objects.back().insert(value.get<std::string>()).second)
-      throw std::invalid_argument("duplicate JSON object field");
-    return true;
-  });
-}
-
 int main(int argc, char **argv) {
   int port = 9055;
-  std::string origin;
+  std::string origin, host = "127.0.0.1";
+  std::filesystem::path app;
   for (int i = 1; i < argc; ++i) {
     const std::string option = argv[i];
     if (option == "--help") {
       std::cout << "usage: cachescope_runner_server [--port 9055] "
-                   "[--allow-origin URL]\n";
+                   "[--allow-origin URL] [--host IP] [--app-dir ROOT]\n";
       return 0;
     }
-    if ((option == "--port" || option == "--allow-origin") && i + 1 < argc) {
+    if ((option == "--port" || option == "--allow-origin" ||
+         option == "--host" || option == "--app-dir") &&
+        i + 1 < argc) {
       const std::string value = argv[++i];
-      if (option == "--allow-origin") {
+      if (option == "--host") {
+        if (value != "127.0.0.1" && value != "0.0.0.0") {
+          std::cerr << "host must be 127.0.0.1 or 0.0.0.0\n";
+          return 2;
+        }
+        host = value;
+      } else if (option == "--app-dir") {
+        app = std::filesystem::absolute(value);
+      } else if (option == "--allow-origin") {
         if (value.empty() || value.find_first_of("\r\n") != std::string::npos) {
           std::cerr << "invalid origin\n";
           return 2;
@@ -66,8 +70,21 @@ int main(int argc, char **argv) {
       return 2;
     }
   }
+  sigset_t signals;
+  sigemptyset(&signals);
+  sigaddset(&signals, SIGTERM);
+  sigaddset(&signals, SIGINT);
+  pthread_sigmask(SIG_BLOCK, &signals, nullptr);
   cache_simulator::RunnerApi api;
   httplib::Server server;
+  cache_simulator::Experiments experiments(server, app, origin);
+  if (!app.empty()) {
+    server.set_payload_max_length(std::numeric_limits<std::size_t>::max());
+    if (!server.set_mount_point("/", (app / "ui/dist").string())) {
+      std::cerr << "UI build missing; build ui/dist before starting the app\n";
+      return 1;
+    }
+  }
   server.set_pre_routing_handler(
       [](const httplib::Request &request, httplib::Response &response) {
         auto host = request.get_header_value("Host");
@@ -88,19 +105,10 @@ int main(int argc, char **argv) {
     Json body;
     if (request.method == "POST") {
       try {
-        auto type = request.get_header_value("Content-Type");
-        type = type.substr(0, type.find(';'));
-        const auto begin = type.find_first_not_of(" \t");
-        type =
-            begin == std::string::npos
-                ? ""
-                : type.substr(begin, type.find_last_not_of(" \t") - begin + 1);
-        std::transform(
-            type.begin(), type.end(), type.begin(),
-            [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-        if (type != "application/json")
+        if (!cache_simulator::json_content_type(
+                request.get_header_value("Content-Type")))
           throw std::invalid_argument("Content-Type must be application/json");
-        body = parse(request.body);
+        body = cache_simulator::parse_api_json(request.body);
       } catch (const std::exception &exception) {
         response.status = 400;
         response.set_content(error("invalid_request", exception.what()).dump(),
@@ -168,13 +176,21 @@ int main(int argc, char **argv) {
           "application/json");
     }
   });
-  const auto bound = port == 0 ? server.bind_to_any_port("127.0.0.1")
-                     : server.bind_to_port("127.0.0.1", port) ? port
-                                                              : -1;
+  const auto bound = port == 0 ? server.bind_to_any_port(host)
+                     : server.bind_to_port(host, port) ? port
+                                                       : -1;
   if (bound < 0) {
     std::cerr << "cannot bind HTTP server to 127.0.0.1:" << port << '\n';
     return 1;
   }
   std::cout << "http://127.0.0.1:" << bound << '\n' << std::flush;
-  return server.listen_after_bind() ? 0 : 1;
+  std::thread shutdown([&] {
+    int signal = 0;
+    sigwait(&signals, &signal);
+    server.stop();
+  });
+  const bool success = server.listen_after_bind();
+  pthread_kill(shutdown.native_handle(), SIGTERM);
+  shutdown.join();
+  return success ? 0 : 1;
 }

@@ -8,3 +8,6 @@ venv/
 *.py[cod]
 # Node.js
 node_modules/
+ui/dist/
+ui/test-results/
+ui/playwright-report/

@@ -5,6 +5,7 @@ import { ComparisonTable } from "./components/ComparisonTable";
 import { loadEmbedded, loadExperiment } from "./loadExperiment";
 import { describeConfig, groupByConfig } from "./metrics";
 import type { LoadResult } from "./types";
+import { ExperimentForm } from "./components/ExperimentForm";
 
 export default function App() {
   const [embedded] = useState<LoadResult | null>(loadEmbedded);
@@ -25,6 +26,8 @@ export default function App() {
   return (
     <main>
       <h1>CacheScope</h1>
+
+      {!embedded && <ExperimentForm onResult={setResult} />}
 
       {!embedded && <FolderPicker onFiles={onFiles} busy={busy} />}
 

@@ -22,8 +22,21 @@ CacheScope показывает, как compiler transformations меняют п
   независимый trace runner со статистикой по уровням, инструкциям и
   подробным событийным рядом в `events.json`;
 - полный product E2E: compiler → trace → simulator → standalone HTML.
+- загрузка MLIR и NPZ из браузера, локальное выполнение и отчёт на одной странице.
 
 Точные границы перечислены в [support matrix](docs/SUPPORT_MATRIX.md).
+
+## Запуск из браузера
+
+```bash
+docker compose up --build
+```
+
+Откройте **http://localhost:9055**. Выберите MLIR, NPZ, функцию и источники
+аргументов, настройте кэши и нажмите «Выполнить». Пример с готовыми файлами и
+ожидаемыми показателями: [examples/ui-upload](examples/ui-upload/README.md).
+LLVM, compiler, runner и UI находятся в отдельном контейнере; история запусков
+и пошаговый UI в этот сценарий не входят.
 
 ## Раннер и кеш без LLVM
 
