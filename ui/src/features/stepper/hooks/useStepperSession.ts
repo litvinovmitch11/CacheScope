@@ -70,11 +70,15 @@ export function useStepperSession(client: RunnerClient) {
     } finally { setBusy(false); }
   }, [client, loadMetadata, refreshState]);
 
-  const step = useCallback(async () => {
+  const step = useCallback(async (count = 1) => {
     if (!session || !progress || progress.status === "finished") return;
+    if (count < 1 || count > session.limits.max_step_count) {
+      setError(`count должен быть от 1 до ${session.limits.max_step_count}`);
+      return;
+    }
     setBusy(true); setError(null);
     try {
-      const result = await client.step(session.session_id, progress.revision);
+      const result = await client.step(session.session_id, progress.revision, count);
       setLastStep(result);
       setProgress(result);
       const current = await client.getSession(session.session_id);

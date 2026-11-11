@@ -172,12 +172,12 @@ export class RunnerClient {
     );
   }
 
-  step(id: string, revision: string) {
+  step(id: string, revision: string, count = 1) {
     return this.request<StepResponse>(
       `/sessions/${encodeURIComponent(id)}/step`,
       {
         method: "POST",
-        body: JSON.stringify({ expected_revision: revision, count: 1 }),
+        body: JSON.stringify({ expected_revision: revision, count }),
       },
     );
   }

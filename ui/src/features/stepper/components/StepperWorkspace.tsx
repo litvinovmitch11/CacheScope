@@ -1,6 +1,6 @@
 import { RunnerClient } from "../api/runnerClient";
 import { readStageText } from "../api/localFiles";
-import { useCallback, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import type { RunnerLogEntry } from "../api/runnerClient";
 import { useStepperSession } from "../hooks/useStepperSession";
 import type { LevelConfig, SourceStage } from "../types/runner";
@@ -21,11 +21,9 @@ function numberValue(value: string, fallback: number) {
 export function StepperWorkspace() {
   const [baseUrl, setBaseUrl] = useState("http://127.0.0.1:9055/api/v1");
   const [tracePath, setTracePath] = useState("");
+  const [skipCount, setSkipCount] = useState(1);
   const [levels, setLevels] = useState<LevelConfig[]>([{ ...DEFAULT_LEVEL }]);
   const [requestLogs, setRequestLogs] = useState<RunnerLogEntry[]>([]);
-  const appendRequestLog = useCallback((entry: RunnerLogEntry) => {
-    setRequestLogs((current) => [...current, entry].slice(-200));
-  }, []);
   const client = useMemo(
     () =>
       new RunnerClient(baseUrl, (entry) => {
@@ -135,8 +133,39 @@ export function StepperWorkspace() {
 
           <section className="stepper-controls">
             <button className="stepper-button primary stepper-next" disabled={runner.busy || !runner.progress || runner.progress.status === "finished"} onClick={() => void runner.step()}>Следующий шаг →</button>
+
+            <label className="stepper-field" style={{ display: "inline-grid", gap: 4, margin: 0 }}>
+              <span>Пропустить шагов</span>
+              <input
+                type="number"
+                min={1}
+                max={runner.session.limits.max_step_count}
+                value={skipCount}
+                onChange={(e) => setSkipCount(Number(e.target.value))}
+                disabled={runner.busy || !runner.progress || runner.progress.status === "finished"}
+                style={{ width: 110 }}
+              />
+            </label>
+
+            <button
+              className="stepper-button secondary"
+              disabled={
+                runner.busy ||
+                !runner.progress ||
+                runner.progress.status === "finished" ||
+                skipCount < 1 ||
+                skipCount > runner.session.limits.max_step_count
+              }
+              onClick={() => void runner.step(skipCount)}
+            >
+              Пропустить {skipCount} →
+            </button>
+
             <button className="stepper-button secondary" disabled={runner.busy || !runner.progress} onClick={() => void runner.reset()}>Сбросить</button>
-            <span className="stepper-note">Один клик выполняет ровно одно событие.</span>
+
+            <span className="stepper-note">
+              «Следующий шаг» выполняет 1 событие. «Пропустить» выполняет введённое число событий одним batch-запросом.
+            </span>
           </section>
 
           <div className="stepper-grid">
