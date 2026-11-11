@@ -45,7 +45,7 @@ export function HeatmapGrid({ setCount, stats, levelName }: Props) {
                     const v = stats[s];
                     const total = v ? v.hits + v.misses : 0;
                     const title = v
-                        ? `Set ${s}: ${v.hits} hits, ${v.misses} misses (${total} accesses)`
+                        ? `Set ${s}: ${v.hits} hits, ${v.misses} misses (всего ${total})`
                         : `Set ${s}: нет обращений`;
                     return (
                         <div

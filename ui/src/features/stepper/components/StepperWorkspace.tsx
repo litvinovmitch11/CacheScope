@@ -7,6 +7,7 @@ import type { EventOutcome, LevelConfig, SourceStage } from "../types/runner";
 import { TracePicker } from "./TracePicker";
 import { HeatmapGrid } from "./HeatmapGrid";
 import { HitMissTimeline } from "./HitMissTimeline";
+import { plural } from "../../../plural";
 
 const DEFAULT_LEVEL: LevelConfig = {
   name: "L1", size_bytes: 32768, line_size_bytes: 64, associativity: 8, replacement_policy: "LRU",
@@ -119,7 +120,7 @@ export function StepperWorkspace() {
         <div>
           <p className="stepper-eyebrow">CACHESCOPE / INTERACTIVE</p>
           <h1>Пошаговая симуляция</h1>
-          <p className="stepper-subtitle">Выполнение trace по одному событию с просмотром физического состояния кеша.</p>
+          <p className="stepper-subtitle">Выполнение trace по одному событию с просмотром физического состояния кэша.</p>
         </div>
         <a className="stepper-back" href="/">← К статистике</a>
       </div>
@@ -167,12 +168,12 @@ export function StepperWorkspace() {
               ))}
             </div>
           )}
-          <h3>Конфигурация кеша</h3>
+          <h3>Конфигурация кэша</h3>
           {levels.map((level, index) => (
             <div className="stepper-level-config" key={index}>
               <label><span>Имя</span><input value={level.name} onChange={(e) => updateLevel(index, { name: e.target.value })} /></label>
               <label><span>Размер, байт</span><input type="number" min="1" value={level.size_bytes} onChange={(e) => updateLevel(index, { size_bytes: numberValue(e.target.value, level.size_bytes) })} /></label>
-              <label><span>Размер линии</span><input type="number" min="1" value={level.line_size_bytes} onChange={(e) => updateLevel(index, { line_size_bytes: numberValue(e.target.value, level.line_size_bytes) })} /></label>
+              <label><span>Размер линии, байт</span><input type="number" min="1" value={level.line_size_bytes} onChange={(e) => updateLevel(index, { line_size_bytes: numberValue(e.target.value, level.line_size_bytes) })} /></label>
               <label><span>Associativity</span><input type="number" min="1" value={level.associativity} onChange={(e) => updateLevel(index, { associativity: numberValue(e.target.value, level.associativity) })} /></label>
               <label><span>Policy</span><select value={level.replacement_policy} onChange={(e) => updateLevel(index, { replacement_policy: e.target.value as LevelConfig["replacement_policy"] })}><option>LRU</option><option>FIFO</option><option>Random</option></select></label>
               {level.replacement_policy === "Random" && <label><span>Seed</span><input value={level.random_seed ?? "0"} onChange={(e) => updateLevel(index, { random_seed: e.target.value })} /></label>}
@@ -196,7 +197,7 @@ export function StepperWorkspace() {
             <div><span className="stepper-muted">Сессия</span><strong>{runner.session.session_id}</strong></div>
             <div><span className="stepper-muted">Статус</span><strong>{runner.session.status}</strong></div>
             <div><span className="stepper-muted">Событие</span><strong>{runner.progress?.cursor ?? runner.session.cursor} / {runner.session.total_events ?? "…"}</strong></div>
-            <div><span className="stepper-muted">Revision</span><strong>{runner.progress?.revision ?? runner.session.revision}</strong></div>
+            <div><span className="stepper-muted">Ревизия</span><strong>{runner.progress?.revision ?? runner.session.revision}</strong></div>
             <button className="stepper-button secondary" disabled={runner.busy} onClick={() => void runner.clear()}>Закрыть сессию</button>
           </section>
 
@@ -278,7 +279,7 @@ export function StepperWorkspace() {
           </div>
 
           <section className="stepper-panel">
-            <div className="stepper-panel-heading"><h2>Физическое состояние кеша</h2><div className="stepper-tabs">{runner.session.levels.map((level) => <button key={level.level} className={selectedLevel === level.level ? "active" : ""} onClick={() => setSelectedLevel(level.level)}>{level.name}</button>)}</div></div>
+            <div className="stepper-panel-heading"><h2>Физическое состояние кэша</h2><div className="stepper-tabs">{runner.session.levels.map((level) => <button key={level.level} className={selectedLevel === level.level ? "active" : ""} onClick={() => setSelectedLevel(level.level)}>{level.name}</button>)}</div></div>
             <div className="stepper-cache-meta">{runner.session.levels.find((level) => level.level === selectedLevel)?.set_count ?? 0} sets · {runner.session.levels.find((level) => level.level === selectedLevel)?.associativity ?? 0} ways</div>
             <div className="stepper-cache-grid">
               {
@@ -309,7 +310,7 @@ export function StepperWorkspace() {
           <section className="stepper-panel">
             <div className="stepper-panel-heading">
               <h2>Тепловая карта сетов</h2>
-              <span className="stepper-tag">{runner.session.levels.length} у&shy;ровня</span>
+              <span className="stepper-tag">{runner.session.levels.length} {plural(runner.session.levels.length, "уровень", "уровня", "уровней")}</span>
             </div>
             <p className="stepper-note">
               Hit rate по каждому сету для всех уровней кэша, накопленный по всем выполненным событиям.
@@ -339,8 +340,9 @@ export function StepperWorkspace() {
                 <span className="stepper-tag">все уровни</span>
               </div>
               <p className="stepper-note">
-                Один столбик — один шаг. Зелёный — попадания, красный — промахи.
-                Высота пропорциональна числу cache line, затронутых событием на этом уровне.
+                Одна ячейка — один шаг. Зелёный — попадания, красный — промахи; если событие
+                затронуло несколько cache line, ячейка делится по доле попаданий и промахов.
+                Серые ячейки — шаги без обращений к этому уровню.
               </p>
               <div className="stepper-timeline-stack">
                 {runner.session.levels.map((level) => (
@@ -362,7 +364,7 @@ export function StepperWorkspace() {
 
           <div className="stepper-actions">
             <span className="stepper-tag">
-              {requestLogs.length} записей
+              {requestLogs.length} {plural(requestLogs.length, "запись", "записи", "записей")}
             </span>
 
             <button
@@ -425,7 +427,7 @@ export function StepperWorkspace() {
 
                 <div className="stepper-log-details">
                   <p>
-                    **Результат:** {log.ok ? "Успешно" : "Ошибка"}
+                    <strong>Результат:</strong> {log.ok ? "Успешно" : "Ошибка"}
                   </p>
 
                   {!log.ok && (

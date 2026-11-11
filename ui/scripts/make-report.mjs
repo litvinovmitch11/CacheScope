@@ -39,11 +39,11 @@ function parseArgs(args) {
   }
 
   if (!options.input) {
-    throw new Error("Укажи директорию эксперимента через --input.");
+    throw new Error("Укажите директорию эксперимента через --input.");
   }
 
   if (!options.output) {
-    throw new Error("Укажи путь к отчёту через --output.");
+    throw new Error("Укажите путь к отчёту через --output.");
   }
 
   return options;

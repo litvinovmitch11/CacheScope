@@ -11,6 +11,10 @@ export default function App() {
   if (new URLSearchParams(window.location.search).get("view") === "stepper") {
     return <StepperWorkspace />;
   }
+  return <StatsView />;
+}
+
+function StatsView() {
   const [embedded] = useState<LoadResult | null>(loadEmbedded);
   const [result, setResult] = useState<LoadResult | null>(embedded);
   const [busy, setBusy] = useState(false);
@@ -28,7 +32,7 @@ export default function App() {
 
   return (
     <main>
-      <div className="app-heading"><h1>CacheScope</h1><a href="/?view=stepper">Пошаговая симуляция →</a></div>
+      <div className="app-heading"><h1>CacheScope</h1>{!embedded && <a href="/?view=stepper">Пошаговая симуляция →</a>}</div>
 
       {!embedded && <FolderPicker onFiles={onFiles} busy={busy} />}
 

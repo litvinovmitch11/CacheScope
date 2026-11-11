@@ -1,4 +1,5 @@
 import type { StepPoint } from "../hooks/useStepperSession";
+import { plural } from "../../../plural";
 
 const MAX_TIMELINE_POINTS = 2000;
 
@@ -22,7 +23,7 @@ function cellStyle(p: StepPoint): React.CSSProperties {
 function cellTitle(p: StepPoint, levelName: string): string {
     if (p.neutral) return `шаг ${p.sequence}: нет обращения к ${levelName}`;
     const total = p.hits + p.misses;
-    return `шаг ${p.sequence}: ${p.hits} hit / ${p.misses} miss (${total} линий)`;
+    return `шаг ${p.sequence}: ${p.hits} hit / ${p.misses} miss (${total} ${plural(total, "линия", "линии", "линий")})`;
 }
 
 export function HitMissTimeline({ levelName, points }: Props) {
@@ -56,8 +57,8 @@ export function HitMissTimeline({ levelName, points }: Props) {
                 <strong>{levelName}</strong>
                 <span className="stepper-muted">
                     {totalCount > MAX_TIMELINE_POINTS
-                        ? `последние ${visible.length} из ${totalCount} шагов`
-                        : `${totalCount} шагов`}{" "}
+                        ? `показаны последние ${visible.length} шагов (всего ${totalCount})`
+                        : `${totalCount} ${plural(totalCount, "шаг", "шага", "шагов")}`}{" "}
                     · {activeSteps} с обращениями · {totals.h} hit / {totals.m} miss
                 </span>
             </div>
