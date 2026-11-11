@@ -3,7 +3,7 @@
 `cachescope.trace.v1.schema.json` задаёт JSON Schema трассы. Форматы результатов
 симуляции описаны в [SIMULATION_FORMAT.md](../docs/SIMULATION_FORMAT.md).
 
-`cachescope.runner.v1.openapi.json` описывает будущий HTTP API пошагового
+`cachescope.runner.v1.openapi.json` описывает HTTP API пошагового
 runner: [семантика](../docs/RUNNER_API.md),
 [примеры запросов и ответов](fixtures/runner-api-v1/README.md).
 Существующие файловые форматы trace и отчётов не меняются.

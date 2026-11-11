@@ -1,8 +1,8 @@
 # Runner HTTP API v1: примеры
 
 Примеры относятся к [OpenAPI](../../cachescope.runner.v1.openapi.json) и
-[семантике API](../../../docs/RUNNER_API.md). Это контрактные данные будущего
-сервера, не запись HTTP-запуска готовой реализации.
+[семантике API](../../../docs/RUNNER_API.md). Это контрактные примеры,
+а не запись конкретного HTTP-запуска.
 
 Каждый JSON содержит `exchanges`: name, schema_valid_request, request
 (method, path, query, body) и response (status, headers, body).

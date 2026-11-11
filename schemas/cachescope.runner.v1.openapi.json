@@ -3,7 +3,7 @@
   "info": {
     "title": "CacheScope interactive runner API",
     "version": "1.0.0",
-    "description": "Contract for a future local HTTP backend. No server implementation is supplied. Normative lifecycle/cross-field rules: docs/RUNNER_API.md. Existing trace/report artifact schemas remain unchanged."
+    "description": "Local interactive runner HTTP backend. Normative lifecycle/cross-field rules: docs/RUNNER_API.md. Existing trace/report artifact schemas remain unchanged."
   },
   "servers": [
     {
@@ -11,7 +11,7 @@
       "description": "Local backend; the launcher supplies the actual base URL/port.",
       "variables": {
         "port": {
-          "default": "8080"
+          "default": "9055"
         }
       }
     }
@@ -873,9 +873,6 @@
                       ]
                     }
                   ]
-                },
-                "busy": {
-                  "const": false
                 }
               },
               "required": [

@@ -1,4 +1,5 @@
 #include "cache_simulator/trace_runner.hpp"
+#include "cache_simulator/trace_replay.hpp"
 
 #include <nlohmann/json.hpp>
 
@@ -12,6 +13,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <string_view>
+#include <sys/stat.h>
 #include <unistd.h>
 #include <utility>
 
@@ -120,8 +122,10 @@ class TraceSax : public nlohmann::json_sax<Json> {
 public:
   using Consumer = std::function<void(Json)>;
 
-  TraceSax(Consumer on_access, Consumer on_event)
-      : on_access_(std::move(on_access)), on_event_(std::move(on_event)) {}
+  TraceSax(Consumer on_access, Consumer on_event,
+           std::function<bool()> cancelled = {})
+      : cancelled_(std::move(cancelled)), on_access_(std::move(on_access)),
+        on_event_(std::move(on_event)) {}
 
   Json header = Json::object();
 
@@ -138,6 +142,7 @@ public:
   bool binary(binary_t &) override { fail("binary values are not JSON"); }
 
   bool key(string_t &value) override {
+    check_cancelled();
     if (!frames_.empty()) {
       auto &frame = frames_.back();
       if (frame.value.contains(value))
@@ -152,6 +157,7 @@ public:
   }
 
   bool start_object(std::size_t) override {
+    check_cancelled();
     if (depth_ == 0) {
       if (root_seen_)
         fail("expected one root object");
@@ -168,6 +174,7 @@ public:
   }
 
   bool end_object() override {
+    check_cancelled();
     if (!frames_.empty())
       finish_frame();
     --depth_;
@@ -175,6 +182,7 @@ public:
   }
 
   bool start_array(std::size_t) override {
+    check_cancelled();
     if (depth_ == 0)
       fail("trace root must be an object");
     if (!frames_.empty()) {
@@ -194,6 +202,7 @@ public:
   }
 
   bool end_array() override {
+    check_cancelled();
     if (!frames_.empty())
       finish_frame();
     if (depth_ == 2)
@@ -257,6 +266,11 @@ public:
   }
 
 private:
+  void check_cancelled() const {
+    if (cancelled_ && cancelled_())
+      fail("preparation cancelled");
+  }
+
   struct Frame {
     Json value;
     std::string key;
@@ -279,6 +293,7 @@ private:
   }
 
   bool scalar(Json value) {
+    check_cancelled();
     if (!frames_.empty()) {
       put(std::move(value));
     } else if (depth_ == 0) {
@@ -306,6 +321,7 @@ private:
       on_access_(std::move(value));
   }
 
+  std::function<bool()> cancelled_;
   Consumer on_access_;
   Consumer on_event_;
   std::vector<Frame> frames_;
@@ -318,19 +334,28 @@ private:
 } // namespace
 
 static Json parse(std::ifstream &input, TraceSax::Consumer on_access,
-                  TraceSax::Consumer on_event, U64 &count) {
-  TraceSax handler(std::move(on_access), [&](Json record) {
-    const auto sequence = unsigned_value(field(record, "sequence"), "sequence");
-    if (sequence != count)
-      fail("sequence must start at zero and be consecutive; expected " +
-           std::to_string(count));
-    try {
-      on_event(std::move(record));
-    } catch (const std::exception &error) {
-      fail("event " + std::to_string(sequence) + ": " + error.what());
-    }
-    count = add(count, 1);
-  });
+                  TraceSax::Consumer on_event, U64 &count,
+                  std::function<bool()> cancelled = {}) {
+  TraceSax handler(
+      std::move(on_access),
+      [&](Json record) {
+        const auto sequence =
+            unsigned_value(field(record, "sequence"), "sequence");
+        if (sequence != count)
+          fail("sequence must start at zero and be consecutive; expected " +
+               std::to_string(count));
+        try {
+          on_event(std::move(record));
+        } catch (const std::ios_base::failure &) {
+          throw;
+        } catch (const std::bad_alloc &) {
+          throw;
+        } catch (const std::exception &error) {
+          fail("event " + std::to_string(sequence) + ": " + error.what());
+        }
+        count = add(count, 1);
+      },
+      std::move(cancelled));
   if (!Json::sax_parse(input, &handler) || input.bad())
     fail("cannot read trace JSON");
   handler.validate_header(count);
@@ -432,6 +457,85 @@ static Json json_levels(const std::vector<LevelStatistics> &levels,
          {"processed", json_processed(events[index], levels[index])},
          {"totals", json_totals(levels[index])}});
   return result;
+}
+
+static Json replay_event(Json entry, RunSummary &summary,
+                         CacheHierarchy &hierarchy) {
+  const auto access = event(entry);
+  const auto found = summary.instructions.find(access.access_id);
+  if (found == summary.instructions.end() ||
+      found->second.memref_id != access.access.memref_id ||
+      found->second.kind != access.access.kind)
+    fail("trace access changed between passes");
+  const auto layout = summary.buffers.find(access.access.memref_id);
+  if (layout == summary.buffers.end())
+    fail("trace buffer changed between passes");
+  const auto model_address = address(access, layout->second);
+  const bool write = access.access.kind == "write";
+  const auto result =
+      write ? hierarchy.write(model_address,
+                              static_cast<std::size_t>(access.size))
+            : hierarchy.read(model_address,
+                             static_cast<std::size_t>(access.size));
+  std::vector<Json> line_results(summary.levels.size(), Json::array());
+  auto &instruction = found->second;
+  for (const auto &line : result.lines) {
+    const auto index = line.level - 1;
+    record(summary.levels.at(index), line, write);
+    record(instruction.levels.at(index), line, write);
+    line_results.at(index).push_back(
+        {{"line_address", hex_address(line.line_address)},
+         {"hit", line.hit},
+         {"set", line.set},
+         {"way", line.way ? Json(*line.way) : Json(nullptr)},
+         {"evicted_address", line.evicted
+                                 ? Json(hex_address(line.evicted->line_address))
+                                 : Json(nullptr)},
+         {"evicted_dirty",
+          line.evicted ? Json(line.evicted->dirty) : Json(nullptr)}});
+  }
+  Json evictions = Json::array();
+  for (const auto &eviction : result.evictions) {
+    record_eviction(summary.levels.at(eviction.level - 1), eviction.line,
+                    write);
+    record_eviction(instruction.levels.at(eviction.level - 1), eviction.line,
+                    write);
+    evictions.push_back(
+        {{"level", eviction.level},
+         {"line_address", hex_address(eviction.line.line_address)},
+         {"dirty", eviction.line.dirty}});
+  }
+  Json level_results = Json::array();
+  const auto primary_lines = line_results.front();
+  for (std::size_t index = 0; index < line_results.size(); ++index) {
+    if (line_results[index].empty())
+      continue;
+    summary.level_events[index] = add(summary.level_events[index], 1);
+    instruction.level_events[index] = add(instruction.level_events[index], 1);
+    level_results.push_back(
+        {{"level", index + 1}, {"lines", std::move(line_results[index])}});
+  }
+  summary.memory_reads = add(summary.memory_reads, result.memory_reads);
+  summary.memory_writebacks =
+      add(summary.memory_writebacks, result.memory_writebacks);
+  summary.events = add(summary.events, 1);
+  auto &count = write ? summary.writes : summary.reads;
+  auto &bytes = write ? summary.write_bytes : summary.read_bytes;
+  count = add(count, 1);
+  bytes = add(bytes, access.size);
+  instruction.events = add(instruction.events, 1);
+  instruction.requested_bytes = add(instruction.requested_bytes, access.size);
+  return Json{{"sequence", access.sequence},
+              {"access_id", access.access_id},
+              {"kind", access.access.kind},
+              {"address", hex_address(model_address)},
+              {"size_bytes", access.size},
+              {"lines", primary_lines},
+              {"level_results", std::move(level_results)},
+              {"evictions", std::move(evictions)},
+              {"memory_reads", result.memory_reads},
+              {"memory_writebacks", result.memory_writebacks},
+              {"trace_event", std::move(entry)}};
 }
 
 namespace {
@@ -673,87 +777,11 @@ RunSummary run_trace(const std::filesystem::path &input_path,
             fail("trace accesses table changed between passes");
         },
         [&](Json entry) {
-          const auto access = event(entry);
-          const auto found = summary.instructions.find(access.access_id);
-          if (found == summary.instructions.end() ||
-              found->second.memref_id != access.access.memref_id ||
-              found->second.kind != access.access.kind)
-            fail("trace access changed between passes");
-          const auto layout = summary.buffers.find(access.access.memref_id);
-          if (layout == summary.buffers.end())
-            fail("trace buffer changed between passes");
-          const auto model_address = address(access, layout->second);
-          const bool write = access.access.kind == "write";
           const auto result =
-              write ? hierarchy.write(model_address,
-                                      static_cast<std::size_t>(access.size))
-                    : hierarchy.read(model_address,
-                                     static_cast<std::size_t>(access.size));
-          std::vector<Json> line_results(summary.levels.size(), Json::array());
-          auto &instruction = found->second;
-          for (const auto &line : result.lines) {
-            const auto index = line.level - 1;
-            record(summary.levels.at(index), line, write);
-            record(instruction.levels.at(index), line, write);
-            line_results.at(index).push_back(
-                {{"line_address", hex_address(line.line_address)},
-                 {"hit", line.hit},
-                 {"set", line.set},
-                 {"way", line.way ? Json(*line.way) : Json(nullptr)},
-                 {"evicted_address",
-                  line.evicted ? Json(hex_address(line.evicted->line_address))
-                               : Json(nullptr)},
-                 {"evicted_dirty",
-                  line.evicted ? Json(line.evicted->dirty) : Json(nullptr)}});
-          }
-          Json evictions = Json::array();
-          for (const auto &eviction : result.evictions) {
-            record_eviction(summary.levels.at(eviction.level - 1),
-                            eviction.line, write);
-            record_eviction(instruction.levels.at(eviction.level - 1),
-                            eviction.line, write);
-            evictions.push_back(
-                {{"level", eviction.level},
-                 {"line_address", hex_address(eviction.line.line_address)},
-                 {"dirty", eviction.line.dirty}});
-          }
-          Json level_results = Json::array();
-          const auto primary_lines = line_results.front();
-          for (std::size_t index = 0; index < line_results.size(); ++index) {
-            if (line_results[index].empty())
-              continue;
-            summary.level_events[index] = add(summary.level_events[index], 1);
-            instruction.level_events[index] =
-                add(instruction.level_events[index], 1);
-            level_results.push_back(
-                {{"level", index + 1},
-                 {"lines", std::move(line_results[index])}});
-          }
-          summary.memory_reads = add(summary.memory_reads, result.memory_reads);
-          summary.memory_writebacks =
-              add(summary.memory_writebacks, result.memory_writebacks);
-          summary.events = add(summary.events, 1);
-          auto &count = write ? summary.writes : summary.reads;
-          auto &bytes = write ? summary.write_bytes : summary.read_bytes;
-          count = add(count, 1);
-          bytes = add(bytes, access.size);
-          instruction.events = add(instruction.events, 1);
-          instruction.requested_bytes =
-              add(instruction.requested_bytes, access.size);
+              replay_event(std::move(entry), summary, hierarchy);
           if (second_count != 0)
             events.write(",");
-          events.write(Json{{"sequence", access.sequence},
-                            {"access_id", access.access_id},
-                            {"kind", access.access.kind},
-                            {"address", hex_address(model_address)},
-                            {"size_bytes", access.size},
-                            {"lines", primary_lines},
-                            {"level_results", std::move(level_results)},
-                            {"evictions", std::move(evictions)},
-                            {"memory_reads", result.memory_reads},
-                            {"memory_writebacks", result.memory_writebacks},
-                            {"trace_event", std::move(entry)}}
-                           .dump());
+          events.write(result.dump());
         },
         second_count);
     if (header != second_header || first_count != second_count)
@@ -811,6 +839,247 @@ RunSummary run_trace(const std::filesystem::path &input_path,
   } catch (const std::exception &error) {
     fail("trace " + input_path.string() + ": " + error.what());
   }
+}
+
+namespace {
+struct TraceStamp {
+  struct stat value{};
+
+  explicit TraceStamp(const std::filesystem::path &path) {
+    if (::stat(path.c_str(), &value) != 0 || !S_ISREG(value.st_mode))
+      throw TraceChanged("trace is missing or is not a regular file");
+  }
+
+  bool operator==(const TraceStamp &other) const {
+#ifdef __APPLE__
+    const auto mtime = value.st_mtimespec;
+    const auto ctime = value.st_ctimespec;
+    const auto other_mtime = other.value.st_mtimespec;
+    const auto other_ctime = other.value.st_ctimespec;
+#else
+    const auto mtime = value.st_mtim;
+    const auto ctime = value.st_ctim;
+    const auto other_mtime = other.value.st_mtim;
+    const auto other_ctime = other.value.st_ctim;
+#endif
+    return value.st_dev == other.value.st_dev &&
+           value.st_ino == other.value.st_ino &&
+           value.st_size == other.value.st_size &&
+           mtime.tv_sec == other_mtime.tv_sec &&
+           mtime.tv_nsec == other_mtime.tv_nsec &&
+           ctime.tv_sec == other_ctime.tv_sec &&
+           ctime.tv_nsec == other_ctime.tv_nsec;
+  }
+};
+} // namespace
+
+struct TraceReplay::Impl {
+  using Json = runner_detail::Json;
+  std::filesystem::path path;
+  CacheHierarchy &hierarchy;
+  TraceStamp stamp;
+  std::unique_ptr<std::FILE, int (*)(std::FILE *)> spool{nullptr, &std::fclose};
+  RunSummary current;
+  RunSummary cold;
+  Json header;
+  std::map<std::uint64_t, Json> sites;
+  std::uint64_t total = 0;
+  std::uint64_t position = 0;
+  bool valid = true;
+
+  Impl(const std::filesystem::path &trace, CacheHierarchy &cache,
+       const std::function<bool()> &cancelled)
+      : path(trace), hierarchy(cache), stamp(trace) {
+    using namespace runner_detail;
+    std::ifstream input(trace, std::ios::binary);
+    if (!input)
+      fail("cannot open trace");
+    spool.reset(std::tmpfile());
+    if (!spool)
+      throw std::ios_base::failure("cannot create temporary replay spool");
+    std::map<U64, AccessSite> observed;
+    header = parse(
+        input,
+        [&](const Json &entry) {
+          const auto id =
+              unsigned_value(field(entry, "access_id"), "access_id");
+          site(entry);
+          string_field(entry, "source_location");
+          if (!sites.emplace(id, entry).second)
+            fail("duplicate access_id in accesses table");
+        },
+        [&](Json entry) {
+          const auto access = event(entry);
+          const auto inserted =
+              observed.emplace(access.access_id, access.access);
+          if (!inserted.second && !(inserted.first->second == access.access))
+            fail("access_id changes memref_id/kind");
+          auto &layout = current.buffers[access.access.memref_id];
+          layout.min_offset = std::min(layout.min_offset, access.offset);
+          layout.end_offset = std::max(layout.end_offset, end_offset(access));
+          Json normalized;
+          for (const auto *key :
+               {"sequence", "access_id", "memref_id", "byte_offset",
+                "size_bytes", "kind", "address_kind"})
+            normalized[key] = entry.at(key);
+          const auto line = normalized.dump() + '\n';
+          if (std::fwrite(line.data(), 1, line.size(), spool.get()) !=
+              line.size())
+            throw std::ios_base::failure("cannot write replay spool");
+        },
+        total, cancelled);
+    for (const auto &[id, access] : observed) {
+      const auto found = sites.find(id);
+      if (found == sites.end() || !(site(found->second) == access))
+        fail("event does not match static access table");
+    }
+    place_buffers(current.buffers);
+    current.level_names = hierarchy.level_names();
+    current.levels.resize(current.level_names.size());
+    current.level_events.resize(current.level_names.size());
+    for (const auto &[id, entry] : sites) {
+      const auto access = site(entry);
+      InstructionStatistics instruction;
+      instruction.memref_id = access.memref_id;
+      instruction.kind = access.kind;
+      instruction.levels.resize(current.levels.size());
+      instruction.level_events.resize(current.levels.size());
+      current.instructions.emplace(id, std::move(instruction));
+    }
+    if (std::fflush(spool.get()) != 0)
+      throw std::ios_base::failure("cannot flush replay spool");
+    rewind();
+    for (U64 index = 0; index < total; ++index) {
+      if (cancelled && cancelled())
+        fail("preparation cancelled");
+      const auto access = event(read());
+      const auto begin =
+          address(access, current.buffers.at(access.access.memref_id));
+      add(begin, access.size - 1);
+    }
+    unchanged();
+    cold = current;
+    rewind();
+    hierarchy.clear();
+  }
+
+  void unchanged() const {
+    if (!(stamp == TraceStamp(path)))
+      throw TraceChanged("trace changed since preparation");
+  }
+
+  void rewind() {
+    if (std::fseek(spool.get(), 0, SEEK_SET) != 0)
+      throw std::ios_base::failure("cannot rewind replay spool");
+    std::clearerr(spool.get());
+  }
+
+  Json read() {
+    std::string line;
+    for (;;) {
+      const int c = std::fgetc(spool.get());
+      if (c == EOF)
+        throw std::ios_base::failure("cannot read replay spool");
+      if (c == '\n')
+        break;
+      line.push_back(static_cast<char>(c));
+    }
+    return Json::parse(line);
+  }
+};
+
+TraceReplay::TraceReplay(const std::filesystem::path &trace,
+                         CacheHierarchy &hierarchy,
+                         const std::function<bool()> &cancelled)
+    : impl_(std::make_unique<Impl>(trace, hierarchy, cancelled)) {}
+TraceReplay::~TraceReplay() = default;
+std::uint64_t TraceReplay::total_events() const { return impl_->total; }
+std::uint64_t TraceReplay::cursor() const { return impl_->position; }
+const RunSummary &TraceReplay::summary() const {
+  if (!impl_->valid)
+    throw std::runtime_error("failed replay requires reset");
+  return impl_->current;
+}
+void TraceReplay::check_unchanged() const { impl_->unchanged(); }
+
+nlohmann::json TraceReplay::step() {
+  if (!impl_->valid)
+    throw std::runtime_error("failed replay requires reset");
+  try {
+    impl_->unchanged();
+    if (impl_->position == impl_->total)
+      return nullptr;
+    auto result = runner_detail::replay_event(impl_->read(), impl_->current,
+                                              impl_->hierarchy);
+    impl_->position = runner_detail::add(impl_->position, 1);
+    return result;
+  } catch (...) {
+    impl_->valid = false;
+    throw;
+  }
+}
+
+void TraceReplay::reset() {
+  impl_->valid = false;
+  impl_->unchanged();
+  impl_->hierarchy.clear();
+  impl_->rewind();
+  impl_->current = impl_->cold;
+  impl_->position = 0;
+  impl_->valid = true;
+}
+
+nlohmann::json TraceReplay::metadata() const {
+  using namespace runner_detail;
+  Json buffers = Json::array(), accesses = Json::array();
+  for (const auto &[id, layout] : impl_->current.buffers)
+    buffers.push_back({{"memref_id", id},
+                       {"base_address", hex_address(layout.base_address)},
+                       {"min_offset", layout.min_offset},
+                       {"end_offset", layout.end_offset}});
+  for (const auto &[id, record] : impl_->sites) {
+    (void)id;
+    accesses.push_back(record);
+  }
+  return {{"source", impl_->header},
+          {"buffers", std::move(buffers)},
+          {"accesses", std::move(accesses)}};
+}
+
+nlohmann::json TraceReplay::instructions(std::uint64_t offset,
+                                         std::size_t limit) const {
+  using namespace runner_detail;
+  Json result = Json::array();
+  const auto &instructions = summary().instructions;
+  auto iterator = instructions.begin();
+  if (offset > instructions.size())
+    fail("instruction offset out of range");
+  std::advance(iterator, static_cast<std::ptrdiff_t>(offset));
+  for (; iterator != instructions.end() && result.size() < limit; ++iterator) {
+    const auto &[id, instruction] = *iterator;
+    auto row = impl_->sites.at(id);
+    row["events"] = instruction.events;
+    row["requested_bytes"] = instruction.requested_bytes;
+    row["levels"] = json_levels(instruction.levels, instruction.level_events);
+    result.push_back(std::move(row));
+  }
+  return result;
+}
+
+nlohmann::json TraceReplay::statistics() const {
+  using namespace runner_detail;
+  const auto &s = summary();
+  return {{"processed", json_processed(s.events, s.levels.front())},
+          {"totals", json_totals(s.levels.front())},
+          {"levels", json_levels(s.levels, s.level_events)},
+          {"requests",
+           {{"events", s.events},
+            {"reads", s.reads},
+            {"writes", s.writes},
+            {"read_bytes", s.read_bytes},
+            {"write_bytes", s.write_bytes}}},
+          {"memory",
+           {{"reads", s.memory_reads}, {"writebacks", s.memory_writebacks}}}};
 }
 
 } // namespace cache_simulator
