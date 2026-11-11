@@ -29,6 +29,14 @@ if(BUILD_TESTING)
   target_link_libraries(cachescope_hierarchy_tests PRIVATE CacheScope::Hierarchy)
   add_test(NAME cachescope.hierarchy COMMAND cachescope_hierarchy_tests)
 
+  add_executable(cachescope_reference_tests tests/reference_tests.cpp)
+  target_link_libraries(cachescope_reference_tests PRIVATE CacheScope::Hierarchy)
+  add_test(NAME cachescope.reference COMMAND cachescope_reference_tests)
+
+  add_executable(cachescope_exclusive_reference_tests tests/exclusive_reference_tests.cpp)
+  target_link_libraries(cachescope_exclusive_reference_tests PRIVATE CacheScope::Hierarchy)
+  add_test(NAME cachescope.exclusive_reference COMMAND cachescope_exclusive_reference_tests)
+
   if(POLICY CMP0135)
     cmake_policy(SET CMP0135 NEW)
   endif()

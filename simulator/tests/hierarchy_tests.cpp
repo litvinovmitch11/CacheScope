@@ -149,6 +149,37 @@ static void validation() {
   check(names.size() == 1 && names[0] == "L1", "level metadata");
 }
 
+static void mixed_cross_line_write() {
+  Setup setup({2});
+  auto &hierarchy = setup.hierarchy;
+  // One set, two ways: line 128 is dirty and LRU, line 0 is clean and MRU.
+  for (int run = 0; run < 2; ++run) {
+    hierarchy.write(128, 4);
+    hierarchy.read(0, 4);
+    const auto result = hierarchy.write(60, 8);
+    check(result.lines.size() == 2, "cross-line write has two demand probes");
+    check(result.lines[0].line_address == 0 && result.lines[0].level == 1 &&
+              result.lines[0].hit && !result.lines[0].evicted,
+          "first line is a hit without eviction");
+    check(result.lines[1].line_address == 64 && result.lines[1].level == 1 &&
+              !result.lines[1].hit && result.lines[1].evicted &&
+              result.lines[1].evicted->line_address == 128 &&
+              result.lines[1].evicted->dirty,
+          "second line misses and evicts the dirty LRU line");
+    check(result.evictions.size() == 1 && result.evictions[0].level == 1 &&
+              result.evictions[0].line.line_address == 128 &&
+              result.evictions[0].line.dirty && result.memory_reads == 1 &&
+              result.memory_writebacks == 1,
+          "cross-line write fetches and writes back exactly one line");
+    const auto first = setup.levels[0]->invalidate(0);
+    const auto second = setup.levels[0]->invalidate(64);
+    check(first && first->dirty && second && second->dirty &&
+              !setup.levels[0]->lookup(128).hit(),
+          "both written lines are resident and dirty after the access");
+    hierarchy.clear();
+  }
+}
+
 static void lru() {
   Setup setup({2});
   auto &hierarchy = setup.hierarchy;
@@ -171,6 +202,7 @@ int main() {
     migration();
     validation();
     lru();
+    mixed_cross_line_write();
     std::cout << "hierarchy passed\n";
     return 0;
   } catch (const std::exception &error) {

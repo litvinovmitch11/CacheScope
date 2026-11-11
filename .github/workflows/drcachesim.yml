@@ -1,0 +1,65 @@
+name: Compare with drcachesim
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: drcachesim-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  drcachesim:
+    name: DynamoRIO 11.91.20763 (ARM64)
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set paths
+        run: |
+          echo "DR_ROOT=${RUNNER_TEMP}/dynamorio/DynamoRIO-AArch64-Linux-11.91.20763" >> "${GITHUB_ENV}"
+          echo "DR_RESULTS=${RUNNER_TEMP}/drcachesim-results" >> "${GITHUB_ENV}"
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y g++ python3 libsnappy1v5
+
+      - name: Download and verify DynamoRIO
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="${RUNNER_TEMP}/dynamorio.tar.gz"
+          curl --fail --location --retry 3 --output "${archive}" \
+            https://github.com/DynamoRIO/dynamorio/releases/download/cronbuild-11.91.20763/DynamoRIO-AArch64-Linux-11.91.20763.tar.gz
+          echo "94b659aa61e6d13517280c438312e29421f4db841377d8025a240e4ebf1dfb43  ${archive}" | sha256sum --check --strict
+          mkdir -p "${RUNNER_TEMP}/dynamorio"
+          tar -xzf "${archive}" -C "${RUNNER_TEMP}/dynamorio"
+
+      - name: Compare one cache level
+        run: python3 scripts/compare_drcachesim.py --dynamorio "${DR_ROOT}" --output "${DR_RESULTS}/one-level"
+
+      - name: Compare two exclusive levels
+        if: success() || failure()
+        run: python3 scripts/compare_drcachesim_exclusive.py --dynamorio "${DR_ROOT}" --output "${DR_RESULTS}/two-levels"
+
+      - name: Compare three exclusive levels
+        if: success() || failure()
+        run: python3 scripts/compare_drcachesim_three_levels.py --dynamorio "${DR_ROOT}" --output "${DR_RESULTS}/three-levels"
+
+      - name: Upload comparison results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: drcachesim-comparison
+          path: ${{ runner.temp }}/drcachesim-results/
+          if-no-files-found: ignore
+          retention-days: 7

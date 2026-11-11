@@ -25,6 +25,9 @@ frontend
 SetAssociativeCacheLevel и replacement policies. Разделение ответственности описано
 в разделе 13; API — в [runner README](../runner/README.md).
 
+Предмет и условия проверки корректности описаны в
+[CORRECTNESS_VALIDATION.md](CORRECTNESS_VALIDATION.md).
+
 ## 2. Компоненты
 
 ### `compiler/cs-trace`
