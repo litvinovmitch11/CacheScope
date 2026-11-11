@@ -1,14 +1,14 @@
 import { RunnerClient } from "../api/runnerClient";
 import { readStageText } from "../api/localFiles";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { RunnerLogEntry } from "../api/runnerClient";
 import { useStepperSession } from "../hooks/useStepperSession";
 import type { LevelConfig, SourceStage } from "../types/runner";
+import { TracePicker } from "./TracePicker";
 
 const DEFAULT_LEVEL: LevelConfig = {
   name: "L1", size_bytes: 32768, line_size_bytes: 64, associativity: 8, replacement_policy: "LRU",
 };
-
 function isPowerOfTwo(value: number) {
   return Number.isSafeInteger(value) && value > 0 && Number.isInteger(Math.log2(value));
 }
@@ -24,6 +24,7 @@ export function StepperWorkspace() {
   const [skipCount, setSkipCount] = useState(1);
   const [levels, setLevels] = useState<LevelConfig[]>([{ ...DEFAULT_LEVEL }]);
   const [requestLogs, setRequestLogs] = useState<RunnerLogEntry[]>([]);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const client = useMemo(
     () =>
       new RunnerClient(baseUrl, (entry) => {
@@ -33,6 +34,25 @@ export function StepperWorkspace() {
       }),
     [baseUrl],
   );
+  const [recentTraces, setRecentTraces] = useState<string[]>([]);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const response = await client.listSessions();
+        const unique = Array.from(
+          new Set(
+            response.sessions
+              .map((item) => item.trace_path)
+              .filter((value): value is string => typeof value === "string" && value.length > 0),
+          ),
+        );
+        setRecentTraces(unique.slice(0, 5));
+      } catch {
+        // молча — не критично для работы UI
+      }
+    })();
+  }, [client]);
   const runner = useStepperSession(client);
   const [selectedLevel, setSelectedLevel] = useState(1);
   const [selectedStage, setSelectedStage] = useState("");
@@ -93,9 +113,40 @@ export function StepperWorkspace() {
           </label>
           <label className="stepper-field">
             <span>Абсолютный путь к trace-файлу</span>
-            <input value={tracePath} onChange={(event) => setTracePath(event.target.value)} placeholder="/home/user/traces/trace.json" spellCheck={false} />
+            <div style={{ display: "flex", gap: 8 }}>
+              <input
+                value={tracePath}
+                onChange={(event) => setTracePath(event.target.value)}
+                placeholder="/home/user/traces/trace.json"
+                spellCheck={false}
+                style={{ flex: 1 }}
+              />
+              <button
+                type="button"
+                className="stepper-button secondary"
+                onClick={() => setPickerOpen(true)}
+              >
+                Обзор…
+              </button>
+            </div>
             <small>Файл не загружается через браузер. Backend открывает его непосредственно по этому пути.</small>
           </label>
+          {recentTraces.length > 0 && (
+            <div className="stepper-recent-traces">
+              <span className="stepper-muted">Недавние:</span>
+              {recentTraces.map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  className="stepper-chip"
+                  onClick={() => setTracePath(value)}
+                  title={value}
+                >
+                  {value.split("/").slice(-2).join("/")}
+                </button>
+              ))}
+            </div>
+          )}
           <h3>Конфигурация кеша</h3>
           {levels.map((level, index) => (
             <div className="stepper-level-config" key={index}>
@@ -301,6 +352,13 @@ export function StepperWorkspace() {
           </div>
         )}
       </section>
+      {pickerOpen && (
+        <TracePicker
+          initialPath={tracePath || undefined}
+          onSelect={(value) => { setTracePath(value); setPickerOpen(false); }}
+          onClose={() => setPickerOpen(false)}
+        />
+      )}
     </main>
   );
 }

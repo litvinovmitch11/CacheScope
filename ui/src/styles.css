@@ -770,3 +770,120 @@ summary {
     order: 3;
   }
 }
+
+/* Stepwise: file picker modal and recent traces */
+
+.stepper-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+
+.stepper-modal {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px;
+  width: min(760px, 100%);
+  max-height: min(82vh, 720px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.stepper-modal header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.stepper-modal header h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.stepper-modal-path,
+.stepper-modal-manual {
+  display: flex;
+  gap: 6px;
+}
+
+.stepper-modal-cwd,
+.stepper-modal-manual input {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+  font-family: ui-monospace, monospace;
+}
+
+.stepper-modal-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  border-top: 1px solid var(--line);
+}
+
+.stepper-modal-entry {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.stepper-modal-entry:hover {
+  background: var(--bg);
+}
+
+.stepper-modal-entry.file {
+  color: #16a34a;
+}
+
+.stepper-modal-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stepper-recent-traces {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 4px 0 0;
+}
+
+.stepper-chip {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--fg);
+  padding: 4px 10px;
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.stepper-chip:hover {
+  background: var(--card);
+}
