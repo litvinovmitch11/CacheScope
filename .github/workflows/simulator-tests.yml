@@ -45,6 +45,15 @@ jobs:
         shell: bash
         run: |
           sudo apt-get update 2>&1 | tee "${RUNNER_TEMP}/cachescope-apt.log"
+          {
+            echo DEBUG-ci-apt-indexes
+            dpkg --print-architecture
+            cat /etc/apt/sources.list.d/ubuntu.sources
+            apt-cache policy cmake ninja-build clang
+            apt-get indextargets
+            ls -lh /var/lib/apt/lists/
+            apt-config dump | grep -E 'Architecture|Dir::State|By-Hash|GzipIndexes|List-Cleanup'
+          } 2>&1 | tee -a "${RUNNER_TEMP}/cachescope-apt.log"
           sudo apt-get install -y cmake ninja-build g++ clang 2>&1 | tee -a "${RUNNER_TEMP}/cachescope-apt.log"
 
       - name: Upload APT diagnostics
