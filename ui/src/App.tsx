@@ -5,8 +5,12 @@ import { ComparisonTable } from "./components/ComparisonTable";
 import { loadEmbedded, loadExperiment } from "./loadExperiment";
 import { describeConfig, groupByConfig } from "./metrics";
 import type { LoadResult } from "./types";
+import { StepperWorkspace } from "./features/stepper";
 
 export default function App() {
+  if (new URLSearchParams(window.location.search).get("view") === "stepper") {
+    return <StepperWorkspace />;
+  }
   const [embedded] = useState<LoadResult | null>(loadEmbedded);
   const [result, setResult] = useState<LoadResult | null>(embedded);
   const [busy, setBusy] = useState(false);
@@ -24,7 +28,7 @@ export default function App() {
 
   return (
     <main>
-      <h1>CacheScope</h1>
+      <div className="app-heading"><h1>CacheScope</h1><a href="/?view=stepper">Пошаговая симуляция →</a></div>
 
       {!embedded && <FolderPicker onFiles={onFiles} busy={busy} />}
 
