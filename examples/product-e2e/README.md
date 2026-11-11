@@ -83,3 +83,6 @@ CLI и driver поддерживают `lru`, `fifo` и детерминиров
 `cachescope.trace.v1`, `cachescope.simulation-statistics.v1` и
 `cachescope.simulation-events.v1`. UI по-прежнему можно запускать отдельно над
 полученной директорией эксперимента.
+
+Независимая проверка semantic trace, адресов runner и сравнение с drcachesim
+описаны в [CACHE_PIPELINE_VALIDATION.md](../../docs/CACHE_PIPELINE_VALIDATION.md).

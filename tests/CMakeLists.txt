@@ -51,3 +51,16 @@ set_tests_properties(
   cachescope.schema-suite
   PROPERTIES TIMEOUT 120
 )
+
+if(TARGET cachescope_runner_cli)
+  add_test(
+    NAME cachescope.cache-pipeline-e2e
+    COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_CURRENT_SOURCE_DIR}/cache_pipeline_e2e.py
+            --mlir-bin ${LLVM_TOOLS_BINARY_DIR}
+            --plugin $<TARGET_FILE:CacheScopePassPlugin>
+            --runtime $<TARGET_FILE:cachescope_trace_runtime>
+            --runner $<TARGET_FILE:cachescope_runner_cli>
+  )
+  set_tests_properties(cachescope.cache-pipeline-e2e PROPERTIES TIMEOUT 300)
+endif()
