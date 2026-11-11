@@ -6,6 +6,16 @@
 python3 examples/trace_demo.py
 ```
 
+Этот driver заканчивается на validated traces. Полная продуктовая вертикаль,
+которая дополнительно запускает cache runner и собирает standalone UI report:
+
+```bash
+python3 examples/product-e2e/run.py
+```
+
+Её layout, cache configuration и проверки описаны в
+[product-e2e/README.md](product-e2e/README.md).
+
 Он самостоятельно собирает CacheScope plugin/runtime, компилирует один matmul
 тремя способами, запускает инструментированный код, проверяет численный
 результат и валидирует все traces.

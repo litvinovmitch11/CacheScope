@@ -2,8 +2,8 @@
 
 CacheScope показывает, как compiler transformations меняют порядок обращений
 к памяти. Текущая вертикаль компилирует MLIR kernel, выполняет его после
-гибридной MemRef/LLVM-инструментации и создаёт воспроизводимый
-`cachescope.trace.v1` для будущего cache simulator и UI.
+гибридной MemRef/LLVM-инструментации, воспроизводит trace через cache model и
+создаёт автономный сравнительный UI-отчёт.
 
 ## Что уже работает
 
@@ -18,8 +18,10 @@ CacheScope показывает, как compiler transformations меняют п
   `memref.load/store` и `llvm.load/store`;
 - один канонический baseline/tile/interchange example;
 - pass, runtime, schema, end-to-end и documentation tests;
-- SetAssociativeCacheLevel с LRU, exclusive CacheHierarchy и независимый trace
-  runner со статистикой по уровням, инструкциям и подробным временным рядом для UI.
+- SetAssociativeCacheLevel с LRU/FIFO/Random, exclusive CacheHierarchy и
+  независимый trace runner со статистикой по уровням, инструкциям и
+  подробным событийным рядом в `events.json`;
+- полный product E2E: compiler → trace → simulator → standalone HTML.
 
 Точные границы перечислены в [support matrix](docs/SUPPORT_MATRIX.md).
 
@@ -74,6 +76,19 @@ output/trace-demo/
 Подробное описание стадий и артефактов находится в
 [examples/README.md](examples/README.md).
 
+Полный продуктовый сценарий, включая cache simulation и UI:
+
+```bash
+python3 examples/product-e2e/run.py
+```
+
+Он создаёт переносимую директорию эксперимента и автономный отчёт
+`output/product-e2e/report.html`, а также текстовую сводку `RESULTS.md` с
+дельтами относительно baseline. Для UI нужен Node.js `^20.19.0` или
+`>=22.12.0`; locked npm dependencies устанавливаются автоматически, если их
+ещё нет. Детали и настройка cache model описаны в
+[product E2E README](examples/product-e2e/README.md).
+
 ## Сборка и проверки
 
 ```bash
@@ -110,9 +125,9 @@ python3 scripts/validate_trace.py output/trace-demo/baseline/trace.json
 compiler/cs-trace/     MLIR pass plugin
 compiler/runtime/      runtime trace producer
 simulator/             include/lib/tests: уровни кеша, политики и иерархия
-runner/                include/lib/tests: replay, статистика и JSON-отчёты
+runner/                API и CLI: replay, статистика и JSON-отчёты
 schemas/               общие контракты и fixtures
-examples/              один канонический pipeline и optional PyTorch frontend
+examples/              compiler demo, product E2E и optional PyTorch frontend
 tests/                 compiler, ABI и проверки общих контрактов
 docs/                  архитектура и межкомпонентные контракты
 output/                локальные generated artifacts, ignored
@@ -136,6 +151,8 @@ scripts/check.sh --with-torch
 ## Документация
 
 - [канонический пример](examples/README.md);
+- [полный product E2E](examples/product-e2e/README.md);
+- [запуски с разными cache models](docs/CACHE_MODELS.md);
 - [архитектура](docs/ARCHITECTURE.md);
 - [сборка и разработка](docs/DEVELOPMENT.md);
 - [формат trace](docs/TRACE_FORMAT.md);

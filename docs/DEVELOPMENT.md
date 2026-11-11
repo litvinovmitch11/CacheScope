@@ -102,6 +102,19 @@ python3 examples/trace_demo.py
 Он создаёт три variants, traces и `output/trace-demo/summary.json`. Подробное
 описание находится в [`examples/README.md`](../examples/README.md).
 
+Полная продуктовая вертикаль дополнительно собирает runner CLI, воспроизводит
+три trace через демонстрационный L1 и создаёт standalone UI report:
+
+```bash
+python3 examples/product-e2e/run.py
+```
+
+Результат и все промежуточные JSON находятся в `output/product-e2e/`.
+Параметры и требования Node.js описаны в
+[`examples/product-e2e/README.md`](../examples/product-e2e/README.md).
+Примеры LRU/FIFO/Random, разных геометрий и hardware-like конфигурации находятся
+в [`CACHE_MODELS.md`](CACHE_MODELS.md).
+
 ## PyTorch frontend
 
 Compiler и MLIR тесты не требуют PyTorch. Для полного frontend demo создайте
@@ -167,7 +180,8 @@ git diff --check
 - `cachescope.schema-suite` — schema fixtures, compatibility и invariants;
 - `cachescope.documentation-suite` — существование локальных Markdown links.
 - `cachescope.runner-*` — integration, real-cache, fifo-cache, random-cache,
-  validation, random-miss и streaming;
+  validation, random-miss, streaming и CLI smoke для LRU/FIFO/Random
+  и L1/L2/L3;
 - `cachescope.hierarchy` — exclusive-переносы, dirty и реальный LRU;
 - `SetAssociativeCacheLevelTest.*`, `LRUTest.*` — upstream-тесты симулятора.
 
@@ -201,6 +215,7 @@ cmake --install build --prefix /desired/prefix
 ```text
 lib/cachescope/CacheScopePassPlugin.so
 lib/libcachescope_trace_runtime.so
+bin/cachescope-runner
 include/cachescope/TraceABI.h
 share/cachescope/schema/cachescope.trace.v1.schema.json
 ```

@@ -19,6 +19,12 @@ git diff --check
 python3 examples/trace_demo.py
 ```
 
+Изменение границы compiler/runner/UI либо cache model дополнительно требует:
+
+```bash
+python3 examples/product-e2e/run.py
+```
+
 Изменения PyTorch frontend дополнительно требуют:
 
 ```bash

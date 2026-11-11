@@ -20,10 +20,15 @@ PyTorch или MLIR payload
 Численная эквивалентность и различие traces проверяются автоматически.
 Канонический pipeline находится в `examples/trace_demo.py`.
 
-Реализованы SetAssociativeCacheLevel с LRU, exclusive `CacheHierarchy` и
-независимый `runner/`: полные semantic-трассы, автоматическое размещение буферов,
+Реализованы SetAssociativeCacheLevel с LRU/FIFO/Random, exclusive
+`CacheHierarchy` и независимый `runner/`: полные semantic-трассы,
+автоматическое размещение буферов,
 статистика по уровням/инструкциям и событийный ряд для UI. Тесты используют
 реальную модель и отдельную smoke-модель с вероятностью miss 50%.
+
+Reference product flow `compiler → trace → simulator → standalone UI` запускается
+одной командой `python3 examples/product-e2e/run.py`. Он создаёт три variants,
+simulation reports и переносимый HTML в одной experiment directory.
 
 ## M0: контракт trace producer — выполнено
 
@@ -60,33 +65,32 @@ PyTorch или MLIR payload
 
 ## Общие продуктовые этапы
 
-## P1: cache simulator
+## P1: cache simulator — выполнено
 
 - детерминированные model base addresses для semantic memrefs;
-- configurable L1: size, line size, associativity;
-- LRU, write-back и write-allocate;
+- configurable L1/L2/L3 hierarchy: per-level size, line size, associativity
+  и replacement policy;
+- LRU/FIFO/Random, write-back и write-allocate;
 - split accesses через границу cache line;
 - hit/miss, eviction и writeback events;
 - replay state для каждого set/way;
 - одинаковый результат повторных запусков.
 
-## P2: сравнение вариантов
+## P2: сравнение вариантов — частично
 
-- сопоставление events по provenance, а не sequence;
-- matched/unmatched coverage;
-- reuse distance;
-- cache outcome diff;
-- отдельная обработка fallback events, адреса которых зависят от процесса;
-- компактный переносимый run bundle.
+- реализованы aggregate hit/miss comparison и переносимый run bundle;
+- далее: сопоставление events по provenance, а не sequence;
+- далее: matched/unmatched coverage и reuse distance;
+- далее: cache outcome diff;
+- далее: отдельная обработка fallback events, адреса которых зависят от процесса.
 
-## P3: визуализация
+## P3: визуализация — частично
 
-- payload и transform IR рядом;
-- event timeline;
-- состояние cache sets/ways;
-- синхронный baseline/transformed replay;
-- переход из события к исходной MLIR operation;
-- экспорт воспроизводимого отчёта.
+- реализованы statistics comparison и экспорт воспроизводимого HTML-отчёта;
+- далее: payload и transform IR рядом;
+- далее: event timeline и состояние cache sets/ways;
+- далее: синхронный baseline/transformed replay;
+- далее: переход из события к исходной MLIR operation.
 
 ## Не входит в ближайшие этапы
 
@@ -98,9 +102,10 @@ PyTorch или MLIR payload
 - автоматическая генерация optimization advice;
 - autotuning transform schedules.
 
-## Definition of Done следующего milestone
+## Definition of Done следующего compiler milestone
 
-Следующий milestone готов, когда:
+Пункты 2–5 уже выполнены текущим product E2E. Оставшийся gate следующего
+compiler milestone — расширение покрытия memory operations:
 
 1. все memory operations выбранного CPU kernel либо инструментируются, либо
    останавливают compilation с точной диагностикой;

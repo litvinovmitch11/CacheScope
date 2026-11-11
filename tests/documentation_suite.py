@@ -24,6 +24,7 @@ def markdown_files(repo: Path) -> list[Path]:
     files.append(repo / "runner/README.md")
     files.append(repo / "simulator/README.md")
     files.append(repo / "schemas/README.md")
+    files.append(repo / "ui/README.md")
     return sorted(set(files))
 
 
@@ -36,7 +37,9 @@ def main() -> None:
         ".github/workflows/compiler-tests.yml",
         "cmake/LLVMVersion.cmake",
         "schemas/cachescope.trace.v1.schema.json",
+        "docs/CACHE_MODELS.md",
         "examples/trace_demo.py",
+        "examples/product-e2e/run.py",
         "schemas/fixtures/source-map-v1/trace.json",
         "scripts/install-llvm-dependencies.sh",
         "scripts/validate_trace.py",

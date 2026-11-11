@@ -20,6 +20,9 @@
 | Schema | `cachescope.trace.v1` | JSON Schema, validator и golden fixtures |
 | Runtime | explicit reset/flush и `atexit` | поддержано |
 | Example | three MLIR compiler variants | canonical end-to-end driver |
+| Product E2E | compiler → simulator → standalone UI | одна команда и переносимый experiment bundle |
+| Runner CLI | configurable L1/L2/L3 hierarchy | per-level LRU/FIFO/Random, deterministic seed, exclusive write-back/write-allocate |
+| UI | statistics comparison и standalone HTML | три variants и cache levels |
 | Frontend | static `16×16 f32` PyTorch matmul | end-to-end demo |
 | Transform | tiling и loop interchange | проверено на примерах |
 | Source map | input → transformed → loops → instrumentation → LLVM | embedded `cachescope.source-map.v1` |
@@ -53,7 +56,7 @@
 - многопоточность;
 - GPU/NVVM/ROCDL memory spaces;
 - доказанная корректность provenance для произвольных fusion/unrolling passes;
-- UI.
+- интерактивная визуализация `events.json` и source-map navigation в UI.
 
 ## Trace runner
 
@@ -65,8 +68,8 @@ access table. Поддержаны `memref_offset` и `read/write`, отрица
 
 CacheHierarchy владеет `ICacheLevel` из актуального `CacheLevel.h`, реализует
 exclusive, write-back/write-allocate с одинаковым line size всех уровней.
-Готовые уровни — SetAssociativeCacheLevel с LRU. Нет ограничения числа событий
-раннера; память зависит от static sites и размера одного запроса. Неполные,
+Готовые уровни — SetAssociativeCacheLevel с LRU, FIFO и Random. Нет ограничения
+числа событий раннера; память зависит от static sites и размера одного запроса. Неполные,
 invalid и truncated traces, `process_address` и `read_write` отклоняются.
 Подробнее: [runner](../runner/README.md), [hierarchy](../simulator/README.md) и
 [statistics](STATISTICS_FORMAT.md).

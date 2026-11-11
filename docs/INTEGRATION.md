@@ -104,6 +104,11 @@ output/<experiment>/simulation/<config-name>/
   events.json                per-access cache outcome, записывается потоково
 ```
 
+Одноуровневый production entry point доступен как `cachescope-runner`; он
+принимает trace, геометрию L1 и output directory. Полный reference flow для
+трёх compiler variants находится в `examples/product-e2e/run.py` и создаёт
+готовый для UI experiment bundle одной командой.
+
 Используются `cachescope.simulation-statistics.v1` и
 `cachescope.simulation-events.v1` из [контракта UI](SIMULATION_FORMAT.md).
 Базовые поля проецируют L1, `levels` и `level_results` описывают остальные
@@ -124,17 +129,19 @@ UI получает:
 - stage dumps и embedded `source_map` от канонического producer-а;
 - `statistics.json` и опциональный `events.json` от emulator.
 
-UI может показывать порядок обращений, offsets, read/write kind и формальный
-результат cache model. Он не должен делать выводы о wall-clock performance или
+Контракты позволяют UI показывать порядок обращений, offsets, read/write kind и
+формальный результат cache model. Текущий UI v0.1 показывает сравнительную
+статистику и instruction aggregates; timeline `events.json` и source navigation
+ещё не визуализируются. UI не должен делать выводы о wall-clock performance или
 CPU cycles только по trace.
 
 Stage-aware navigation определена в [SOURCE_MAPPING.md](SOURCE_MAPPING.md).
 UI обязан feature-detect поле `source_map` для совместимости со старыми traces
 и не пытаться разобрать legacy `source_location` как стабильную структуру.
 
-На первом этапе UI разумно поддержать импорт готовой директории experiment.
-Запуск compiler pipeline из UI лучше добавлять только после стабилизации bundle
-manifest и отдельного CLI/API orchestration слоя.
+UI поддерживает импорт готовой директории experiment. Compiler и simulator не
+запускаются внутри browser UI: orchestration выполняет отдельный product E2E
+driver поверх compiler driver и runner CLI.
 
 Контракт будущего интерактивного режима: [Runner HTTP API v1](RUNNER_API.md).
 Он определяет session, step/reset, физические снимки cache slots и

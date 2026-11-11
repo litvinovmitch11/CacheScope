@@ -54,11 +54,11 @@ UI проверяет соответствие схемам и использу�
 
 ## Запуск в режиме разработки
 
-Требуется Node.js и npm.
+Требуется Node.js `^20.19.0` или `>=22.12.0` и npm.
 
 ```bash
 cd ui
-npm install
+npm ci
 npm run dev
 ```
 
@@ -88,6 +88,16 @@ npm run report -- --input fixtures/demo --output ../reports/demo.html
 ```
 
 Результатом будет файл `demo.html`, содержащий интерфейс CacheScope и встроенные данные эксперимента.
+
+Полный compiler → simulator → UI сценарий из корня репозитория сам создаёт
+реальный experiment bundle и вызывает этот генератор:
+
+```bash
+python3 examples/product-e2e/run.py
+```
+
+Итоговый файл находится в `output/product-e2e/report.html`, текстовая сводка с
+дельтами — в `output/product-e2e/RESULTS.md`.
 
 Отчёт можно открыть непосредственно в браузере или передать другому пользователю. Для его просмотра не требуется запускать Vite или устанавливать Node.js.
 
