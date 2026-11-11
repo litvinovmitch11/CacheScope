@@ -26,6 +26,46 @@ ctest --test-dir build/runner --output-on-failure
 Подключение: `add_subdirectory(path/to/runner runner-build)` и
 `target_link_libraries(your_target PRIVATE CacheScope::Runner)`.
 
+## CLI
+
+Сборка создаёт `build/runner/cachescope-runner`. Он оборачивает тот же
+`run_trace` в configurable exclusive hierarchy с LRU/FIFO/Random,
+write-back и write-allocate. Один L1 задаётся так:
+
+```bash
+build/runner/cachescope-runner \
+  --trace output/trace-demo/baseline/trace.json \
+  --output-dir output/trace-demo/simulation/baseline-l1 \
+  --cache-name L1 \
+  --size-bytes 32768 \
+  --line-size-bytes 64 \
+  --associativity 8 \
+  --replacement-policy lru
+```
+
+Для L1/L2/L3 повторите `--cache-level` в порядке от ближайшего к CPU
+до самого дальнего:
+
+```bash
+build/runner/cachescope-runner \
+  --trace output/trace-demo/baseline/trace.json \
+  --output-dir output/trace-demo/simulation/baseline-l1-l2-l3 \
+  --cache-level L1:32768:64:8:lru \
+  --cache-level L2:262144:64:8:lru \
+  --cache-level L3:8388608:64:16:random:42
+```
+
+Формат уровня: `NAME:SIZE:LINE:WAYS:POLICY[:SEED]`. Seed разрешён только
+для `random`. Все уровни exclusive hierarchy должны иметь одинаковый
+line size. При наличии `--cache-level` single-level options не используются.
+
+Команда создаёт `statistics.json` и `events.json` в output directory. Размеры
+должны образовывать корректную set-associative geometry; подробная диагностика
+возвращается до replay. CLI предназначен для готового experiment pipeline.
+Random принимает воспроизводимый `--random-seed`, по умолчанию 42. Готовые
+команды для сравнения геометрий и policies приведены в
+[инструкции по cache models](../docs/CACHE_MODELS.md).
+
 ## API
 
 ```cpp
@@ -86,8 +126,9 @@ cache_simulator::RunSummary replay() {
 Базовые поля описывают L1; расширения содержат остальные уровни, инструкции,
 dirty evictions и память. [Контракт и fixtures](../docs/STATISTICS_FORMAT.md).
 
-Восемь suites раннера и иерархии: hierarchy, integration, real-cache, fifo-cache,
-random-cache, validation, random-miss и streaming; также запускаются upstream-тесты симулятора.
+Suites раннера и иерархии включают hierarchy, integration, real-cache,
+fifo-cache, random-cache, validation, random-miss, streaming и CLI smoke для
+LRU/FIFO/Random и L1/L2/L3; также запускаются upstream-тесты симулятора.
 Hierarchy и real-cache используют настоящий SetAssociativeCacheLevel с LRU.
 Real-cache проверяет и канонические compiler fixtures, включая source mapping.
 Fifo-cache и random-cache прогоняют короткую трассу через настоящие уровни

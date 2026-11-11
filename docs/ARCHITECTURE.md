@@ -2,9 +2,10 @@
 
 ## 1. Область системы
 
-Текущий CacheScope — trace producer для однопоточных CPU kernels. Он принимает
-структурированный MLIR либо PyTorch-модель, применяет контролируемые compiler
-transformations, выполняет получившийся код и записывает обращения к памяти.
+Текущий CacheScope — вертикальный инструмент для однопоточных CPU kernels. Он
+принимает структурированный MLIR либо PyTorch-модель, применяет контролируемые
+compiler transformations, выполняет получившийся код, моделирует обращения к
+cache и формирует сравнительный UI-отчёт.
 
 ```text
 frontend
@@ -14,6 +15,9 @@ frontend
   → hybrid instrumentation
   → LLVM/native execution
   → trace.v1 JSON
+  → cache runner
+  → statistics/events JSON
+  → standalone UI report
 ```
 
 `runner/` потребляет trace независимо от LLVM/MLIR, вызывает `CacheHierarchy`
@@ -50,6 +54,14 @@ trace producer. Он не является runtime cache emulator.
 MLIR payload, запускает оба instrumentation passes, выполняет код, валидирует
 traces и сравнивает dynamic order. PyTorch frontend оставлен дополнительной
 интеграцией, а не основным способом понять систему.
+
+### `examples/product-e2e`
+
+Продуктовый orchestration driver. Он использует canonical compiler driver,
+запускает `cachescope-runner` для каждого варианта, проверяет согласованность
+trace/statistics/events и передаёт готовую experiment directory генератору
+standalone UI report. Cache model может быть одним L1 или связанной
+exclusive L1/L2/L3 hierarchy.
 
 ### `examples/torch-demo`
 
@@ -322,10 +334,10 @@ LLVM pass. Канонический пример проверяет коорди
 
 ## 13. Симулятор кеша: разделение ответственности
 
-Реализованы `ICacheLevel`, SetAssociativeCacheLevel, LRU, `CacheHierarchy` и
-cache runner. Иерархия поддерживает exclusive с write-back/write-allocate и
-одинаковым размером строк всех уровней. UI получает сводку и временной ряд по
-[общему контракту](SIMULATION_FORMAT.md).
+Реализованы `ICacheLevel`, SetAssociativeCacheLevel, LRU/FIFO/Random,
+`CacheHierarchy` и cache runner. Иерархия поддерживает exclusive с
+write-back/write-allocate и одинаковым размером строк всех уровней. UI получает
+сводку и временной ряд по [общему контракту](SIMULATION_FORMAT.md).
 
 ```text
 trace.v1 JSON

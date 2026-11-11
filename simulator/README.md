@@ -27,7 +27,10 @@ ctest --test-dir build/simulator --output-on-failure
 из `main`. Иерархия линкуется с `cachescope_simulator`; собственного
 параллельного API уровня нет. Готовые реализации —
 [SetAssociativeCacheLevel](include/cache_simulator/SetAssociativeCacheLevel.h)
-и [LRU](include/cache_simulator/LRU.h).
+и политики [LRU](include/cache_simulator/LRU.h),
+[FIFO](include/cache_simulator/FIFO.h) и
+[Random](include/cache_simulator/Random.h). Random сбрасывается к заданному seed
+при `clear()`, поэтому replay воспроизводим.
 
 - `CacheLine` содержит адрес строки и dirty-флаг. Состоянием владеет уровень.
 - `lookup(line_address) const` проверяет наличие без изменения dirty и replacement

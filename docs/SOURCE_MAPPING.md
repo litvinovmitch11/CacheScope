@@ -224,6 +224,10 @@ origin. Для него mapping fields могут отсутствовать л�
 
 ## UI navigation
 
+Этот раздел задаёт целевое поведение consumer-а. Producer, validator и runner
+уже публикуют и сохраняют необходимые metadata; UI v0.1 пока не реализует эту
+навигацию и отображает только статистическую часть experiment bundle.
+
 Из dynamic event в IR:
 
 1. взять `event.access_id`;
