@@ -42,27 +42,9 @@ jobs:
         run: sudo install -m 0644 .github/ubuntu-amd64.sources /etc/apt/sources.list.d/ubuntu.sources
 
       - name: Install build tools
-        shell: bash
         run: |
-          sudo apt-get update 2>&1 | tee "${RUNNER_TEMP}/cachescope-apt.log"
-          {
-            echo DEBUG-ci-apt-indexes
-            dpkg --print-architecture
-            cat /etc/apt/sources.list.d/ubuntu.sources
-            apt-cache policy cmake ninja-build clang
-            apt-get indextargets
-            ls -lh /var/lib/apt/lists/
-            apt-config dump | grep -E 'Architecture|Dir::State|By-Hash|GzipIndexes|List-Cleanup'
-          } 2>&1 | tee -a "${RUNNER_TEMP}/cachescope-apt.log"
-          sudo apt-get install -y cmake ninja-build g++ clang 2>&1 | tee -a "${RUNNER_TEMP}/cachescope-apt.log"
-
-      - name: Upload APT diagnostics
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: DEBUG-ci-apt-${{ matrix.build-type }}
-          path: ${{ runner.temp }}/cachescope-apt.log
-          if-no-files-found: ignore
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build g++ clang
 
       - name: Configure runner, hierarchy and simulator
         run: >-
