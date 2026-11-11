@@ -143,9 +143,11 @@ UI поддерживает импорт готовой директории exp
 запускаются внутри browser UI: orchestration выполняет отдельный product E2E
 driver поверх compiler driver и runner CLI.
 
-Контракт будущего интерактивного режима: [Runner HTTP API v1](RUNNER_API.md).
+Контракт интерактивного режима: [Runner HTTP API v1](RUNNER_API.md).
 Он определяет session, step/reset, физические снимки cache slots и
-страницы статистики. HTTP-сервер и подключение UI пока не реализованы.
+страницы статистики. Локальный HTTP backend реализован в runner;
+запуск описан в [runner README](../runner/README.md). Подключение frontend
+к этому API выполняется отдельно.
 
 ## Контракты между участниками
 
@@ -154,7 +156,7 @@ driver поверх compiler driver и runner CLI.
 | Compiler | Emulator | `cachescope.trace.v1` | участник 1 |
 | Compiler | UI | `cachescope.input.v1`, tensors | участник 1 |
 | Emulator | UI | `cachescope.simulation-statistics.v1`, `cachescope.simulation-events.v1` | участники 2–3 |
-| Runner backend | UI | `cachescope.runner.v1` HTTP API (OpenAPI), контракт будущей реализации | участники 2–3 и 4 |
+| Runner backend | UI | `cachescope.runner.v1` HTTP API (OpenAPI) | участники 2–3 и 4 |
 | Все компоненты | Все | experiment directory layout | совместно |
 
 Изменение общего контракта делается отдельным commit и включает fixture для

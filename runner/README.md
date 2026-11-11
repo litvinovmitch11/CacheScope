@@ -66,7 +66,85 @@ Random принимает воспроизводимый `--random-seed`, по �
 команды для сравнения геометрий и policies приведены в
 [инструкции по cache models](../docs/CACHE_MODELS.md).
 
-## API
+## Интерактивный HTTP backend
+
+Сборка выше создаёт также `build/runner/cachescope_runner_server`.
+Запуск на `127.0.0.1:9055`:
+
+```bash
+build/runner/cachescope_runner_server
+```
+
+Для frontend, запущенного отдельно, разрешите его точный origin:
+
+```bash
+build/runner/cachescope_runner_server --allow-origin http://localhost:5173
+```
+
+`--port` меняет порт; `--port 0` выбирает свободный порт для тестов.
+Адрес сервера выводится в stdout после привязки сокета. Трасса задаётся
+абсолютным путём в файловой системе backend:
+
+```bash
+curl -s http://127.0.0.1:9055/api/v1/sessions \
+  -H 'Content-Type: application/json' \
+  -d '{"trace_path":"/absolute/path/trace.json","levels":[{"name":"L1","size_bytes":32768,"line_size_bytes":64,"associativity":8,"replacement_policy":"LRU"},{"name":"L2","size_bytes":262144,"line_size_bytes":64,"associativity":8,"replacement_policy":"FIFO"}]}'
+```
+
+POST возвращает 202 с `session_id` и `status=preparing`. Дождитесь ready или
+finished через GET `/api/v1/sessions/<id>`, затем используйте revision
+из ответа:
+
+```bash
+curl -s 'http://127.0.0.1:9055/api/v1/sessions/<id>/step' \
+  -H 'Content-Type: application/json' \
+  -d '{"expected_revision":"1","count":10}'
+curl -s 'http://127.0.0.1:9055/api/v1/sessions/<id>/state?expected_revision=2&level=1&set_offset=0&set_limit=16'
+curl -s 'http://127.0.0.1:9055/api/v1/sessions/<id>/instructions?expected_revision=2&offset=0&limit=100'
+```
+
+Полный [HTTP-контракт](../docs/RUNNER_API.md) описывает все девять операций,
+reset/delete, ошибки и порядок восстановления после потери ответа. Backend
+поддерживает LRU/FIFO/Random, exclusive/write-back/write-allocate, точные
+64-битные строковые DTO, физические страницы slots и накопительную статистику.
+Встроенные лимиты — 1000 событий на step, 64 sets и 100 инструкций на страницу;
+клиенты читают актуальные лимиты из Session. API кэшей и файловые отчёты не меняются.
+
+Подготовка асинхронна и отменяется при DELETE. Валидированные события пишутся
+во временный дисковый spool, а не в массив всей трассы. Один фоновый worker
+готовит сессию; HTTP workers обслуживают step/reset синхронно, блокируя другие
+мутации и snapshot-reads через session_busy. GET статуса остаётся доступным.
+Revision публикуется только на границах команд. Исходный trace должен оставаться
+неизменным; проверяются inode, device, размер, mtime и ctime до/после исполнения.
+Временный spool удаляется при освобождении сессии/завершении процесса.
+
+Снимки получает wrapper над ICacheLevel: он наблюдает реальные insert,
+invalidate, touch и clear каждого уровня, включая внутренние переносы.
+Он сохраняет set/way/dirty в объёме конфигурации кеша и не восстанавливает
+состояние из неполного demand-журнала. Интерфейс ICacheLevel остаётся прежним.
+
+Программный пошаговый replay доступен в `trace_replay.hpp`: `TraceReplay`
+принимает trace и существующую иерархию, выполняет preflight и предоставляет
+step/reset, metadata и статистику. Caller сериализует вызовы. После ошибки
+исполнения требуется reset; TraceChanged требует заново создать replay.
+Этот C++ API возвращает числовые artifact DTO, HTTP-слой отдельно кодирует
+64-битные значения строками.
+
+HTTP transport — закреплённый cpp-httplib 0.66.0 с SHA-256, без TLS и compression.
+Для offline configure задайте `-DFETCHCONTENT_SOURCE_DIR_HTTPLIB=/path/to/cpp-httplib-0.66.0`.
+Только библиотека без HTTP-зависимости:
+
+```bash
+cmake -S runner -B build/runner-library -DCACHESCOPE_BUILD_HTTP_SERVER=OFF -DBUILD_TESTING=OFF
+```
+
+HTTP и восстановление после частичной ошибки модели проверяются без LLVM/Node:
+
+```bash
+ctest --test-dir build/runner -R 'runner-(http|session-failure)$' --output-on-failure
+```
+
+## Batch API
 
 ```cpp
 #include <cache_simulator/trace_runner.hpp>

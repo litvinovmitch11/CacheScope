@@ -23,8 +23,7 @@ target_compile_features(cachescope_runner PUBLIC cxx_std_17)
 target_include_directories(cachescope_runner PUBLIC
   "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(cachescope_runner
-  PUBLIC CacheScope::Hierarchy
-  PRIVATE nlohmann_json::nlohmann_json)
+  PUBLIC CacheScope::Hierarchy nlohmann_json::nlohmann_json)
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
   target_compile_options(cachescope_runner PRIVATE -Wall -Wextra -Wpedantic)
 endif()
@@ -41,7 +40,43 @@ endif()
 install(TARGETS cachescope_runner_cli
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
+option(CACHESCOPE_BUILD_HTTP_SERVER "Build the local interactive runner HTTP backend" ON)
+if(CACHESCOPE_BUILD_HTTP_SERVER)
+  set(HTTPLIB_USE_OPENSSL_IF_AVAILABLE OFF CACHE BOOL "" FORCE)
+  set(HTTPLIB_USE_ZLIB_IF_AVAILABLE OFF CACHE BOOL "" FORCE)
+  set(HTTPLIB_USE_BROTLI_IF_AVAILABLE OFF CACHE BOOL "" FORCE)
+  set(HTTPLIB_USE_ZSTD_IF_AVAILABLE OFF CACHE BOOL "" FORCE)
+  set(HTTPLIB_INSTALL OFF CACHE BOOL "" FORCE)
+  FetchContent_Declare(httplib
+    URL https://codeload.github.com/yhirose/cpp-httplib/tar.gz/refs/tags/v0.66.0
+    URL_HASH SHA256=537a77cdb96d3b4ad64d0b7103971de52eac75cd4ee03a2fdb84417b0d742459
+  )
+  FetchContent_MakeAvailable(httplib)
+  find_package(Threads REQUIRED)
+  add_executable(cachescope_runner_server app/server.cpp lib/runner_api.cpp)
+  target_include_directories(cachescope_runner_server PRIVATE lib)
+  target_link_libraries(cachescope_runner_server PRIVATE
+    CacheScope::Runner httplib::httplib Threads::Threads)
+  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+    target_compile_options(cachescope_runner_server PRIVATE -Wall -Wextra -Wpedantic)
+  endif()
+endif()
+
 if(BUILD_TESTING)
+  if(CACHESCOPE_BUILD_HTTP_SERVER)
+    find_package(Python3 REQUIRED COMPONENTS Interpreter)
+    add_test(NAME cachescope.runner-http
+      COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/http_tests.py
+        --server $<TARGET_FILE:cachescope_runner_server>
+        --repo ${CMAKE_CURRENT_SOURCE_DIR}/..)
+    set_tests_properties(cachescope.runner-http PROPERTIES TIMEOUT 120)
+    add_executable(cachescope_session_tests tests/session_tests.cpp lib/runner_api.cpp)
+    target_include_directories(cachescope_session_tests PRIVATE lib)
+    target_link_libraries(cachescope_session_tests PRIVATE CacheScope::Runner Threads::Threads)
+    add_test(NAME cachescope.runner-session-failure
+      COMMAND cachescope_session_tests
+        ${CMAKE_CURRENT_SOURCE_DIR}/../schemas/fixtures/trace-v1-complete.json)
+  endif()
   add_executable(cachescope_runner_tests tests/runner_tests.cpp)
   target_link_libraries(cachescope_runner_tests PRIVATE
     CacheScope::Runner nlohmann_json::nlohmann_json)
