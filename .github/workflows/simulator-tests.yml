@@ -43,8 +43,16 @@ jobs:
 
       - name: Install build tools
         run: |
-          sudo apt-get update
-          sudo apt-get install -y cmake ninja-build g++ clang
+          sudo apt-get update 2>&1 | tee "${RUNNER_TEMP}/cachescope-apt.log"
+          sudo apt-get install -y cmake ninja-build g++ clang 2>&1 | tee -a "${RUNNER_TEMP}/cachescope-apt.log"
+
+      - name: Upload APT diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: DEBUG-ci-apt-${{ matrix.build-type }}
+          path: ${{ runner.temp }}/cachescope-apt.log
+          if-no-files-found: ignore
 
       - name: Configure runner, hierarchy and simulator
         run: >-
