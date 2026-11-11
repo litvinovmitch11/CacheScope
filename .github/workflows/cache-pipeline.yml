@@ -25,6 +25,9 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Configure Ubuntu Ports mirror
+        run: sudo install -m 0644 .github/ubuntu-arm64.sources /etc/apt/sources.list.d/ubuntu.sources
+
       - name: Install pinned LLVM and MLIR
         run: scripts/install-llvm-dependencies.sh
 
