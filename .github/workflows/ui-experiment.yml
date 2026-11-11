@@ -16,8 +16,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build and start complete application
+        shell: bash
         run: |
-          docker compose up --build -d
+          docker compose up --build -d 2>&1 | tee "${RUNNER_TEMP}/DEBUG-ci-ui-build.log"
           for attempt in $(seq 1 60); do
             if curl -fsS http://127.0.0.1:9055/api/v1/experiments; then exit 0; fi
             sleep 1
@@ -39,7 +40,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ui-experiment-browser
-          path: ui/test-results/
+          path: |
+            ui/test-results/
+            ${{ runner.temp }}/DEBUG-ci-ui-build.log
           if-no-files-found: ignore
       - name: Stop application
         if: always()
