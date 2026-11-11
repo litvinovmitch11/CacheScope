@@ -1,0 +1,2109 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "CacheScope interactive runner API",
+    "version": "1.0.0",
+    "description": "Contract for a future local HTTP backend. No server implementation is supplied. Normative lifecycle/cross-field rules: docs/RUNNER_API.md. Existing trace/report artifact schemas remain unchanged."
+  },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:{port}/api/v1",
+      "description": "Local backend; the launcher supplies the actual base URL/port.",
+      "variables": {
+        "port": {
+          "default": "8080"
+        }
+      }
+    }
+  ],
+  "paths": {
+    "/sessions": {
+      "post": {
+        "operationId": "createSession",
+        "summary": "Reserve the single session and start asynchronous preflight",
+        "responses": {
+          "202": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Session"
+                }
+              }
+            },
+            "headers": {
+              "Location": {
+                "required": true,
+                "description": "Relative path to the new resource, including /api/v1.",
+                "schema": {
+                  "type": "string",
+                  "pattern": "^/api/v1/sessions/[A-Za-z0-9_-]+$"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/Failure"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSessionRequest"
+              }
+            }
+          }
+        },
+        "description": "Valid request/configuration reserves the resource and returns preparing. Trace readability and semantic validation happen asynchronously. Failed preparation is reported by GET session as status=failed. Existing sessions of any status must be explicitly deleted first."
+      },
+      "get": {
+        "operationId": "listSessions",
+        "summary": "Discover zero or one current session",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionList"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/Failure"
+          }
+        }
+      }
+    },
+    "/sessions/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "$ref": "#/components/schemas/SessionId"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getSession",
+        "summary": "Poll status, revision, configuration and negotiated limits",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Session"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/Failure"
+          }
+        },
+        "description": "Available during preparation, execution and failure. During a command returns busy=true with only the last published cursor/revision. Failed session descriptors are successful HTTP 200 responses."
+      },
+      "delete": {
+        "operationId": "deleteSession",
+        "summary": "Explicitly release the session",
+        "responses": {
+          "204": {
+            "description": "Session deleted; no response body."
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/Failure"
+          }
+        },
+        "parameters": [
+          {
+            "name": "expected_revision",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/UInt64"
+            },
+            "description": "Must match the current published revision. Mismatch returns 409; snapshots from older revisions are not retained."
+          }
+        ],
+        "description": "Allowed while preparing (cancels/discards preparation) and in ready/finished/failed. While a synchronous step/reset is running returns session_busy. Revision must match. Successful deletion invalidates the resource; repeated deletion is 404."
+      }
+    },
+    "/sessions/{id}/metadata": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "$ref": "#/components/schemas/SessionId"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getMetadata",
+        "summary": "Read immutable trace, buffer and source-map metadata",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Metadata"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/Failure"
+          }
+        },
+        "description": "Available in ready/finished, including while a command is busy; unavailable before preparation or after failure. No revision parameter because metadata does not change."
+      }
+    },
+    "/sessions/{id}/step": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "$ref": "#/components/schemas/SessionId"
+          }
+        }
+      ],
+      "post": {
+        "operationId": "stepSession",
+        "summary": "Synchronously execute a bounded number of complete trace events",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StepResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/Failure"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StepRequest"
+              }
+            }
+          }
+        },
+        "description": "Available in ready/finished. Serializes with mutations and state/stat reads. Validates count and revision before execution. count beyond remaining events clips at EOF. A nonempty successful batch increments revision once, not once per event. No background continue or partial event visibility."
+      }
+    },
+    "/sessions/{id}/reset": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "$ref": "#/components/schemas/SessionId"
+          }
+        }
+      ],
+      "post": {
+        "operationId": "resetSession",
+        "summary": "Synchronously restore the same session to its reproducible cold state",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Progress"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/Failure"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevisionRequest"
+              }
+            }
+          }
+        },
+        "description": "Clears all levels, counters and last_event; restores policy seeds. Increments revision even if already cold. Does not change trace/configuration/layout. Allowed for ready/finished and failed with recovery=reset. Preparing or recovery=recreate returns 409. Empty trace remains finished."
+      }
+    },
+    "/sessions/{id}/state": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "$ref": "#/components/schemas/SessionId"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getState",
+        "summary": "Read a physical cache page and cumulative global summary at a revision",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/Failure"
+          }
+        },
+        "parameters": [
+          {
+            "name": "expected_revision",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/UInt64"
+            },
+            "description": "Must match the current published revision. Mismatch returns 409; snapshots from older revisions are not retained."
+          },
+          {
+            "name": "level",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          {
+            "name": "set_offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991,
+              "default": 0
+            }
+          },
+          {
+            "name": "set_limit",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "description": "At most limits.max_sets_per_read. Offset must be <= set_count; range clips at end."
+          }
+        ],
+        "description": "Available only when ready/finished and not busy. Snapshot represents final physical occupancy after the last whole event, including exclusive promotions, cascading evictions and dirty changes. Requests for different levels/pages must use the same revision."
+      }
+    },
+    "/sessions/{id}/instructions": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "$ref": "#/components/schemas/SessionId"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getInstructions",
+        "summary": "Read cumulative per-instruction statistics at a revision",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstructionsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/Failure"
+          }
+        },
+        "parameters": [
+          {
+            "name": "expected_revision",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/UInt64"
+            },
+            "description": "Must match the current published revision. Mismatch returns 409; snapshots from older revisions are not retained."
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/UInt64",
+              "default": "0"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "description": "At most limits.max_instructions_per_read. Offset must be <= total_instructions; range clips at end."
+          }
+        ],
+        "description": "Available only when ready/finished and not busy. Every row contains all configured cache levels. Read every page with the same revision; reset/step invalidates previous pages."
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "UInt64": {
+        "type": "string",
+        "pattern": "^(0|[1-9][0-9]*)$",
+        "maxLength": 20,
+        "format": "uint64-decimal",
+        "description": "Canonical decimal string, 0..18446744073709551615 inclusive. Range is normative even when a validator ignores this custom format."
+      },
+      "PositiveUInt64": {
+        "type": "string",
+        "pattern": "^[1-9][0-9]*$",
+        "maxLength": 20,
+        "format": "uint64-decimal",
+        "description": "Canonical decimal string, 1..18446744073709551615 inclusive."
+      },
+      "Int64": {
+        "type": "string",
+        "pattern": "^(0|-?[1-9][0-9]*)$",
+        "maxLength": 20,
+        "format": "int64-decimal",
+        "description": "Canonical decimal string, -9223372036854775808..9223372036854775807 inclusive. No -0."
+      },
+      "Address": {
+        "type": "string",
+        "pattern": "^0x(0|[1-9a-f][0-9a-f]{0,15})$",
+        "description": "Unsigned 64-bit model address in canonical lowercase hexadecimal, not a host pointer."
+      },
+      "SessionId": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9_-]+$",
+        "description": "Opaque identifier, unique for the lifetime of the backend instance and never reused by that instance."
+      },
+      "LevelConfig": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "size_bytes": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "line_size_bytes": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "associativity": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "replacement_policy": {
+            "type": "string",
+            "enum": [
+              "LRU",
+              "FIFO",
+              "Random"
+            ]
+          },
+          "random_seed": {
+            "$ref": "#/components/schemas/UInt64",
+            "default": "0"
+          }
+        },
+        "required": [
+          "name",
+          "size_bytes",
+          "line_size_bytes",
+          "associativity",
+          "replacement_policy"
+        ],
+        "additionalProperties": false,
+        "description": "Request configuration. Names must be unique. Capacity must contain full sets; line_size_bytes and derived set_count must be powers of two. All levels have equal line_size_bytes. random_seed is allowed only for Random; omitted seed means 0. Each set gets an independent policy with this seed.",
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "replacement_policy": {
+                  "enum": [
+                    "LRU",
+                    "FIFO"
+                  ]
+                }
+              }
+            },
+            "then": {
+              "not": {
+                "required": [
+                  "random_seed"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "EffectiveLevel": {
+        "type": "object",
+        "properties": {
+          "level": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "size_bytes": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "line_size_bytes": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "associativity": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "set_count": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "replacement_policy": {
+            "type": "string",
+            "enum": [
+              "LRU",
+              "FIFO",
+              "Random"
+            ]
+          },
+          "random_seed": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UInt64"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "level",
+          "name",
+          "size_bytes",
+          "line_size_bytes",
+          "associativity",
+          "set_count",
+          "replacement_policy",
+          "random_seed"
+        ],
+        "additionalProperties": false,
+        "description": "Ordered by level, starting at 1. random_seed is the effective seed for Random and null for LRU/FIFO.",
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "replacement_policy": {
+                  "const": "Random"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "random_seed": {
+                  "$ref": "#/components/schemas/UInt64"
+                }
+              }
+            },
+            "else": {
+              "properties": {
+                "random_seed": {
+                  "type": "null"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "HierarchyPolicy": {
+        "type": "object",
+        "properties": {
+          "inclusion_policy": {
+            "const": "exclusive"
+          },
+          "write_policy": {
+            "const": "write_back"
+          },
+          "allocation_policy": {
+            "const": "write_allocate"
+          }
+        },
+        "required": [
+          "inclusion_policy",
+          "write_policy",
+          "allocation_policy"
+        ],
+        "additionalProperties": false
+      },
+      "Limits": {
+        "type": "object",
+        "properties": {
+          "max_step_count": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "max_sets_per_read": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "max_instructions_per_read": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "max_step_count",
+          "max_sets_per_read",
+          "max_instructions_per_read"
+        ],
+        "additionalProperties": false,
+        "description": "Backend-selected positive limits. Example values are not protocol defaults. Clients must read and obey these limits."
+      },
+      "CreateSessionRequest": {
+        "type": "object",
+        "properties": {
+          "trace_path": {
+            "type": "string",
+            "pattern": "^/",
+            "minLength": 2,
+            "description": "Absolute path in the backend filesystem. The file must remain unchanged until deletion."
+          },
+          "levels": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LevelConfig"
+            },
+            "minItems": 1
+          }
+        },
+        "required": [
+          "trace_path",
+          "levels"
+        ],
+        "additionalProperties": false
+      },
+      "ErrorInfo": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "invalid_request",
+              "invalid_config",
+              "invalid_count",
+              "invalid_page",
+              "session_exists",
+              "session_not_found",
+              "revision_mismatch",
+              "session_not_ready",
+              "session_busy",
+              "session_failed",
+              "trace_unreadable",
+              "invalid_trace",
+              "trace_changed",
+              "execution_failed",
+              "internal_error"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1
+          },
+          "details": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "recovery": {
+            "type": "string",
+            "enum": [
+              "reset",
+              "recreate"
+            ]
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "details"
+        ],
+        "additionalProperties": false,
+        "description": "message is human-readable; clients branch on code. details is diagnostic JSON, not a stable typed data source. recovery is present for a failed session: reset allows reset or recreate; recreate allows only delete/create."
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ErrorInfo"
+          },
+          "session_id": {
+            "$ref": "#/components/schemas/SessionId"
+          },
+          "revision": {
+            "$ref": "#/components/schemas/UInt64"
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "additionalProperties": false,
+        "description": "session_id and revision identify the affected resource when known. GET the session to recover current status after an uncertain command result."
+      },
+      "Session": {
+        "type": "object",
+        "properties": {
+          "session_id": {
+            "$ref": "#/components/schemas/SessionId"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "preparing",
+              "ready",
+              "finished",
+              "failed"
+            ]
+          },
+          "busy": {
+            "type": "boolean"
+          },
+          "cursor": {
+            "$ref": "#/components/schemas/UInt64"
+          },
+          "revision": {
+            "$ref": "#/components/schemas/UInt64"
+          },
+          "total_events": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UInt64"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "trace_path": {
+            "type": "string",
+            "pattern": "^/"
+          },
+          "levels": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EffectiveLevel"
+            },
+            "minItems": 1
+          },
+          "hierarchy": {
+            "$ref": "#/components/schemas/HierarchyPolicy"
+          },
+          "limits": {
+            "$ref": "#/components/schemas/Limits"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ErrorInfo"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "session_id",
+          "status",
+          "busy",
+          "cursor",
+          "revision",
+          "total_events",
+          "trace_path",
+          "levels",
+          "hierarchy",
+          "limits",
+          "error"
+        ],
+        "additionalProperties": false,
+        "description": "Immutable trace/configuration; mutable status/cursor/revision. cursor counts fully completed trace events. busy reports an in-flight synchronous command; only the last published cursor/revision is visible. total_events is null until preflight completes. A failed session has error with recovery; other statuses have error=null.",
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "const": "failed"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "error": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/ErrorInfo"
+                    },
+                    {
+                      "required": [
+                        "recovery"
+                      ]
+                    }
+                  ]
+                },
+                "busy": {
+                  "const": false
+                }
+              },
+              "required": [
+                "error"
+              ]
+            },
+            "else": {
+              "properties": {
+                "error": {
+                  "type": "null"
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "enum": [
+                    "ready",
+                    "finished"
+                  ]
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "total_events": {
+                  "$ref": "#/components/schemas/UInt64"
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "const": "preparing"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "cursor": {
+                  "const": "0"
+                },
+                "total_events": {
+                  "type": "null"
+                },
+                "busy": {
+                  "const": false
+                }
+              }
+            }
+          }
+        ]
+      },
+      "SessionList": {
+        "type": "object",
+        "properties": {
+          "sessions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Session"
+            },
+            "maxItems": 1
+          }
+        },
+        "required": [
+          "sessions"
+        ],
+        "additionalProperties": false
+      },
+      "RevisionRequest": {
+        "type": "object",
+        "properties": {
+          "expected_revision": {
+            "$ref": "#/components/schemas/UInt64"
+          }
+        },
+        "required": [
+          "expected_revision"
+        ],
+        "additionalProperties": false
+      },
+      "StepRequest": {
+        "type": "object",
+        "properties": {
+          "expected_revision": {
+            "$ref": "#/components/schemas/UInt64"
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991,
+            "default": 1
+          }
+        },
+        "required": [
+          "expected_revision"
+        ],
+        "additionalProperties": false,
+        "description": "count must not exceed limits.max_step_count. A step completes whole events including all line probes and migrations."
+      },
+      "StageId": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9-]*$"
+      },
+      "StageLocation": {
+        "type": "object",
+        "properties": {
+          "stage_id": {
+            "$ref": "#/components/schemas/StageId"
+          },
+          "line": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "column": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "operation": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "stage_id",
+          "line",
+          "column",
+          "operation"
+        ],
+        "additionalProperties": true
+      },
+      "Origin": {
+        "type": "object",
+        "properties": {
+          "origin_id": {
+            "$ref": "#/components/schemas/UInt64"
+          },
+          "stage_id": {
+            "$ref": "#/components/schemas/StageId"
+          },
+          "line": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "column": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "operation": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "origin_id",
+          "stage_id",
+          "line",
+          "column",
+          "operation"
+        ],
+        "additionalProperties": true
+      },
+      "SourceMap": {
+        "type": "object",
+        "properties": {
+          "source_schema": {
+            "const": "cachescope.source-map.v1"
+          },
+          "payload_fingerprint": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$"
+          },
+          "stages": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "stage_id": {
+                  "$ref": "#/components/schemas/StageId"
+                },
+                "path": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Relative to the original trace directory; metadata only, not an HTTP resource."
+                }
+              },
+              "required": [
+                "stage_id",
+                "path"
+              ],
+              "additionalProperties": true
+            },
+            "minItems": 1
+          },
+          "origins": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Origin"
+            }
+          }
+        },
+        "required": [
+          "source_schema",
+          "payload_fingerprint",
+          "stages",
+          "origins"
+        ],
+        "additionalProperties": true,
+        "description": "HTTP projection with string origin IDs. Stage order and all stage/origin relationships are preserved. Optional source-map extension properties are preserved."
+      },
+      "Producer": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "const": "CacheScope"
+          },
+          "version": {
+            "type": "string"
+          },
+          "llvm_version": {
+            "type": "string"
+          },
+          "llvm_revision": {
+            "type": "string"
+          },
+          "pipeline_fingerprint": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "version",
+          "llvm_version",
+          "llvm_revision",
+          "pipeline_fingerprint"
+        ],
+        "additionalProperties": true
+      },
+      "Source": {
+        "type": "object",
+        "properties": {
+          "source_schema": {
+            "const": "cachescope.trace.v1"
+          },
+          "producer": {
+            "$ref": "#/components/schemas/Producer"
+          },
+          "variant": {
+            "type": "string"
+          },
+          "valid": {
+            "const": true
+          },
+          "complete": {
+            "const": true
+          },
+          "truncated": {
+            "const": false
+          },
+          "total_events": {
+            "$ref": "#/components/schemas/UInt64"
+          },
+          "recorded_events": {
+            "$ref": "#/components/schemas/UInt64"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 0
+          },
+          "source_map": {
+            "$ref": "#/components/schemas/SourceMap"
+          }
+        },
+        "required": [
+          "source_schema",
+          "producer",
+          "variant",
+          "valid",
+          "complete",
+          "truncated",
+          "total_events",
+          "recorded_events",
+          "errors"
+        ],
+        "additionalProperties": false,
+        "description": "Normalized HTTP metadata, not an artifact conforming to cachescope.trace.v1. Complete source producer object is retained."
+      },
+      "Access": {
+        "type": "object",
+        "properties": {
+          "access_id": {
+            "$ref": "#/components/schemas/UInt64"
+          },
+          "memref_id": {
+            "$ref": "#/components/schemas/UInt64"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "read",
+              "write"
+            ]
+          },
+          "address_kind": {
+            "const": "memref_offset"
+          },
+          "source_location": {
+            "type": "string"
+          },
+          "origin_ids": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UInt64"
+            },
+            "uniqueItems": true
+          },
+          "stage_locations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StageLocation"
+            }
+          }
+        },
+        "required": [
+          "access_id",
+          "memref_id",
+          "kind",
+          "address_kind",
+          "source_location"
+        ],
+        "additionalProperties": false
+      },
+      "Buffer": {
+        "type": "object",
+        "properties": {
+          "memref_id": {
+            "$ref": "#/components/schemas/UInt64"
+          },
+          "base_address": {
+            "$ref": "#/components/schemas/Address"
+          },
+          "min_offset": {
+            "$ref": "#/components/schemas/Int64"
+          },
+          "end_offset": {
+            "$ref": "#/components/schemas/UInt64"
+          }
+        },
+        "required": [
+          "memref_id",
+          "base_address",
+          "min_offset",
+          "end_offset"
+        ],
+        "additionalProperties": false,
+        "description": "Preflight layout. Envelope includes offset 0: min_offset<=0, end_offset>=0 (exclusive end). Base is 64-byte aligned. Ranges do not overlap. Same layout after reset."
+      },
+      "Metadata": {
+        "type": "object",
+        "properties": {
+          "session_id": {
+            "$ref": "#/components/schemas/SessionId"
+          },
+          "trace_path": {
+            "type": "string",
+            "pattern": "^/"
+          },
+          "source": {
+            "$ref": "#/components/schemas/Source"
+          },
+          "buffers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Buffer"
+            }
+          },
+          "accesses": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Access"
+            }
+          }
+        },
+        "required": [
+          "session_id",
+          "trace_path",
+          "source",
+          "buffers",
+          "accesses"
+        ],
+        "additionalProperties": false,
+        "description": "Immutable after successful preparation, available in ready/finished. All declared sites, including unexecuted ones; buffers include only referenced memrefs. Accesses and buffers sorted numerically by ID. No source text or source-file endpoint."
+      },
+      "TraceEvent": {
+        "type": "object",
+        "properties": {
+          "sequence": {
+            "$ref": "#/components/schemas/UInt64"
+          },
+          "access_id": {
+            "$ref": "#/components/schemas/UInt64"
+          },
+          "memref_id": {
+            "$ref": "#/components/schemas/UInt64"
+          },
+          "byte_offset": {
+            "$ref": "#/components/schemas/Int64"
+          },
+          "size_bytes": {
+            "$ref": "#/components/schemas/PositiveUInt64"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "read",
+              "write"
+            ]
+          },
+          "address_kind": {
+            "const": "memref_offset"
+          }
+        },
+        "required": [
+          "sequence",
+          "access_id",
+          "memref_id",
+          "byte_offset",
+          "size_bytes",
+          "kind",
+          "address_kind"
+        ],
+        "additionalProperties": false,
+        "description": "Normalized required fields of the input event. Not the raw artifact event; extra input fields are not promised in this DTO."
+      },
+      "LineResult": {
+        "type": "object",
+        "properties": {
+          "line_address": {
+            "$ref": "#/components/schemas/Address"
+          },
+          "hit": {
+            "type": "boolean"
+          },
+          "set": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "way": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "evicted_address": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "evicted_dirty": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "line_address",
+          "hit",
+          "set",
+          "way",
+          "evicted_address",
+          "evicted_dirty"
+        ],
+        "additionalProperties": false,
+        "description": "Demand probe outcome. On L1 miss, way is the placement way; on a lower-level miss it is null. A lower-level hit way identifies the slot before promotion. L1 eviction fields describe its victim; cascading evictions are in EventOutcome.evictions.",
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "hit": {
+                  "const": true
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "way": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "evicted_address": {
+                  "type": "null"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "evicted_dirty": {
+                  "type": "null"
+                }
+              }
+            },
+            "else": {
+              "properties": {
+                "evicted_dirty": {
+                  "type": "boolean"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "EventOutcome": {
+        "type": "object",
+        "properties": {
+          "trace_event": {
+            "$ref": "#/components/schemas/TraceEvent"
+          },
+          "address": {
+            "$ref": "#/components/schemas/Address"
+          },
+          "level_results": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "level": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                },
+                "lines": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LineResult"
+                  },
+                  "minItems": 1
+                }
+              },
+              "required": [
+                "level",
+                "lines"
+              ],
+              "additionalProperties": false
+            },
+            "minItems": 1
+          },
+          "evictions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "level": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                },
+                "line_address": {
+                  "$ref": "#/components/schemas/Address"
+                },
+                "dirty": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "level",
+                "line_address",
+                "dirty"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "memory_reads": {
+            "$ref": "#/components/schemas/UInt64"
+          },
+          "memory_writebacks": {
+            "$ref": "#/components/schemas/UInt64"
+          }
+        },
+        "required": [
+          "trace_event",
+          "address",
+          "level_results",
+          "evictions",
+          "memory_reads",
+          "memory_writebacks"
+        ],
+        "additionalProperties": false,
+        "description": "One complete event. Level groups ascending, lines in demand order; untouched levels omitted. Evictions in occurrence order include all cascades. This is not a complete slot mutation journal and must not be used to reconstruct physical cache state."
+      },
+      "Processed": {
+        "type": "object",
+        "properties": {
+          "trace_events": {
+            "$ref": "#/components/schemas/UInt64"
+          },
+          "line_accesses": {
+            "$ref": "#/components/schemas/UInt64"
+          }
+        },
+        "required": [
+          "trace_events",
+          "line_accesses"
+        ],
+        "additionalProperties": false
+      },
+      "Totals": {
+        "type": "object",
+        "properties": {
+          "read_line_accesses": {
+            "$ref": "#/components/schemas/UInt64"
+          },
+          "write_line_accesses": {
+            "$ref": "#/components/schemas/UInt64"
+          },
+          "hits": {
+            "$ref": "#/components/schemas/UInt64"
+          },
+          "misses": {
+            "$ref": "#/components/schemas/UInt64"
+          },
+          "read_hits": {
+            "$ref": "#/components/schemas/UInt64"
+          },
+          "read_misses": {
+            "$ref": "#/components/schemas/UInt64"
+          },
+          "write_hits": {
+            "$ref": "#/components/schemas/UInt64"
+          },
+          "write_misses": {
+            "$ref": "#/components/schemas/UInt64"
+          },
+          "evictions": {
+            "$ref": "#/components/schemas/UInt64"
+          },
+          "writebacks": {
+            "$ref": "#/components/schemas/UInt64"
+          },
+          "hit_rate_percent": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 100
+          }
+        },
+        "required": [
+          "read_line_accesses",
+          "write_line_accesses",
+          "hits",
+          "misses",
+          "read_hits",
+          "read_misses",
+          "write_hits",
+          "write_misses",
+          "evictions",
+          "writebacks",
+          "hit_rate_percent"
+        ],
+        "additionalProperties": false,
+        "description": "Local demand probes only; rates are null without probes. Evictions count all actual victims at this level, including migrations. writebacks count dirty victims leaving this level, not just memory writes."
+      },
+      "LevelStatistics": {
+        "type": "object",
+        "properties": {
+          "level": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "processed": {
+            "$ref": "#/components/schemas/Processed"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/Totals"
+          }
+        },
+        "required": [
+          "level",
+          "processed",
+          "totals"
+        ],
+        "additionalProperties": false
+      },
+      "Summary": {
+        "type": "object",
+        "properties": {
+          "processed": {
+            "$ref": "#/components/schemas/Processed"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/Totals"
+          },
+          "levels": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LevelStatistics"
+            },
+            "minItems": 1
+          },
+          "requests": {
+            "type": "object",
+            "properties": {
+              "events": {
+                "$ref": "#/components/schemas/UInt64"
+              },
+              "reads": {
+                "$ref": "#/components/schemas/UInt64"
+              },
+              "writes": {
+                "$ref": "#/components/schemas/UInt64"
+              },
+              "read_bytes": {
+                "$ref": "#/components/schemas/UInt64"
+              },
+              "write_bytes": {
+                "$ref": "#/components/schemas/UInt64"
+              }
+            },
+            "required": [
+              "events",
+              "reads",
+              "writes",
+              "read_bytes",
+              "write_bytes"
+            ],
+            "additionalProperties": false
+          },
+          "memory": {
+            "type": "object",
+            "properties": {
+              "reads": {
+                "$ref": "#/components/schemas/UInt64"
+              },
+              "writebacks": {
+                "$ref": "#/components/schemas/UInt64"
+              }
+            },
+            "required": [
+              "reads",
+              "writebacks"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "processed",
+          "totals",
+          "levels",
+          "requests",
+          "memory"
+        ],
+        "additionalProperties": false,
+        "description": "Cumulative statistics for [0,cursor). Root processed/totals equal L1. Every configured level is present, including zero counters. Local hit rates classify original read/write demand; internal transfers are not probes. No flush at EOF."
+      },
+      "Progress": {
+        "type": "object",
+        "properties": {
+          "session_id": {
+            "$ref": "#/components/schemas/SessionId"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "finished"
+            ]
+          },
+          "cursor": {
+            "$ref": "#/components/schemas/UInt64"
+          },
+          "revision": {
+            "$ref": "#/components/schemas/UInt64"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/Summary"
+          },
+          "last_event": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EventOutcome"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "session_id",
+          "status",
+          "cursor",
+          "revision",
+          "summary",
+          "last_event"
+        ],
+        "additionalProperties": false,
+        "description": "A coherent published execution boundary. last_event is null at cursor 0, otherwise event sequence cursor-1."
+      },
+      "StepResponse": {
+        "type": "object",
+        "properties": {
+          "session_id": {
+            "$ref": "#/components/schemas/SessionId"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "finished"
+            ]
+          },
+          "cursor": {
+            "$ref": "#/components/schemas/UInt64"
+          },
+          "revision": {
+            "$ref": "#/components/schemas/UInt64"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/Summary"
+          },
+          "last_event": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EventOutcome"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "executed_count": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EventOutcome"
+            }
+          }
+        },
+        "required": [
+          "session_id",
+          "status",
+          "cursor",
+          "revision",
+          "summary",
+          "last_event",
+          "executed_count",
+          "events"
+        ],
+        "additionalProperties": false,
+        "description": "All completed outcomes of this successful bounded command, plus final cumulative statistics. executed_count equals events.length. EOF returns 200 with executed_count=0 and unchanged revision. A failed batch returns an error, not a partial successful StepResponse."
+      },
+      "CacheCell": {
+        "type": "object",
+        "properties": {
+          "way": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "valid": {
+            "type": "boolean"
+          },
+          "line_address": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "dirty": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "way",
+          "valid",
+          "line_address",
+          "dirty"
+        ],
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "valid": {
+                  "const": false
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "line_address": {
+                  "type": "null"
+                },
+                "dirty": {
+                  "const": false
+                }
+              }
+            },
+            "else": {
+              "properties": {
+                "line_address": {
+                  "$ref": "#/components/schemas/Address"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "CachePage": {
+        "type": "object",
+        "properties": {
+          "level": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "set_offset": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "set_limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "total_sets": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "next_set_offset": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sets": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "set": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "ways": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CacheCell"
+                  },
+                  "minItems": 1
+                }
+              },
+              "required": [
+                "set",
+                "ways"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "level",
+          "set_offset",
+          "set_limit",
+          "total_sets",
+          "next_set_offset",
+          "sets"
+        ],
+        "additionalProperties": false,
+        "description": "Final physical occupancy, in set/way order. All ways of each returned set are present, including invalid slots. Range clips at end; next_set_offset is null at end. set_offset==total_sets returns an empty page."
+      },
+      "StateResponse": {
+        "type": "object",
+        "properties": {
+          "session_id": {
+            "$ref": "#/components/schemas/SessionId"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "finished"
+            ]
+          },
+          "cursor": {
+            "$ref": "#/components/schemas/UInt64"
+          },
+          "revision": {
+            "$ref": "#/components/schemas/UInt64"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/Summary"
+          },
+          "last_event": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EventOutcome"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cache": {
+            "$ref": "#/components/schemas/CachePage"
+          }
+        },
+        "required": [
+          "session_id",
+          "status",
+          "cursor",
+          "revision",
+          "summary",
+          "last_event",
+          "cache"
+        ],
+        "additionalProperties": false
+      },
+      "Instruction": {
+        "type": "object",
+        "properties": {
+          "access_id": {
+            "$ref": "#/components/schemas/UInt64"
+          },
+          "memref_id": {
+            "$ref": "#/components/schemas/UInt64"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "read",
+              "write"
+            ]
+          },
+          "address_kind": {
+            "const": "memref_offset"
+          },
+          "source_location": {
+            "type": "string"
+          },
+          "origin_ids": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UInt64"
+            },
+            "uniqueItems": true
+          },
+          "stage_locations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StageLocation"
+            }
+          },
+          "events": {
+            "$ref": "#/components/schemas/UInt64"
+          },
+          "requested_bytes": {
+            "$ref": "#/components/schemas/UInt64"
+          },
+          "levels": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LevelStatistics"
+            },
+            "minItems": 1
+          }
+        },
+        "required": [
+          "access_id",
+          "memref_id",
+          "kind",
+          "address_kind",
+          "source_location",
+          "events",
+          "requested_bytes",
+          "levels"
+        ],
+        "additionalProperties": false
+      },
+      "InstructionsResponse": {
+        "type": "object",
+        "properties": {
+          "session_id": {
+            "$ref": "#/components/schemas/SessionId"
+          },
+          "cursor": {
+            "$ref": "#/components/schemas/UInt64"
+          },
+          "revision": {
+            "$ref": "#/components/schemas/UInt64"
+          },
+          "offset": {
+            "$ref": "#/components/schemas/UInt64"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "total_instructions": {
+            "$ref": "#/components/schemas/UInt64"
+          },
+          "next_offset": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UInt64"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "instructions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Instruction"
+            }
+          }
+        },
+        "required": [
+          "session_id",
+          "cursor",
+          "revision",
+          "offset",
+          "limit",
+          "total_instructions",
+          "next_offset",
+          "instructions"
+        ],
+        "additionalProperties": false,
+        "description": "All declared instructions, including unexecuted ones with zeros, sorted numerically by access_id. Offset counts rows, not IDs. Same revision as state reads; no historical snapshot retention."
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "Malformed JSON or invalid arguments/configuration; no execution state change.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "No such session (including a deleted or process-restart-lost session).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "Conflict": {
+        "description": "State conflict: resource occupied, stale revision, not ready, busy or failed. No requested execution occurs.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "Failure": {
+        "description": "Unexpected I/O/model/backend failure. An affected execution session becomes failed; state reads are unavailable. No transactional rollback is promised.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -136,6 +136,10 @@ UI обязан feature-detect поле `source_map` для совместимо
 Запуск compiler pipeline из UI лучше добавлять только после стабилизации bundle
 manifest и отдельного CLI/API orchestration слоя.
 
+Контракт будущего интерактивного режима: [Runner HTTP API v1](RUNNER_API.md).
+Он определяет session, step/reset, физические снимки cache slots и
+страницы статистики. HTTP-сервер и подключение UI пока не реализованы.
+
 ## Контракты между участниками
 
 | Producer | Consumer | Контракт | Владелец версии |
@@ -143,6 +147,7 @@ manifest и отдельного CLI/API orchestration слоя.
 | Compiler | Emulator | `cachescope.trace.v1` | участник 1 |
 | Compiler | UI | `cachescope.input.v1`, tensors | участник 1 |
 | Emulator | UI | `cachescope.simulation-statistics.v1`, `cachescope.simulation-events.v1` | участники 2–3 |
+| Runner backend | UI | `cachescope.runner.v1` HTTP API (OpenAPI), контракт будущей реализации | участники 2–3 и 4 |
 | Все компоненты | Все | experiment directory layout | совместно |
 
 Изменение общего контракта делается отдельным commit и включает fixture для

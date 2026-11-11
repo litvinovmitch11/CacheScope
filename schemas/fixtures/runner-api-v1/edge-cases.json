@@ -1,0 +1,911 @@
+{
+  "description": "Independent Random and empty-trace conversations. A one-way Random level makes the example portable across standard libraries.",
+  "exchanges": [
+    {
+      "name": "random-effective-seed",
+      "schema_valid_request": true,
+      "request": {
+        "method": "GET",
+        "path": "/api/v1/sessions/demo-random"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "session_id": "demo-random",
+          "status": "ready",
+          "busy": false,
+          "cursor": "0",
+          "revision": "1",
+          "total_events": "3",
+          "trace_path": "/workspace/traces/fifo.json",
+          "levels": [
+            {
+              "name": "L1",
+              "size_bytes": 64,
+              "line_size_bytes": 64,
+              "associativity": 1,
+              "replacement_policy": "Random",
+              "random_seed": "9007199254740993",
+              "level": 1,
+              "set_count": 1
+            }
+          ],
+          "hierarchy": {
+            "inclusion_policy": "exclusive",
+            "write_policy": "write_back",
+            "allocation_policy": "write_allocate"
+          },
+          "limits": {
+            "max_step_count": 1000,
+            "max_sets_per_read": 64,
+            "max_instructions_per_read": 100
+          },
+          "error": null
+        }
+      }
+    },
+    {
+      "name": "random-first-run",
+      "schema_valid_request": true,
+      "request": {
+        "method": "POST",
+        "path": "/api/v1/sessions/demo-random/step",
+        "body": {
+          "expected_revision": "1",
+          "count": 3
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "session_id": "demo-random",
+          "status": "finished",
+          "cursor": "3",
+          "revision": "2",
+          "summary": {
+            "processed": {
+              "trace_events": "3",
+              "line_accesses": "3"
+            },
+            "totals": {
+              "read_line_accesses": "2",
+              "write_line_accesses": "1",
+              "hits": "0",
+              "misses": "3",
+              "read_hits": "0",
+              "read_misses": "2",
+              "write_hits": "0",
+              "write_misses": "1",
+              "evictions": "2",
+              "writebacks": "1",
+              "hit_rate_percent": 0.0
+            },
+            "levels": [
+              {
+                "level": 1,
+                "processed": {
+                  "trace_events": "3",
+                  "line_accesses": "3"
+                },
+                "totals": {
+                  "read_line_accesses": "2",
+                  "write_line_accesses": "1",
+                  "hits": "0",
+                  "misses": "3",
+                  "read_hits": "0",
+                  "read_misses": "2",
+                  "write_hits": "0",
+                  "write_misses": "1",
+                  "evictions": "2",
+                  "writebacks": "1",
+                  "hit_rate_percent": 0.0
+                }
+              }
+            ],
+            "requests": {
+              "events": "3",
+              "reads": "2",
+              "writes": "1",
+              "read_bytes": "8",
+              "write_bytes": "4"
+            },
+            "memory": {
+              "reads": "3",
+              "writebacks": "1"
+            }
+          },
+          "last_event": {
+            "trace_event": {
+              "sequence": "2",
+              "access_id": "10",
+              "memref_id": "0",
+              "byte_offset": "0",
+              "size_bytes": "4",
+              "kind": "read",
+              "address_kind": "memref_offset"
+            },
+            "address": "0x10000000",
+            "level_results": [
+              {
+                "level": 1,
+                "lines": [
+                  {
+                    "line_address": "0x10000000",
+                    "hit": false,
+                    "set": 0,
+                    "way": 0,
+                    "evicted_address": "0x10000040",
+                    "evicted_dirty": false
+                  }
+                ]
+              }
+            ],
+            "evictions": [
+              {
+                "level": 1,
+                "line_address": "0x10000040",
+                "dirty": false
+              }
+            ],
+            "memory_reads": "1",
+            "memory_writebacks": "0"
+          },
+          "executed_count": 3,
+          "events": [
+            {
+              "trace_event": {
+                "sequence": "0",
+                "access_id": "20",
+                "memref_id": "0",
+                "byte_offset": "0",
+                "size_bytes": "4",
+                "kind": "write",
+                "address_kind": "memref_offset"
+              },
+              "address": "0x10000000",
+              "level_results": [
+                {
+                  "level": 1,
+                  "lines": [
+                    {
+                      "line_address": "0x10000000",
+                      "hit": false,
+                      "set": 0,
+                      "way": 0,
+                      "evicted_address": null,
+                      "evicted_dirty": null
+                    }
+                  ]
+                }
+              ],
+              "evictions": [],
+              "memory_reads": "1",
+              "memory_writebacks": "0"
+            },
+            {
+              "trace_event": {
+                "sequence": "1",
+                "access_id": "10",
+                "memref_id": "0",
+                "byte_offset": "64",
+                "size_bytes": "4",
+                "kind": "read",
+                "address_kind": "memref_offset"
+              },
+              "address": "0x10000040",
+              "level_results": [
+                {
+                  "level": 1,
+                  "lines": [
+                    {
+                      "line_address": "0x10000040",
+                      "hit": false,
+                      "set": 0,
+                      "way": 0,
+                      "evicted_address": "0x10000000",
+                      "evicted_dirty": true
+                    }
+                  ]
+                }
+              ],
+              "evictions": [
+                {
+                  "level": 1,
+                  "line_address": "0x10000000",
+                  "dirty": true
+                }
+              ],
+              "memory_reads": "1",
+              "memory_writebacks": "1"
+            },
+            {
+              "trace_event": {
+                "sequence": "2",
+                "access_id": "10",
+                "memref_id": "0",
+                "byte_offset": "0",
+                "size_bytes": "4",
+                "kind": "read",
+                "address_kind": "memref_offset"
+              },
+              "address": "0x10000000",
+              "level_results": [
+                {
+                  "level": 1,
+                  "lines": [
+                    {
+                      "line_address": "0x10000000",
+                      "hit": false,
+                      "set": 0,
+                      "way": 0,
+                      "evicted_address": "0x10000040",
+                      "evicted_dirty": false
+                    }
+                  ]
+                }
+              ],
+              "evictions": [
+                {
+                  "level": 1,
+                  "line_address": "0x10000040",
+                  "dirty": false
+                }
+              ],
+              "memory_reads": "1",
+              "memory_writebacks": "0"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "random-reset",
+      "schema_valid_request": true,
+      "request": {
+        "method": "POST",
+        "path": "/api/v1/sessions/demo-random/reset",
+        "body": {
+          "expected_revision": "2"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "session_id": "demo-random",
+          "status": "ready",
+          "cursor": "0",
+          "revision": "3",
+          "summary": {
+            "processed": {
+              "trace_events": "0",
+              "line_accesses": "0"
+            },
+            "totals": {
+              "read_line_accesses": "0",
+              "write_line_accesses": "0",
+              "hits": "0",
+              "misses": "0",
+              "read_hits": "0",
+              "read_misses": "0",
+              "write_hits": "0",
+              "write_misses": "0",
+              "evictions": "0",
+              "writebacks": "0",
+              "hit_rate_percent": null
+            },
+            "levels": [
+              {
+                "level": 1,
+                "processed": {
+                  "trace_events": "0",
+                  "line_accesses": "0"
+                },
+                "totals": {
+                  "read_line_accesses": "0",
+                  "write_line_accesses": "0",
+                  "hits": "0",
+                  "misses": "0",
+                  "read_hits": "0",
+                  "read_misses": "0",
+                  "write_hits": "0",
+                  "write_misses": "0",
+                  "evictions": "0",
+                  "writebacks": "0",
+                  "hit_rate_percent": null
+                }
+              }
+            ],
+            "requests": {
+              "events": "0",
+              "reads": "0",
+              "writes": "0",
+              "read_bytes": "0",
+              "write_bytes": "0"
+            },
+            "memory": {
+              "reads": "0",
+              "writebacks": "0"
+            }
+          },
+          "last_event": null
+        }
+      }
+    },
+    {
+      "name": "random-same-run-after-reset",
+      "schema_valid_request": true,
+      "request": {
+        "method": "POST",
+        "path": "/api/v1/sessions/demo-random/step",
+        "body": {
+          "expected_revision": "3",
+          "count": 3
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "session_id": "demo-random",
+          "status": "finished",
+          "cursor": "3",
+          "revision": "4",
+          "summary": {
+            "processed": {
+              "trace_events": "3",
+              "line_accesses": "3"
+            },
+            "totals": {
+              "read_line_accesses": "2",
+              "write_line_accesses": "1",
+              "hits": "0",
+              "misses": "3",
+              "read_hits": "0",
+              "read_misses": "2",
+              "write_hits": "0",
+              "write_misses": "1",
+              "evictions": "2",
+              "writebacks": "1",
+              "hit_rate_percent": 0.0
+            },
+            "levels": [
+              {
+                "level": 1,
+                "processed": {
+                  "trace_events": "3",
+                  "line_accesses": "3"
+                },
+                "totals": {
+                  "read_line_accesses": "2",
+                  "write_line_accesses": "1",
+                  "hits": "0",
+                  "misses": "3",
+                  "read_hits": "0",
+                  "read_misses": "2",
+                  "write_hits": "0",
+                  "write_misses": "1",
+                  "evictions": "2",
+                  "writebacks": "1",
+                  "hit_rate_percent": 0.0
+                }
+              }
+            ],
+            "requests": {
+              "events": "3",
+              "reads": "2",
+              "writes": "1",
+              "read_bytes": "8",
+              "write_bytes": "4"
+            },
+            "memory": {
+              "reads": "3",
+              "writebacks": "1"
+            }
+          },
+          "last_event": {
+            "trace_event": {
+              "sequence": "2",
+              "access_id": "10",
+              "memref_id": "0",
+              "byte_offset": "0",
+              "size_bytes": "4",
+              "kind": "read",
+              "address_kind": "memref_offset"
+            },
+            "address": "0x10000000",
+            "level_results": [
+              {
+                "level": 1,
+                "lines": [
+                  {
+                    "line_address": "0x10000000",
+                    "hit": false,
+                    "set": 0,
+                    "way": 0,
+                    "evicted_address": "0x10000040",
+                    "evicted_dirty": false
+                  }
+                ]
+              }
+            ],
+            "evictions": [
+              {
+                "level": 1,
+                "line_address": "0x10000040",
+                "dirty": false
+              }
+            ],
+            "memory_reads": "1",
+            "memory_writebacks": "0"
+          },
+          "executed_count": 3,
+          "events": [
+            {
+              "trace_event": {
+                "sequence": "0",
+                "access_id": "20",
+                "memref_id": "0",
+                "byte_offset": "0",
+                "size_bytes": "4",
+                "kind": "write",
+                "address_kind": "memref_offset"
+              },
+              "address": "0x10000000",
+              "level_results": [
+                {
+                  "level": 1,
+                  "lines": [
+                    {
+                      "line_address": "0x10000000",
+                      "hit": false,
+                      "set": 0,
+                      "way": 0,
+                      "evicted_address": null,
+                      "evicted_dirty": null
+                    }
+                  ]
+                }
+              ],
+              "evictions": [],
+              "memory_reads": "1",
+              "memory_writebacks": "0"
+            },
+            {
+              "trace_event": {
+                "sequence": "1",
+                "access_id": "10",
+                "memref_id": "0",
+                "byte_offset": "64",
+                "size_bytes": "4",
+                "kind": "read",
+                "address_kind": "memref_offset"
+              },
+              "address": "0x10000040",
+              "level_results": [
+                {
+                  "level": 1,
+                  "lines": [
+                    {
+                      "line_address": "0x10000040",
+                      "hit": false,
+                      "set": 0,
+                      "way": 0,
+                      "evicted_address": "0x10000000",
+                      "evicted_dirty": true
+                    }
+                  ]
+                }
+              ],
+              "evictions": [
+                {
+                  "level": 1,
+                  "line_address": "0x10000000",
+                  "dirty": true
+                }
+              ],
+              "memory_reads": "1",
+              "memory_writebacks": "1"
+            },
+            {
+              "trace_event": {
+                "sequence": "2",
+                "access_id": "10",
+                "memref_id": "0",
+                "byte_offset": "0",
+                "size_bytes": "4",
+                "kind": "read",
+                "address_kind": "memref_offset"
+              },
+              "address": "0x10000000",
+              "level_results": [
+                {
+                  "level": 1,
+                  "lines": [
+                    {
+                      "line_address": "0x10000000",
+                      "hit": false,
+                      "set": 0,
+                      "way": 0,
+                      "evicted_address": "0x10000040",
+                      "evicted_dirty": false
+                    }
+                  ]
+                }
+              ],
+              "evictions": [
+                {
+                  "level": 1,
+                  "line_address": "0x10000040",
+                  "dirty": false
+                }
+              ],
+              "memory_reads": "1",
+              "memory_writebacks": "0"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "empty-trace-finished",
+      "schema_valid_request": true,
+      "request": {
+        "method": "GET",
+        "path": "/api/v1/sessions/empty"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "session_id": "empty",
+          "status": "finished",
+          "busy": false,
+          "cursor": "0",
+          "revision": "1",
+          "total_events": "0",
+          "trace_path": "/workspace/traces/fifo.json",
+          "levels": [
+            {
+              "name": "L1",
+              "size_bytes": 128,
+              "line_size_bytes": 64,
+              "associativity": 2,
+              "replacement_policy": "FIFO",
+              "level": 1,
+              "set_count": 1,
+              "random_seed": null
+            },
+            {
+              "name": "L2",
+              "size_bytes": 64,
+              "line_size_bytes": 64,
+              "associativity": 1,
+              "replacement_policy": "FIFO",
+              "level": 2,
+              "set_count": 1,
+              "random_seed": null
+            }
+          ],
+          "hierarchy": {
+            "inclusion_policy": "exclusive",
+            "write_policy": "write_back",
+            "allocation_policy": "write_allocate"
+          },
+          "limits": {
+            "max_step_count": 1000,
+            "max_sets_per_read": 64,
+            "max_instructions_per_read": 100
+          },
+          "error": null
+        }
+      }
+    },
+    {
+      "name": "empty-state",
+      "schema_valid_request": true,
+      "request": {
+        "method": "GET",
+        "path": "/api/v1/sessions/empty/state",
+        "query": {
+          "expected_revision": "1",
+          "level": 1,
+          "set_limit": 1
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "session_id": "empty",
+          "status": "finished",
+          "cursor": "0",
+          "revision": "1",
+          "summary": {
+            "processed": {
+              "trace_events": "0",
+              "line_accesses": "0"
+            },
+            "totals": {
+              "read_line_accesses": "0",
+              "write_line_accesses": "0",
+              "hits": "0",
+              "misses": "0",
+              "read_hits": "0",
+              "read_misses": "0",
+              "write_hits": "0",
+              "write_misses": "0",
+              "evictions": "0",
+              "writebacks": "0",
+              "hit_rate_percent": null
+            },
+            "levels": [
+              {
+                "level": 1,
+                "processed": {
+                  "trace_events": "0",
+                  "line_accesses": "0"
+                },
+                "totals": {
+                  "read_line_accesses": "0",
+                  "write_line_accesses": "0",
+                  "hits": "0",
+                  "misses": "0",
+                  "read_hits": "0",
+                  "read_misses": "0",
+                  "write_hits": "0",
+                  "write_misses": "0",
+                  "evictions": "0",
+                  "writebacks": "0",
+                  "hit_rate_percent": null
+                }
+              },
+              {
+                "level": 2,
+                "processed": {
+                  "trace_events": "0",
+                  "line_accesses": "0"
+                },
+                "totals": {
+                  "read_line_accesses": "0",
+                  "write_line_accesses": "0",
+                  "hits": "0",
+                  "misses": "0",
+                  "read_hits": "0",
+                  "read_misses": "0",
+                  "write_hits": "0",
+                  "write_misses": "0",
+                  "evictions": "0",
+                  "writebacks": "0",
+                  "hit_rate_percent": null
+                }
+              }
+            ],
+            "requests": {
+              "events": "0",
+              "reads": "0",
+              "writes": "0",
+              "read_bytes": "0",
+              "write_bytes": "0"
+            },
+            "memory": {
+              "reads": "0",
+              "writebacks": "0"
+            }
+          },
+          "last_event": null,
+          "cache": {
+            "level": 1,
+            "set_offset": 0,
+            "set_limit": 1,
+            "total_sets": 1,
+            "next_set_offset": null,
+            "sets": [
+              {
+                "set": 0,
+                "ways": [
+                  {
+                    "way": 0,
+                    "valid": false,
+                    "line_address": null,
+                    "dirty": false
+                  },
+                  {
+                    "way": 1,
+                    "valid": false,
+                    "line_address": null,
+                    "dirty": false
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "empty-eof-step",
+      "schema_valid_request": true,
+      "request": {
+        "method": "POST",
+        "path": "/api/v1/sessions/empty/step",
+        "body": {
+          "expected_revision": "1"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "session_id": "empty",
+          "status": "finished",
+          "cursor": "0",
+          "revision": "1",
+          "summary": {
+            "processed": {
+              "trace_events": "0",
+              "line_accesses": "0"
+            },
+            "totals": {
+              "read_line_accesses": "0",
+              "write_line_accesses": "0",
+              "hits": "0",
+              "misses": "0",
+              "read_hits": "0",
+              "read_misses": "0",
+              "write_hits": "0",
+              "write_misses": "0",
+              "evictions": "0",
+              "writebacks": "0",
+              "hit_rate_percent": null
+            },
+            "levels": [
+              {
+                "level": 1,
+                "processed": {
+                  "trace_events": "0",
+                  "line_accesses": "0"
+                },
+                "totals": {
+                  "read_line_accesses": "0",
+                  "write_line_accesses": "0",
+                  "hits": "0",
+                  "misses": "0",
+                  "read_hits": "0",
+                  "read_misses": "0",
+                  "write_hits": "0",
+                  "write_misses": "0",
+                  "evictions": "0",
+                  "writebacks": "0",
+                  "hit_rate_percent": null
+                }
+              },
+              {
+                "level": 2,
+                "processed": {
+                  "trace_events": "0",
+                  "line_accesses": "0"
+                },
+                "totals": {
+                  "read_line_accesses": "0",
+                  "write_line_accesses": "0",
+                  "hits": "0",
+                  "misses": "0",
+                  "read_hits": "0",
+                  "read_misses": "0",
+                  "write_hits": "0",
+                  "write_misses": "0",
+                  "evictions": "0",
+                  "writebacks": "0",
+                  "hit_rate_percent": null
+                }
+              }
+            ],
+            "requests": {
+              "events": "0",
+              "reads": "0",
+              "writes": "0",
+              "read_bytes": "0",
+              "write_bytes": "0"
+            },
+            "memory": {
+              "reads": "0",
+              "writebacks": "0"
+            }
+          },
+          "last_event": null,
+          "executed_count": 0,
+          "events": []
+        }
+      }
+    },
+    {
+      "name": "empty-reset-increments-revision",
+      "schema_valid_request": true,
+      "request": {
+        "method": "POST",
+        "path": "/api/v1/sessions/empty/reset",
+        "body": {
+          "expected_revision": "1"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "session_id": "empty",
+          "status": "finished",
+          "cursor": "0",
+          "revision": "2",
+          "summary": {
+            "processed": {
+              "trace_events": "0",
+              "line_accesses": "0"
+            },
+            "totals": {
+              "read_line_accesses": "0",
+              "write_line_accesses": "0",
+              "hits": "0",
+              "misses": "0",
+              "read_hits": "0",
+              "read_misses": "0",
+              "write_hits": "0",
+              "write_misses": "0",
+              "evictions": "0",
+              "writebacks": "0",
+              "hit_rate_percent": null
+            },
+            "levels": [
+              {
+                "level": 1,
+                "processed": {
+                  "trace_events": "0",
+                  "line_accesses": "0"
+                },
+                "totals": {
+                  "read_line_accesses": "0",
+                  "write_line_accesses": "0",
+                  "hits": "0",
+                  "misses": "0",
+                  "read_hits": "0",
+                  "read_misses": "0",
+                  "write_hits": "0",
+                  "write_misses": "0",
+                  "evictions": "0",
+                  "writebacks": "0",
+                  "hit_rate_percent": null
+                }
+              },
+              {
+                "level": 2,
+                "processed": {
+                  "trace_events": "0",
+                  "line_accesses": "0"
+                },
+                "totals": {
+                  "read_line_accesses": "0",
+                  "write_line_accesses": "0",
+                  "hits": "0",
+                  "misses": "0",
+                  "read_hits": "0",
+                  "read_misses": "0",
+                  "write_hits": "0",
+                  "write_misses": "0",
+                  "evictions": "0",
+                  "writebacks": "0",
+                  "hit_rate_percent": null
+                }
+              }
+            ],
+            "requests": {
+              "events": "0",
+              "reads": "0",
+              "writes": "0",
+              "read_bytes": "0",
+              "write_bytes": "0"
+            },
+            "memory": {
+              "reads": "0",
+              "writebacks": "0"
+            }
+          },
+          "last_event": null
+        }
+      }
+    }
+  ]
+}

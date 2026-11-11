@@ -1,0 +1,2542 @@
+{
+  "description": "Ordered FIFO conversation. Polling preparation completion is abbreviated to one GET.",
+  "exchanges": [
+    {
+      "name": "discover-empty",
+      "schema_valid_request": true,
+      "request": {
+        "method": "GET",
+        "path": "/api/v1/sessions"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "sessions": []
+        }
+      }
+    },
+    {
+      "name": "create",
+      "schema_valid_request": true,
+      "request": {
+        "method": "POST",
+        "path": "/api/v1/sessions",
+        "body": {
+          "trace_path": "/workspace/traces/fifo.json",
+          "levels": [
+            {
+              "name": "L1",
+              "size_bytes": 128,
+              "line_size_bytes": 64,
+              "associativity": 2,
+              "replacement_policy": "FIFO"
+            },
+            {
+              "name": "L2",
+              "size_bytes": 64,
+              "line_size_bytes": 64,
+              "associativity": 1,
+              "replacement_policy": "FIFO"
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 202,
+        "body": {
+          "session_id": "demo-fifo",
+          "status": "preparing",
+          "busy": false,
+          "cursor": "0",
+          "revision": "0",
+          "total_events": null,
+          "trace_path": "/workspace/traces/fifo.json",
+          "levels": [
+            {
+              "name": "L1",
+              "size_bytes": 128,
+              "line_size_bytes": 64,
+              "associativity": 2,
+              "replacement_policy": "FIFO",
+              "level": 1,
+              "set_count": 1,
+              "random_seed": null
+            },
+            {
+              "name": "L2",
+              "size_bytes": 64,
+              "line_size_bytes": 64,
+              "associativity": 1,
+              "replacement_policy": "FIFO",
+              "level": 2,
+              "set_count": 1,
+              "random_seed": null
+            }
+          ],
+          "hierarchy": {
+            "inclusion_policy": "exclusive",
+            "write_policy": "write_back",
+            "allocation_policy": "write_allocate"
+          },
+          "limits": {
+            "max_step_count": 1000,
+            "max_sets_per_read": 64,
+            "max_instructions_per_read": 100
+          },
+          "error": null
+        },
+        "headers": {
+          "Location": "/api/v1/sessions/demo-fifo"
+        }
+      }
+    },
+    {
+      "name": "ready",
+      "schema_valid_request": true,
+      "request": {
+        "method": "GET",
+        "path": "/api/v1/sessions/demo-fifo"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "session_id": "demo-fifo",
+          "status": "ready",
+          "busy": false,
+          "cursor": "0",
+          "revision": "1",
+          "total_events": "9",
+          "trace_path": "/workspace/traces/fifo.json",
+          "levels": [
+            {
+              "name": "L1",
+              "size_bytes": 128,
+              "line_size_bytes": 64,
+              "associativity": 2,
+              "replacement_policy": "FIFO",
+              "level": 1,
+              "set_count": 1,
+              "random_seed": null
+            },
+            {
+              "name": "L2",
+              "size_bytes": 64,
+              "line_size_bytes": 64,
+              "associativity": 1,
+              "replacement_policy": "FIFO",
+              "level": 2,
+              "set_count": 1,
+              "random_seed": null
+            }
+          ],
+          "hierarchy": {
+            "inclusion_policy": "exclusive",
+            "write_policy": "write_back",
+            "allocation_policy": "write_allocate"
+          },
+          "limits": {
+            "max_step_count": 1000,
+            "max_sets_per_read": 64,
+            "max_instructions_per_read": 100
+          },
+          "error": null
+        }
+      }
+    },
+    {
+      "name": "discover-current",
+      "schema_valid_request": true,
+      "request": {
+        "method": "GET",
+        "path": "/api/v1/sessions"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "sessions": [
+            {
+              "session_id": "demo-fifo",
+              "status": "ready",
+              "busy": false,
+              "cursor": "0",
+              "revision": "1",
+              "total_events": "9",
+              "trace_path": "/workspace/traces/fifo.json",
+              "levels": [
+                {
+                  "name": "L1",
+                  "size_bytes": 128,
+                  "line_size_bytes": 64,
+                  "associativity": 2,
+                  "replacement_policy": "FIFO",
+                  "level": 1,
+                  "set_count": 1,
+                  "random_seed": null
+                },
+                {
+                  "name": "L2",
+                  "size_bytes": 64,
+                  "line_size_bytes": 64,
+                  "associativity": 1,
+                  "replacement_policy": "FIFO",
+                  "level": 2,
+                  "set_count": 1,
+                  "random_seed": null
+                }
+              ],
+              "hierarchy": {
+                "inclusion_policy": "exclusive",
+                "write_policy": "write_back",
+                "allocation_policy": "write_allocate"
+              },
+              "limits": {
+                "max_step_count": 1000,
+                "max_sets_per_read": 64,
+                "max_instructions_per_read": 100
+              },
+              "error": null
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "metadata-without-source-map",
+      "schema_valid_request": true,
+      "request": {
+        "method": "GET",
+        "path": "/api/v1/sessions/demo-fifo/metadata"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "session_id": "demo-fifo",
+          "trace_path": "/workspace/traces/fifo.json",
+          "source": {
+            "source_schema": "cachescope.trace.v1",
+            "producer": {
+              "name": "CacheScope",
+              "version": "0.1.0",
+              "llvm_version": "22.1.8",
+              "llvm_revision": "fixture",
+              "pipeline_fingerprint": "runner-api-fixture-v1"
+            },
+            "variant": "fixture-fifo",
+            "valid": true,
+            "complete": true,
+            "truncated": false,
+            "total_events": "9",
+            "recorded_events": "9",
+            "errors": []
+          },
+          "buffers": [
+            {
+              "memref_id": "0",
+              "base_address": "0x10000000",
+              "min_offset": "0",
+              "end_offset": "388"
+            }
+          ],
+          "accesses": [
+            {
+              "access_id": "10",
+              "memref_id": "0",
+              "kind": "read",
+              "address_kind": "memref_offset",
+              "source_location": "loc(\"fixture.mlir\":10:0)"
+            },
+            {
+              "access_id": "20",
+              "memref_id": "0",
+              "kind": "write",
+              "address_kind": "memref_offset",
+              "source_location": "loc(\"fixture.mlir\":20:0)"
+            },
+            {
+              "access_id": "30",
+              "memref_id": "0",
+              "kind": "read",
+              "address_kind": "memref_offset",
+              "source_location": "loc(\"fixture.mlir\":30:0)"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "cold",
+      "schema_valid_request": true,
+      "request": {
+        "method": "GET",
+        "path": "/api/v1/sessions/demo-fifo/state",
+        "query": {
+          "expected_revision": "1",
+          "level": 1,
+          "set_limit": 1
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "session_id": "demo-fifo",
+          "status": "ready",
+          "cursor": "0",
+          "revision": "1",
+          "summary": {
+            "processed": {
+              "trace_events": "0",
+              "line_accesses": "0"
+            },
+            "totals": {
+              "read_line_accesses": "0",
+              "write_line_accesses": "0",
+              "hits": "0",
+              "misses": "0",
+              "read_hits": "0",
+              "read_misses": "0",
+              "write_hits": "0",
+              "write_misses": "0",
+              "evictions": "0",
+              "writebacks": "0",
+              "hit_rate_percent": null
+            },
+            "levels": [
+              {
+                "level": 1,
+                "processed": {
+                  "trace_events": "0",
+                  "line_accesses": "0"
+                },
+                "totals": {
+                  "read_line_accesses": "0",
+                  "write_line_accesses": "0",
+                  "hits": "0",
+                  "misses": "0",
+                  "read_hits": "0",
+                  "read_misses": "0",
+                  "write_hits": "0",
+                  "write_misses": "0",
+                  "evictions": "0",
+                  "writebacks": "0",
+                  "hit_rate_percent": null
+                }
+              },
+              {
+                "level": 2,
+                "processed": {
+                  "trace_events": "0",
+                  "line_accesses": "0"
+                },
+                "totals": {
+                  "read_line_accesses": "0",
+                  "write_line_accesses": "0",
+                  "hits": "0",
+                  "misses": "0",
+                  "read_hits": "0",
+                  "read_misses": "0",
+                  "write_hits": "0",
+                  "write_misses": "0",
+                  "evictions": "0",
+                  "writebacks": "0",
+                  "hit_rate_percent": null
+                }
+              }
+            ],
+            "requests": {
+              "events": "0",
+              "reads": "0",
+              "writes": "0",
+              "read_bytes": "0",
+              "write_bytes": "0"
+            },
+            "memory": {
+              "reads": "0",
+              "writebacks": "0"
+            }
+          },
+          "last_event": null,
+          "cache": {
+            "level": 1,
+            "set_offset": 0,
+            "set_limit": 1,
+            "total_sets": 1,
+            "next_set_offset": null,
+            "sets": [
+              {
+                "set": 0,
+                "ways": [
+                  {
+                    "way": 0,
+                    "valid": false,
+                    "line_address": null,
+                    "dirty": false
+                  },
+                  {
+                    "way": 1,
+                    "valid": false,
+                    "line_address": null,
+                    "dirty": false
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "first-write-miss",
+      "schema_valid_request": true,
+      "request": {
+        "method": "POST",
+        "path": "/api/v1/sessions/demo-fifo/step",
+        "body": {
+          "expected_revision": "1"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "session_id": "demo-fifo",
+          "status": "ready",
+          "cursor": "1",
+          "revision": "2",
+          "summary": {
+            "processed": {
+              "trace_events": "1",
+              "line_accesses": "1"
+            },
+            "totals": {
+              "read_line_accesses": "0",
+              "write_line_accesses": "1",
+              "hits": "0",
+              "misses": "1",
+              "read_hits": "0",
+              "read_misses": "0",
+              "write_hits": "0",
+              "write_misses": "1",
+              "evictions": "0",
+              "writebacks": "0",
+              "hit_rate_percent": 0.0
+            },
+            "levels": [
+              {
+                "level": 1,
+                "processed": {
+                  "trace_events": "1",
+                  "line_accesses": "1"
+                },
+                "totals": {
+                  "read_line_accesses": "0",
+                  "write_line_accesses": "1",
+                  "hits": "0",
+                  "misses": "1",
+                  "read_hits": "0",
+                  "read_misses": "0",
+                  "write_hits": "0",
+                  "write_misses": "1",
+                  "evictions": "0",
+                  "writebacks": "0",
+                  "hit_rate_percent": 0.0
+                }
+              },
+              {
+                "level": 2,
+                "processed": {
+                  "trace_events": "1",
+                  "line_accesses": "1"
+                },
+                "totals": {
+                  "read_line_accesses": "0",
+                  "write_line_accesses": "1",
+                  "hits": "0",
+                  "misses": "1",
+                  "read_hits": "0",
+                  "read_misses": "0",
+                  "write_hits": "0",
+                  "write_misses": "1",
+                  "evictions": "0",
+                  "writebacks": "0",
+                  "hit_rate_percent": 0.0
+                }
+              }
+            ],
+            "requests": {
+              "events": "1",
+              "reads": "0",
+              "writes": "1",
+              "read_bytes": "0",
+              "write_bytes": "4"
+            },
+            "memory": {
+              "reads": "1",
+              "writebacks": "0"
+            }
+          },
+          "last_event": {
+            "trace_event": {
+              "sequence": "0",
+              "access_id": "20",
+              "memref_id": "0",
+              "byte_offset": "0",
+              "size_bytes": "4",
+              "kind": "write",
+              "address_kind": "memref_offset"
+            },
+            "address": "0x10000000",
+            "level_results": [
+              {
+                "level": 1,
+                "lines": [
+                  {
+                    "line_address": "0x10000000",
+                    "hit": false,
+                    "set": 0,
+                    "way": 0,
+                    "evicted_address": null,
+                    "evicted_dirty": null
+                  }
+                ]
+              },
+              {
+                "level": 2,
+                "lines": [
+                  {
+                    "line_address": "0x10000000",
+                    "hit": false,
+                    "set": 0,
+                    "way": null,
+                    "evicted_address": null,
+                    "evicted_dirty": null
+                  }
+                ]
+              }
+            ],
+            "evictions": [],
+            "memory_reads": "1",
+            "memory_writebacks": "0"
+          },
+          "executed_count": 1,
+          "events": [
+            {
+              "trace_event": {
+                "sequence": "0",
+                "access_id": "20",
+                "memref_id": "0",
+                "byte_offset": "0",
+                "size_bytes": "4",
+                "kind": "write",
+                "address_kind": "memref_offset"
+              },
+              "address": "0x10000000",
+              "level_results": [
+                {
+                  "level": 1,
+                  "lines": [
+                    {
+                      "line_address": "0x10000000",
+                      "hit": false,
+                      "set": 0,
+                      "way": 0,
+                      "evicted_address": null,
+                      "evicted_dirty": null
+                    }
+                  ]
+                },
+                {
+                  "level": 2,
+                  "lines": [
+                    {
+                      "line_address": "0x10000000",
+                      "hit": false,
+                      "set": 0,
+                      "way": null,
+                      "evicted_address": null,
+                      "evicted_dirty": null
+                    }
+                  ]
+                }
+              ],
+              "evictions": [],
+              "memory_reads": "1",
+              "memory_writebacks": "0"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "read-miss-then-l1-hit",
+      "schema_valid_request": true,
+      "request": {
+        "method": "POST",
+        "path": "/api/v1/sessions/demo-fifo/step",
+        "body": {
+          "expected_revision": "2",
+          "count": 2
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "session_id": "demo-fifo",
+          "status": "ready",
+          "cursor": "3",
+          "revision": "3",
+          "summary": {
+            "processed": {
+              "trace_events": "3",
+              "line_accesses": "3"
+            },
+            "totals": {
+              "read_line_accesses": "2",
+              "write_line_accesses": "1",
+              "hits": "1",
+              "misses": "2",
+              "read_hits": "1",
+              "read_misses": "1",
+              "write_hits": "0",
+              "write_misses": "1",
+              "evictions": "0",
+              "writebacks": "0",
+              "hit_rate_percent": 33.333333333333336
+            },
+            "levels": [
+              {
+                "level": 1,
+                "processed": {
+                  "trace_events": "3",
+                  "line_accesses": "3"
+                },
+                "totals": {
+                  "read_line_accesses": "2",
+                  "write_line_accesses": "1",
+                  "hits": "1",
+                  "misses": "2",
+                  "read_hits": "1",
+                  "read_misses": "1",
+                  "write_hits": "0",
+                  "write_misses": "1",
+                  "evictions": "0",
+                  "writebacks": "0",
+                  "hit_rate_percent": 33.333333333333336
+                }
+              },
+              {
+                "level": 2,
+                "processed": {
+                  "trace_events": "2",
+                  "line_accesses": "2"
+                },
+                "totals": {
+                  "read_line_accesses": "1",
+                  "write_line_accesses": "1",
+                  "hits": "0",
+                  "misses": "2",
+                  "read_hits": "0",
+                  "read_misses": "1",
+                  "write_hits": "0",
+                  "write_misses": "1",
+                  "evictions": "0",
+                  "writebacks": "0",
+                  "hit_rate_percent": 0.0
+                }
+              }
+            ],
+            "requests": {
+              "events": "3",
+              "reads": "2",
+              "writes": "1",
+              "read_bytes": "8",
+              "write_bytes": "4"
+            },
+            "memory": {
+              "reads": "2",
+              "writebacks": "0"
+            }
+          },
+          "last_event": {
+            "trace_event": {
+              "sequence": "2",
+              "access_id": "10",
+              "memref_id": "0",
+              "byte_offset": "0",
+              "size_bytes": "4",
+              "kind": "read",
+              "address_kind": "memref_offset"
+            },
+            "address": "0x10000000",
+            "level_results": [
+              {
+                "level": 1,
+                "lines": [
+                  {
+                    "line_address": "0x10000000",
+                    "hit": true,
+                    "set": 0,
+                    "way": 0,
+                    "evicted_address": null,
+                    "evicted_dirty": null
+                  }
+                ]
+              }
+            ],
+            "evictions": [],
+            "memory_reads": "0",
+            "memory_writebacks": "0"
+          },
+          "executed_count": 2,
+          "events": [
+            {
+              "trace_event": {
+                "sequence": "1",
+                "access_id": "10",
+                "memref_id": "0",
+                "byte_offset": "64",
+                "size_bytes": "4",
+                "kind": "read",
+                "address_kind": "memref_offset"
+              },
+              "address": "0x10000040",
+              "level_results": [
+                {
+                  "level": 1,
+                  "lines": [
+                    {
+                      "line_address": "0x10000040",
+                      "hit": false,
+                      "set": 0,
+                      "way": 1,
+                      "evicted_address": null,
+                      "evicted_dirty": null
+                    }
+                  ]
+                },
+                {
+                  "level": 2,
+                  "lines": [
+                    {
+                      "line_address": "0x10000040",
+                      "hit": false,
+                      "set": 0,
+                      "way": null,
+                      "evicted_address": null,
+                      "evicted_dirty": null
+                    }
+                  ]
+                }
+              ],
+              "evictions": [],
+              "memory_reads": "1",
+              "memory_writebacks": "0"
+            },
+            {
+              "trace_event": {
+                "sequence": "2",
+                "access_id": "10",
+                "memref_id": "0",
+                "byte_offset": "0",
+                "size_bytes": "4",
+                "kind": "read",
+                "address_kind": "memref_offset"
+              },
+              "address": "0x10000000",
+              "level_results": [
+                {
+                  "level": 1,
+                  "lines": [
+                    {
+                      "line_address": "0x10000000",
+                      "hit": true,
+                      "set": 0,
+                      "way": 0,
+                      "evicted_address": null,
+                      "evicted_dirty": null
+                    }
+                  ]
+                }
+              ],
+              "evictions": [],
+              "memory_reads": "0",
+              "memory_writebacks": "0"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "dirty-eviction-then-l2-promotion",
+      "schema_valid_request": true,
+      "request": {
+        "method": "POST",
+        "path": "/api/v1/sessions/demo-fifo/step",
+        "body": {
+          "expected_revision": "3",
+          "count": 2
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "session_id": "demo-fifo",
+          "status": "ready",
+          "cursor": "5",
+          "revision": "4",
+          "summary": {
+            "processed": {
+              "trace_events": "5",
+              "line_accesses": "5"
+            },
+            "totals": {
+              "read_line_accesses": "4",
+              "write_line_accesses": "1",
+              "hits": "1",
+              "misses": "4",
+              "read_hits": "1",
+              "read_misses": "3",
+              "write_hits": "0",
+              "write_misses": "1",
+              "evictions": "2",
+              "writebacks": "1",
+              "hit_rate_percent": 20.0
+            },
+            "levels": [
+              {
+                "level": 1,
+                "processed": {
+                  "trace_events": "5",
+                  "line_accesses": "5"
+                },
+                "totals": {
+                  "read_line_accesses": "4",
+                  "write_line_accesses": "1",
+                  "hits": "1",
+                  "misses": "4",
+                  "read_hits": "1",
+                  "read_misses": "3",
+                  "write_hits": "0",
+                  "write_misses": "1",
+                  "evictions": "2",
+                  "writebacks": "1",
+                  "hit_rate_percent": 20.0
+                }
+              },
+              {
+                "level": 2,
+                "processed": {
+                  "trace_events": "4",
+                  "line_accesses": "4"
+                },
+                "totals": {
+                  "read_line_accesses": "3",
+                  "write_line_accesses": "1",
+                  "hits": "1",
+                  "misses": "3",
+                  "read_hits": "1",
+                  "read_misses": "2",
+                  "write_hits": "0",
+                  "write_misses": "1",
+                  "evictions": "0",
+                  "writebacks": "0",
+                  "hit_rate_percent": 25.0
+                }
+              }
+            ],
+            "requests": {
+              "events": "5",
+              "reads": "4",
+              "writes": "1",
+              "read_bytes": "16",
+              "write_bytes": "4"
+            },
+            "memory": {
+              "reads": "3",
+              "writebacks": "0"
+            }
+          },
+          "last_event": {
+            "trace_event": {
+              "sequence": "4",
+              "access_id": "10",
+              "memref_id": "0",
+              "byte_offset": "0",
+              "size_bytes": "4",
+              "kind": "read",
+              "address_kind": "memref_offset"
+            },
+            "address": "0x10000000",
+            "level_results": [
+              {
+                "level": 1,
+                "lines": [
+                  {
+                    "line_address": "0x10000000",
+                    "hit": false,
+                    "set": 0,
+                    "way": 1,
+                    "evicted_address": "0x10000040",
+                    "evicted_dirty": false
+                  }
+                ]
+              },
+              {
+                "level": 2,
+                "lines": [
+                  {
+                    "line_address": "0x10000000",
+                    "hit": true,
+                    "set": 0,
+                    "way": 0,
+                    "evicted_address": null,
+                    "evicted_dirty": null
+                  }
+                ]
+              }
+            ],
+            "evictions": [
+              {
+                "level": 1,
+                "line_address": "0x10000040",
+                "dirty": false
+              }
+            ],
+            "memory_reads": "0",
+            "memory_writebacks": "0"
+          },
+          "executed_count": 2,
+          "events": [
+            {
+              "trace_event": {
+                "sequence": "3",
+                "access_id": "10",
+                "memref_id": "0",
+                "byte_offset": "128",
+                "size_bytes": "4",
+                "kind": "read",
+                "address_kind": "memref_offset"
+              },
+              "address": "0x10000080",
+              "level_results": [
+                {
+                  "level": 1,
+                  "lines": [
+                    {
+                      "line_address": "0x10000080",
+                      "hit": false,
+                      "set": 0,
+                      "way": 0,
+                      "evicted_address": "0x10000000",
+                      "evicted_dirty": true
+                    }
+                  ]
+                },
+                {
+                  "level": 2,
+                  "lines": [
+                    {
+                      "line_address": "0x10000080",
+                      "hit": false,
+                      "set": 0,
+                      "way": null,
+                      "evicted_address": null,
+                      "evicted_dirty": null
+                    }
+                  ]
+                }
+              ],
+              "evictions": [
+                {
+                  "level": 1,
+                  "line_address": "0x10000000",
+                  "dirty": true
+                }
+              ],
+              "memory_reads": "1",
+              "memory_writebacks": "0"
+            },
+            {
+              "trace_event": {
+                "sequence": "4",
+                "access_id": "10",
+                "memref_id": "0",
+                "byte_offset": "0",
+                "size_bytes": "4",
+                "kind": "read",
+                "address_kind": "memref_offset"
+              },
+              "address": "0x10000000",
+              "level_results": [
+                {
+                  "level": 1,
+                  "lines": [
+                    {
+                      "line_address": "0x10000000",
+                      "hit": false,
+                      "set": 0,
+                      "way": 1,
+                      "evicted_address": "0x10000040",
+                      "evicted_dirty": false
+                    }
+                  ]
+                },
+                {
+                  "level": 2,
+                  "lines": [
+                    {
+                      "line_address": "0x10000000",
+                      "hit": true,
+                      "set": 0,
+                      "way": 0,
+                      "evicted_address": null,
+                      "evicted_dirty": null
+                    }
+                  ]
+                }
+              ],
+              "evictions": [
+                {
+                  "level": 1,
+                  "line_address": "0x10000040",
+                  "dirty": false
+                }
+              ],
+              "memory_reads": "0",
+              "memory_writebacks": "0"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "physical-l1-after-promotion",
+      "schema_valid_request": true,
+      "request": {
+        "method": "GET",
+        "path": "/api/v1/sessions/demo-fifo/state",
+        "query": {
+          "expected_revision": "4",
+          "level": 1,
+          "set_limit": 1
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "session_id": "demo-fifo",
+          "status": "ready",
+          "cursor": "5",
+          "revision": "4",
+          "summary": {
+            "processed": {
+              "trace_events": "5",
+              "line_accesses": "5"
+            },
+            "totals": {
+              "read_line_accesses": "4",
+              "write_line_accesses": "1",
+              "hits": "1",
+              "misses": "4",
+              "read_hits": "1",
+              "read_misses": "3",
+              "write_hits": "0",
+              "write_misses": "1",
+              "evictions": "2",
+              "writebacks": "1",
+              "hit_rate_percent": 20.0
+            },
+            "levels": [
+              {
+                "level": 1,
+                "processed": {
+                  "trace_events": "5",
+                  "line_accesses": "5"
+                },
+                "totals": {
+                  "read_line_accesses": "4",
+                  "write_line_accesses": "1",
+                  "hits": "1",
+                  "misses": "4",
+                  "read_hits": "1",
+                  "read_misses": "3",
+                  "write_hits": "0",
+                  "write_misses": "1",
+                  "evictions": "2",
+                  "writebacks": "1",
+                  "hit_rate_percent": 20.0
+                }
+              },
+              {
+                "level": 2,
+                "processed": {
+                  "trace_events": "4",
+                  "line_accesses": "4"
+                },
+                "totals": {
+                  "read_line_accesses": "3",
+                  "write_line_accesses": "1",
+                  "hits": "1",
+                  "misses": "3",
+                  "read_hits": "1",
+                  "read_misses": "2",
+                  "write_hits": "0",
+                  "write_misses": "1",
+                  "evictions": "0",
+                  "writebacks": "0",
+                  "hit_rate_percent": 25.0
+                }
+              }
+            ],
+            "requests": {
+              "events": "5",
+              "reads": "4",
+              "writes": "1",
+              "read_bytes": "16",
+              "write_bytes": "4"
+            },
+            "memory": {
+              "reads": "3",
+              "writebacks": "0"
+            }
+          },
+          "last_event": {
+            "trace_event": {
+              "sequence": "4",
+              "access_id": "10",
+              "memref_id": "0",
+              "byte_offset": "0",
+              "size_bytes": "4",
+              "kind": "read",
+              "address_kind": "memref_offset"
+            },
+            "address": "0x10000000",
+            "level_results": [
+              {
+                "level": 1,
+                "lines": [
+                  {
+                    "line_address": "0x10000000",
+                    "hit": false,
+                    "set": 0,
+                    "way": 1,
+                    "evicted_address": "0x10000040",
+                    "evicted_dirty": false
+                  }
+                ]
+              },
+              {
+                "level": 2,
+                "lines": [
+                  {
+                    "line_address": "0x10000000",
+                    "hit": true,
+                    "set": 0,
+                    "way": 0,
+                    "evicted_address": null,
+                    "evicted_dirty": null
+                  }
+                ]
+              }
+            ],
+            "evictions": [
+              {
+                "level": 1,
+                "line_address": "0x10000040",
+                "dirty": false
+              }
+            ],
+            "memory_reads": "0",
+            "memory_writebacks": "0"
+          },
+          "cache": {
+            "level": 1,
+            "set_offset": 0,
+            "set_limit": 1,
+            "total_sets": 1,
+            "next_set_offset": null,
+            "sets": [
+              {
+                "set": 0,
+                "ways": [
+                  {
+                    "way": 0,
+                    "valid": true,
+                    "line_address": "0x10000080",
+                    "dirty": false
+                  },
+                  {
+                    "way": 1,
+                    "valid": true,
+                    "line_address": "0x10000000",
+                    "dirty": true
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "physical-l2-after-promotion",
+      "schema_valid_request": true,
+      "request": {
+        "method": "GET",
+        "path": "/api/v1/sessions/demo-fifo/state",
+        "query": {
+          "expected_revision": "4",
+          "level": 2,
+          "set_limit": 1
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "session_id": "demo-fifo",
+          "status": "ready",
+          "cursor": "5",
+          "revision": "4",
+          "summary": {
+            "processed": {
+              "trace_events": "5",
+              "line_accesses": "5"
+            },
+            "totals": {
+              "read_line_accesses": "4",
+              "write_line_accesses": "1",
+              "hits": "1",
+              "misses": "4",
+              "read_hits": "1",
+              "read_misses": "3",
+              "write_hits": "0",
+              "write_misses": "1",
+              "evictions": "2",
+              "writebacks": "1",
+              "hit_rate_percent": 20.0
+            },
+            "levels": [
+              {
+                "level": 1,
+                "processed": {
+                  "trace_events": "5",
+                  "line_accesses": "5"
+                },
+                "totals": {
+                  "read_line_accesses": "4",
+                  "write_line_accesses": "1",
+                  "hits": "1",
+                  "misses": "4",
+                  "read_hits": "1",
+                  "read_misses": "3",
+                  "write_hits": "0",
+                  "write_misses": "1",
+                  "evictions": "2",
+                  "writebacks": "1",
+                  "hit_rate_percent": 20.0
+                }
+              },
+              {
+                "level": 2,
+                "processed": {
+                  "trace_events": "4",
+                  "line_accesses": "4"
+                },
+                "totals": {
+                  "read_line_accesses": "3",
+                  "write_line_accesses": "1",
+                  "hits": "1",
+                  "misses": "3",
+                  "read_hits": "1",
+                  "read_misses": "2",
+                  "write_hits": "0",
+                  "write_misses": "1",
+                  "evictions": "0",
+                  "writebacks": "0",
+                  "hit_rate_percent": 25.0
+                }
+              }
+            ],
+            "requests": {
+              "events": "5",
+              "reads": "4",
+              "writes": "1",
+              "read_bytes": "16",
+              "write_bytes": "4"
+            },
+            "memory": {
+              "reads": "3",
+              "writebacks": "0"
+            }
+          },
+          "last_event": {
+            "trace_event": {
+              "sequence": "4",
+              "access_id": "10",
+              "memref_id": "0",
+              "byte_offset": "0",
+              "size_bytes": "4",
+              "kind": "read",
+              "address_kind": "memref_offset"
+            },
+            "address": "0x10000000",
+            "level_results": [
+              {
+                "level": 1,
+                "lines": [
+                  {
+                    "line_address": "0x10000000",
+                    "hit": false,
+                    "set": 0,
+                    "way": 1,
+                    "evicted_address": "0x10000040",
+                    "evicted_dirty": false
+                  }
+                ]
+              },
+              {
+                "level": 2,
+                "lines": [
+                  {
+                    "line_address": "0x10000000",
+                    "hit": true,
+                    "set": 0,
+                    "way": 0,
+                    "evicted_address": null,
+                    "evicted_dirty": null
+                  }
+                ]
+              }
+            ],
+            "evictions": [
+              {
+                "level": 1,
+                "line_address": "0x10000040",
+                "dirty": false
+              }
+            ],
+            "memory_reads": "0",
+            "memory_writebacks": "0"
+          },
+          "cache": {
+            "level": 2,
+            "set_offset": 0,
+            "set_limit": 1,
+            "total_sets": 1,
+            "next_set_offset": null,
+            "sets": [
+              {
+                "set": 0,
+                "ways": [
+                  {
+                    "way": 0,
+                    "valid": true,
+                    "line_address": "0x10000040",
+                    "dirty": false
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "dirty-writeback-multiline-and-eof",
+      "schema_valid_request": true,
+      "request": {
+        "method": "POST",
+        "path": "/api/v1/sessions/demo-fifo/step",
+        "body": {
+          "expected_revision": "4",
+          "count": 99
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "session_id": "demo-fifo",
+          "status": "finished",
+          "cursor": "9",
+          "revision": "5",
+          "summary": {
+            "processed": {
+              "trace_events": "9",
+              "line_accesses": "10"
+            },
+            "totals": {
+              "read_line_accesses": "9",
+              "write_line_accesses": "1",
+              "hits": "2",
+              "misses": "8",
+              "read_hits": "2",
+              "read_misses": "7",
+              "write_hits": "0",
+              "write_misses": "1",
+              "evictions": "6",
+              "writebacks": "2",
+              "hit_rate_percent": 20.0
+            },
+            "levels": [
+              {
+                "level": 1,
+                "processed": {
+                  "trace_events": "9",
+                  "line_accesses": "10"
+                },
+                "totals": {
+                  "read_line_accesses": "9",
+                  "write_line_accesses": "1",
+                  "hits": "2",
+                  "misses": "8",
+                  "read_hits": "2",
+                  "read_misses": "7",
+                  "write_hits": "0",
+                  "write_misses": "1",
+                  "evictions": "6",
+                  "writebacks": "2",
+                  "hit_rate_percent": 20.0
+                }
+              },
+              {
+                "level": 2,
+                "processed": {
+                  "trace_events": "8",
+                  "line_accesses": "8"
+                },
+                "totals": {
+                  "read_line_accesses": "7",
+                  "write_line_accesses": "1",
+                  "hits": "1",
+                  "misses": "7",
+                  "read_hits": "1",
+                  "read_misses": "6",
+                  "write_hits": "0",
+                  "write_misses": "1",
+                  "evictions": "4",
+                  "writebacks": "1",
+                  "hit_rate_percent": 12.5
+                }
+              }
+            ],
+            "requests": {
+              "events": "9",
+              "reads": "8",
+              "writes": "1",
+              "read_bytes": "36",
+              "write_bytes": "4"
+            },
+            "memory": {
+              "reads": "7",
+              "writebacks": "1"
+            }
+          },
+          "last_event": {
+            "trace_event": {
+              "sequence": "8",
+              "access_id": "10",
+              "memref_id": "0",
+              "byte_offset": "380",
+              "size_bytes": "8",
+              "kind": "read",
+              "address_kind": "memref_offset"
+            },
+            "address": "0x1000017c",
+            "level_results": [
+              {
+                "level": 1,
+                "lines": [
+                  {
+                    "line_address": "0x10000140",
+                    "hit": true,
+                    "set": 0,
+                    "way": 0,
+                    "evicted_address": null,
+                    "evicted_dirty": null
+                  },
+                  {
+                    "line_address": "0x10000180",
+                    "hit": false,
+                    "set": 0,
+                    "way": 1,
+                    "evicted_address": "0x10000100",
+                    "evicted_dirty": false
+                  }
+                ]
+              },
+              {
+                "level": 2,
+                "lines": [
+                  {
+                    "line_address": "0x10000180",
+                    "hit": false,
+                    "set": 0,
+                    "way": null,
+                    "evicted_address": null,
+                    "evicted_dirty": null
+                  }
+                ]
+              }
+            ],
+            "evictions": [
+              {
+                "level": 1,
+                "line_address": "0x10000100",
+                "dirty": false
+              },
+              {
+                "level": 2,
+                "line_address": "0x100000c0",
+                "dirty": false
+              }
+            ],
+            "memory_reads": "1",
+            "memory_writebacks": "0"
+          },
+          "executed_count": 4,
+          "events": [
+            {
+              "trace_event": {
+                "sequence": "5",
+                "access_id": "10",
+                "memref_id": "0",
+                "byte_offset": "192",
+                "size_bytes": "4",
+                "kind": "read",
+                "address_kind": "memref_offset"
+              },
+              "address": "0x100000c0",
+              "level_results": [
+                {
+                  "level": 1,
+                  "lines": [
+                    {
+                      "line_address": "0x100000c0",
+                      "hit": false,
+                      "set": 0,
+                      "way": 0,
+                      "evicted_address": "0x10000080",
+                      "evicted_dirty": false
+                    }
+                  ]
+                },
+                {
+                  "level": 2,
+                  "lines": [
+                    {
+                      "line_address": "0x100000c0",
+                      "hit": false,
+                      "set": 0,
+                      "way": null,
+                      "evicted_address": null,
+                      "evicted_dirty": null
+                    }
+                  ]
+                }
+              ],
+              "evictions": [
+                {
+                  "level": 1,
+                  "line_address": "0x10000080",
+                  "dirty": false
+                },
+                {
+                  "level": 2,
+                  "line_address": "0x10000040",
+                  "dirty": false
+                }
+              ],
+              "memory_reads": "1",
+              "memory_writebacks": "0"
+            },
+            {
+              "trace_event": {
+                "sequence": "6",
+                "access_id": "10",
+                "memref_id": "0",
+                "byte_offset": "256",
+                "size_bytes": "4",
+                "kind": "read",
+                "address_kind": "memref_offset"
+              },
+              "address": "0x10000100",
+              "level_results": [
+                {
+                  "level": 1,
+                  "lines": [
+                    {
+                      "line_address": "0x10000100",
+                      "hit": false,
+                      "set": 0,
+                      "way": 1,
+                      "evicted_address": "0x10000000",
+                      "evicted_dirty": true
+                    }
+                  ]
+                },
+                {
+                  "level": 2,
+                  "lines": [
+                    {
+                      "line_address": "0x10000100",
+                      "hit": false,
+                      "set": 0,
+                      "way": null,
+                      "evicted_address": null,
+                      "evicted_dirty": null
+                    }
+                  ]
+                }
+              ],
+              "evictions": [
+                {
+                  "level": 1,
+                  "line_address": "0x10000000",
+                  "dirty": true
+                },
+                {
+                  "level": 2,
+                  "line_address": "0x10000080",
+                  "dirty": false
+                }
+              ],
+              "memory_reads": "1",
+              "memory_writebacks": "0"
+            },
+            {
+              "trace_event": {
+                "sequence": "7",
+                "access_id": "10",
+                "memref_id": "0",
+                "byte_offset": "320",
+                "size_bytes": "4",
+                "kind": "read",
+                "address_kind": "memref_offset"
+              },
+              "address": "0x10000140",
+              "level_results": [
+                {
+                  "level": 1,
+                  "lines": [
+                    {
+                      "line_address": "0x10000140",
+                      "hit": false,
+                      "set": 0,
+                      "way": 0,
+                      "evicted_address": "0x100000c0",
+                      "evicted_dirty": false
+                    }
+                  ]
+                },
+                {
+                  "level": 2,
+                  "lines": [
+                    {
+                      "line_address": "0x10000140",
+                      "hit": false,
+                      "set": 0,
+                      "way": null,
+                      "evicted_address": null,
+                      "evicted_dirty": null
+                    }
+                  ]
+                }
+              ],
+              "evictions": [
+                {
+                  "level": 1,
+                  "line_address": "0x100000c0",
+                  "dirty": false
+                },
+                {
+                  "level": 2,
+                  "line_address": "0x10000000",
+                  "dirty": true
+                }
+              ],
+              "memory_reads": "1",
+              "memory_writebacks": "1"
+            },
+            {
+              "trace_event": {
+                "sequence": "8",
+                "access_id": "10",
+                "memref_id": "0",
+                "byte_offset": "380",
+                "size_bytes": "8",
+                "kind": "read",
+                "address_kind": "memref_offset"
+              },
+              "address": "0x1000017c",
+              "level_results": [
+                {
+                  "level": 1,
+                  "lines": [
+                    {
+                      "line_address": "0x10000140",
+                      "hit": true,
+                      "set": 0,
+                      "way": 0,
+                      "evicted_address": null,
+                      "evicted_dirty": null
+                    },
+                    {
+                      "line_address": "0x10000180",
+                      "hit": false,
+                      "set": 0,
+                      "way": 1,
+                      "evicted_address": "0x10000100",
+                      "evicted_dirty": false
+                    }
+                  ]
+                },
+                {
+                  "level": 2,
+                  "lines": [
+                    {
+                      "line_address": "0x10000180",
+                      "hit": false,
+                      "set": 0,
+                      "way": null,
+                      "evicted_address": null,
+                      "evicted_dirty": null
+                    }
+                  ]
+                }
+              ],
+              "evictions": [
+                {
+                  "level": 1,
+                  "line_address": "0x10000100",
+                  "dirty": false
+                },
+                {
+                  "level": 2,
+                  "line_address": "0x100000c0",
+                  "dirty": false
+                }
+              ],
+              "memory_reads": "1",
+              "memory_writebacks": "0"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "final-l1",
+      "schema_valid_request": true,
+      "request": {
+        "method": "GET",
+        "path": "/api/v1/sessions/demo-fifo/state",
+        "query": {
+          "expected_revision": "5",
+          "level": 1,
+          "set_limit": 1
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "session_id": "demo-fifo",
+          "status": "finished",
+          "cursor": "9",
+          "revision": "5",
+          "summary": {
+            "processed": {
+              "trace_events": "9",
+              "line_accesses": "10"
+            },
+            "totals": {
+              "read_line_accesses": "9",
+              "write_line_accesses": "1",
+              "hits": "2",
+              "misses": "8",
+              "read_hits": "2",
+              "read_misses": "7",
+              "write_hits": "0",
+              "write_misses": "1",
+              "evictions": "6",
+              "writebacks": "2",
+              "hit_rate_percent": 20.0
+            },
+            "levels": [
+              {
+                "level": 1,
+                "processed": {
+                  "trace_events": "9",
+                  "line_accesses": "10"
+                },
+                "totals": {
+                  "read_line_accesses": "9",
+                  "write_line_accesses": "1",
+                  "hits": "2",
+                  "misses": "8",
+                  "read_hits": "2",
+                  "read_misses": "7",
+                  "write_hits": "0",
+                  "write_misses": "1",
+                  "evictions": "6",
+                  "writebacks": "2",
+                  "hit_rate_percent": 20.0
+                }
+              },
+              {
+                "level": 2,
+                "processed": {
+                  "trace_events": "8",
+                  "line_accesses": "8"
+                },
+                "totals": {
+                  "read_line_accesses": "7",
+                  "write_line_accesses": "1",
+                  "hits": "1",
+                  "misses": "7",
+                  "read_hits": "1",
+                  "read_misses": "6",
+                  "write_hits": "0",
+                  "write_misses": "1",
+                  "evictions": "4",
+                  "writebacks": "1",
+                  "hit_rate_percent": 12.5
+                }
+              }
+            ],
+            "requests": {
+              "events": "9",
+              "reads": "8",
+              "writes": "1",
+              "read_bytes": "36",
+              "write_bytes": "4"
+            },
+            "memory": {
+              "reads": "7",
+              "writebacks": "1"
+            }
+          },
+          "last_event": {
+            "trace_event": {
+              "sequence": "8",
+              "access_id": "10",
+              "memref_id": "0",
+              "byte_offset": "380",
+              "size_bytes": "8",
+              "kind": "read",
+              "address_kind": "memref_offset"
+            },
+            "address": "0x1000017c",
+            "level_results": [
+              {
+                "level": 1,
+                "lines": [
+                  {
+                    "line_address": "0x10000140",
+                    "hit": true,
+                    "set": 0,
+                    "way": 0,
+                    "evicted_address": null,
+                    "evicted_dirty": null
+                  },
+                  {
+                    "line_address": "0x10000180",
+                    "hit": false,
+                    "set": 0,
+                    "way": 1,
+                    "evicted_address": "0x10000100",
+                    "evicted_dirty": false
+                  }
+                ]
+              },
+              {
+                "level": 2,
+                "lines": [
+                  {
+                    "line_address": "0x10000180",
+                    "hit": false,
+                    "set": 0,
+                    "way": null,
+                    "evicted_address": null,
+                    "evicted_dirty": null
+                  }
+                ]
+              }
+            ],
+            "evictions": [
+              {
+                "level": 1,
+                "line_address": "0x10000100",
+                "dirty": false
+              },
+              {
+                "level": 2,
+                "line_address": "0x100000c0",
+                "dirty": false
+              }
+            ],
+            "memory_reads": "1",
+            "memory_writebacks": "0"
+          },
+          "cache": {
+            "level": 1,
+            "set_offset": 0,
+            "set_limit": 1,
+            "total_sets": 1,
+            "next_set_offset": null,
+            "sets": [
+              {
+                "set": 0,
+                "ways": [
+                  {
+                    "way": 0,
+                    "valid": true,
+                    "line_address": "0x10000140",
+                    "dirty": false
+                  },
+                  {
+                    "way": 1,
+                    "valid": true,
+                    "line_address": "0x10000180",
+                    "dirty": false
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "instructions-first-page",
+      "schema_valid_request": true,
+      "request": {
+        "method": "GET",
+        "path": "/api/v1/sessions/demo-fifo/instructions",
+        "query": {
+          "expected_revision": "5",
+          "limit": 2
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "session_id": "demo-fifo",
+          "cursor": "9",
+          "revision": "5",
+          "offset": "0",
+          "limit": 2,
+          "total_instructions": "3",
+          "next_offset": "2",
+          "instructions": [
+            {
+              "access_id": "10",
+              "memref_id": "0",
+              "kind": "read",
+              "address_kind": "memref_offset",
+              "source_location": "loc(\"fixture.mlir\":10:0)",
+              "events": "8",
+              "requested_bytes": "36",
+              "levels": [
+                {
+                  "level": 1,
+                  "processed": {
+                    "trace_events": "8",
+                    "line_accesses": "9"
+                  },
+                  "totals": {
+                    "read_line_accesses": "9",
+                    "write_line_accesses": "0",
+                    "hits": "2",
+                    "misses": "7",
+                    "read_hits": "2",
+                    "read_misses": "7",
+                    "write_hits": "0",
+                    "write_misses": "0",
+                    "evictions": "6",
+                    "writebacks": "2",
+                    "hit_rate_percent": 22.22222222222222
+                  }
+                },
+                {
+                  "level": 2,
+                  "processed": {
+                    "trace_events": "7",
+                    "line_accesses": "7"
+                  },
+                  "totals": {
+                    "read_line_accesses": "7",
+                    "write_line_accesses": "0",
+                    "hits": "1",
+                    "misses": "6",
+                    "read_hits": "1",
+                    "read_misses": "6",
+                    "write_hits": "0",
+                    "write_misses": "0",
+                    "evictions": "4",
+                    "writebacks": "1",
+                    "hit_rate_percent": 14.285714285714286
+                  }
+                }
+              ]
+            },
+            {
+              "access_id": "20",
+              "memref_id": "0",
+              "kind": "write",
+              "address_kind": "memref_offset",
+              "source_location": "loc(\"fixture.mlir\":20:0)",
+              "events": "1",
+              "requested_bytes": "4",
+              "levels": [
+                {
+                  "level": 1,
+                  "processed": {
+                    "trace_events": "1",
+                    "line_accesses": "1"
+                  },
+                  "totals": {
+                    "read_line_accesses": "0",
+                    "write_line_accesses": "1",
+                    "hits": "0",
+                    "misses": "1",
+                    "read_hits": "0",
+                    "read_misses": "0",
+                    "write_hits": "0",
+                    "write_misses": "1",
+                    "evictions": "0",
+                    "writebacks": "0",
+                    "hit_rate_percent": 0.0
+                  }
+                },
+                {
+                  "level": 2,
+                  "processed": {
+                    "trace_events": "1",
+                    "line_accesses": "1"
+                  },
+                  "totals": {
+                    "read_line_accesses": "0",
+                    "write_line_accesses": "1",
+                    "hits": "0",
+                    "misses": "1",
+                    "read_hits": "0",
+                    "read_misses": "0",
+                    "write_hits": "0",
+                    "write_misses": "1",
+                    "evictions": "0",
+                    "writebacks": "0",
+                    "hit_rate_percent": 0.0
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "instructions-unexecuted-site",
+      "schema_valid_request": true,
+      "request": {
+        "method": "GET",
+        "path": "/api/v1/sessions/demo-fifo/instructions",
+        "query": {
+          "expected_revision": "5",
+          "offset": "2",
+          "limit": 2
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "session_id": "demo-fifo",
+          "cursor": "9",
+          "revision": "5",
+          "offset": "2",
+          "limit": 2,
+          "total_instructions": "3",
+          "next_offset": null,
+          "instructions": [
+            {
+              "access_id": "30",
+              "memref_id": "0",
+              "kind": "read",
+              "address_kind": "memref_offset",
+              "source_location": "loc(\"fixture.mlir\":30:0)",
+              "events": "0",
+              "requested_bytes": "0",
+              "levels": [
+                {
+                  "level": 1,
+                  "processed": {
+                    "trace_events": "0",
+                    "line_accesses": "0"
+                  },
+                  "totals": {
+                    "read_line_accesses": "0",
+                    "write_line_accesses": "0",
+                    "hits": "0",
+                    "misses": "0",
+                    "read_hits": "0",
+                    "read_misses": "0",
+                    "write_hits": "0",
+                    "write_misses": "0",
+                    "evictions": "0",
+                    "writebacks": "0",
+                    "hit_rate_percent": null
+                  }
+                },
+                {
+                  "level": 2,
+                  "processed": {
+                    "trace_events": "0",
+                    "line_accesses": "0"
+                  },
+                  "totals": {
+                    "read_line_accesses": "0",
+                    "write_line_accesses": "0",
+                    "hits": "0",
+                    "misses": "0",
+                    "read_hits": "0",
+                    "read_misses": "0",
+                    "write_hits": "0",
+                    "write_misses": "0",
+                    "evictions": "0",
+                    "writebacks": "0",
+                    "hit_rate_percent": null
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "eof-no-op",
+      "schema_valid_request": true,
+      "request": {
+        "method": "POST",
+        "path": "/api/v1/sessions/demo-fifo/step",
+        "body": {
+          "expected_revision": "5"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "session_id": "demo-fifo",
+          "status": "finished",
+          "cursor": "9",
+          "revision": "5",
+          "summary": {
+            "processed": {
+              "trace_events": "9",
+              "line_accesses": "10"
+            },
+            "totals": {
+              "read_line_accesses": "9",
+              "write_line_accesses": "1",
+              "hits": "2",
+              "misses": "8",
+              "read_hits": "2",
+              "read_misses": "7",
+              "write_hits": "0",
+              "write_misses": "1",
+              "evictions": "6",
+              "writebacks": "2",
+              "hit_rate_percent": 20.0
+            },
+            "levels": [
+              {
+                "level": 1,
+                "processed": {
+                  "trace_events": "9",
+                  "line_accesses": "10"
+                },
+                "totals": {
+                  "read_line_accesses": "9",
+                  "write_line_accesses": "1",
+                  "hits": "2",
+                  "misses": "8",
+                  "read_hits": "2",
+                  "read_misses": "7",
+                  "write_hits": "0",
+                  "write_misses": "1",
+                  "evictions": "6",
+                  "writebacks": "2",
+                  "hit_rate_percent": 20.0
+                }
+              },
+              {
+                "level": 2,
+                "processed": {
+                  "trace_events": "8",
+                  "line_accesses": "8"
+                },
+                "totals": {
+                  "read_line_accesses": "7",
+                  "write_line_accesses": "1",
+                  "hits": "1",
+                  "misses": "7",
+                  "read_hits": "1",
+                  "read_misses": "6",
+                  "write_hits": "0",
+                  "write_misses": "1",
+                  "evictions": "4",
+                  "writebacks": "1",
+                  "hit_rate_percent": 12.5
+                }
+              }
+            ],
+            "requests": {
+              "events": "9",
+              "reads": "8",
+              "writes": "1",
+              "read_bytes": "36",
+              "write_bytes": "4"
+            },
+            "memory": {
+              "reads": "7",
+              "writebacks": "1"
+            }
+          },
+          "last_event": {
+            "trace_event": {
+              "sequence": "8",
+              "access_id": "10",
+              "memref_id": "0",
+              "byte_offset": "380",
+              "size_bytes": "8",
+              "kind": "read",
+              "address_kind": "memref_offset"
+            },
+            "address": "0x1000017c",
+            "level_results": [
+              {
+                "level": 1,
+                "lines": [
+                  {
+                    "line_address": "0x10000140",
+                    "hit": true,
+                    "set": 0,
+                    "way": 0,
+                    "evicted_address": null,
+                    "evicted_dirty": null
+                  },
+                  {
+                    "line_address": "0x10000180",
+                    "hit": false,
+                    "set": 0,
+                    "way": 1,
+                    "evicted_address": "0x10000100",
+                    "evicted_dirty": false
+                  }
+                ]
+              },
+              {
+                "level": 2,
+                "lines": [
+                  {
+                    "line_address": "0x10000180",
+                    "hit": false,
+                    "set": 0,
+                    "way": null,
+                    "evicted_address": null,
+                    "evicted_dirty": null
+                  }
+                ]
+              }
+            ],
+            "evictions": [
+              {
+                "level": 1,
+                "line_address": "0x10000100",
+                "dirty": false
+              },
+              {
+                "level": 2,
+                "line_address": "0x100000c0",
+                "dirty": false
+              }
+            ],
+            "memory_reads": "1",
+            "memory_writebacks": "0"
+          },
+          "executed_count": 0,
+          "events": []
+        }
+      }
+    },
+    {
+      "name": "reset",
+      "schema_valid_request": true,
+      "request": {
+        "method": "POST",
+        "path": "/api/v1/sessions/demo-fifo/reset",
+        "body": {
+          "expected_revision": "5"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "session_id": "demo-fifo",
+          "status": "ready",
+          "cursor": "0",
+          "revision": "6",
+          "summary": {
+            "processed": {
+              "trace_events": "0",
+              "line_accesses": "0"
+            },
+            "totals": {
+              "read_line_accesses": "0",
+              "write_line_accesses": "0",
+              "hits": "0",
+              "misses": "0",
+              "read_hits": "0",
+              "read_misses": "0",
+              "write_hits": "0",
+              "write_misses": "0",
+              "evictions": "0",
+              "writebacks": "0",
+              "hit_rate_percent": null
+            },
+            "levels": [
+              {
+                "level": 1,
+                "processed": {
+                  "trace_events": "0",
+                  "line_accesses": "0"
+                },
+                "totals": {
+                  "read_line_accesses": "0",
+                  "write_line_accesses": "0",
+                  "hits": "0",
+                  "misses": "0",
+                  "read_hits": "0",
+                  "read_misses": "0",
+                  "write_hits": "0",
+                  "write_misses": "0",
+                  "evictions": "0",
+                  "writebacks": "0",
+                  "hit_rate_percent": null
+                }
+              },
+              {
+                "level": 2,
+                "processed": {
+                  "trace_events": "0",
+                  "line_accesses": "0"
+                },
+                "totals": {
+                  "read_line_accesses": "0",
+                  "write_line_accesses": "0",
+                  "hits": "0",
+                  "misses": "0",
+                  "read_hits": "0",
+                  "read_misses": "0",
+                  "write_hits": "0",
+                  "write_misses": "0",
+                  "evictions": "0",
+                  "writebacks": "0",
+                  "hit_rate_percent": null
+                }
+              }
+            ],
+            "requests": {
+              "events": "0",
+              "reads": "0",
+              "writes": "0",
+              "read_bytes": "0",
+              "write_bytes": "0"
+            },
+            "memory": {
+              "reads": "0",
+              "writebacks": "0"
+            }
+          },
+          "last_event": null
+        }
+      }
+    },
+    {
+      "name": "cold-again",
+      "schema_valid_request": true,
+      "request": {
+        "method": "GET",
+        "path": "/api/v1/sessions/demo-fifo/state",
+        "query": {
+          "expected_revision": "6",
+          "level": 1,
+          "set_limit": 1
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "session_id": "demo-fifo",
+          "status": "ready",
+          "cursor": "0",
+          "revision": "6",
+          "summary": {
+            "processed": {
+              "trace_events": "0",
+              "line_accesses": "0"
+            },
+            "totals": {
+              "read_line_accesses": "0",
+              "write_line_accesses": "0",
+              "hits": "0",
+              "misses": "0",
+              "read_hits": "0",
+              "read_misses": "0",
+              "write_hits": "0",
+              "write_misses": "0",
+              "evictions": "0",
+              "writebacks": "0",
+              "hit_rate_percent": null
+            },
+            "levels": [
+              {
+                "level": 1,
+                "processed": {
+                  "trace_events": "0",
+                  "line_accesses": "0"
+                },
+                "totals": {
+                  "read_line_accesses": "0",
+                  "write_line_accesses": "0",
+                  "hits": "0",
+                  "misses": "0",
+                  "read_hits": "0",
+                  "read_misses": "0",
+                  "write_hits": "0",
+                  "write_misses": "0",
+                  "evictions": "0",
+                  "writebacks": "0",
+                  "hit_rate_percent": null
+                }
+              },
+              {
+                "level": 2,
+                "processed": {
+                  "trace_events": "0",
+                  "line_accesses": "0"
+                },
+                "totals": {
+                  "read_line_accesses": "0",
+                  "write_line_accesses": "0",
+                  "hits": "0",
+                  "misses": "0",
+                  "read_hits": "0",
+                  "read_misses": "0",
+                  "write_hits": "0",
+                  "write_misses": "0",
+                  "evictions": "0",
+                  "writebacks": "0",
+                  "hit_rate_percent": null
+                }
+              }
+            ],
+            "requests": {
+              "events": "0",
+              "reads": "0",
+              "writes": "0",
+              "read_bytes": "0",
+              "write_bytes": "0"
+            },
+            "memory": {
+              "reads": "0",
+              "writebacks": "0"
+            }
+          },
+          "last_event": null,
+          "cache": {
+            "level": 1,
+            "set_offset": 0,
+            "set_limit": 1,
+            "total_sets": 1,
+            "next_set_offset": null,
+            "sets": [
+              {
+                "set": 0,
+                "ways": [
+                  {
+                    "way": 0,
+                    "valid": false,
+                    "line_address": null,
+                    "dirty": false
+                  },
+                  {
+                    "way": 1,
+                    "valid": false,
+                    "line_address": null,
+                    "dirty": false
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "stale-page-after-reset",
+      "schema_valid_request": true,
+      "request": {
+        "method": "GET",
+        "path": "/api/v1/sessions/demo-fifo/instructions",
+        "query": {
+          "expected_revision": "5",
+          "limit": 2
+        }
+      },
+      "response": {
+        "status": 409,
+        "body": {
+          "error": {
+            "code": "revision_mismatch",
+            "message": "revision mismatch",
+            "details": {
+              "expected_revision": "5",
+              "actual_revision": "6"
+            }
+          },
+          "session_id": "demo-fifo",
+          "revision": "6"
+        }
+      }
+    },
+    {
+      "name": "delete",
+      "schema_valid_request": true,
+      "request": {
+        "method": "DELETE",
+        "path": "/api/v1/sessions/demo-fifo",
+        "query": {
+          "expected_revision": "6"
+        }
+      },
+      "response": {
+        "status": 204
+      }
+    },
+    {
+      "name": "deleted",
+      "schema_valid_request": true,
+      "request": {
+        "method": "GET",
+        "path": "/api/v1/sessions/demo-fifo"
+      },
+      "response": {
+        "status": 404,
+        "body": {
+          "error": {
+            "code": "session_not_found",
+            "message": "session not found",
+            "details": {}
+          }
+        }
+      }
+    }
+  ]
+}
