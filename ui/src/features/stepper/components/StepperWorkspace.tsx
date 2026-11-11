@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
 import { RunnerClient } from "../api/runnerClient";
 import { readStageText } from "../api/localFiles";
+import { useCallback, useMemo, useState } from "react";
+import type { RunnerLogEntry } from "../api/runnerClient";
 import { useStepperSession } from "../hooks/useStepperSession";
 import type { LevelConfig, SourceStage } from "../types/runner";
 
@@ -21,7 +22,19 @@ export function StepperWorkspace() {
   const [baseUrl, setBaseUrl] = useState("http://127.0.0.1:9055/api/v1");
   const [tracePath, setTracePath] = useState("");
   const [levels, setLevels] = useState<LevelConfig[]>([{ ...DEFAULT_LEVEL }]);
-  const client = useMemo(() => new RunnerClient(baseUrl), [baseUrl]);
+  const [requestLogs, setRequestLogs] = useState<RunnerLogEntry[]>([]);
+  const appendRequestLog = useCallback((entry: RunnerLogEntry) => {
+    setRequestLogs((current) => [...current, entry].slice(-200));
+  }, []);
+  const client = useMemo(
+    () =>
+      new RunnerClient(baseUrl, (entry) => {
+        if (!entry.ok) {
+          setRequestLogs((previous) => [entry, ...previous].slice(0, 100));
+        }
+      }),
+    [baseUrl],
+  );
   const runner = useStepperSession(client);
   const [selectedLevel, setSelectedLevel] = useState(1);
   const [selectedStage, setSelectedStage] = useState("");
@@ -175,6 +188,90 @@ export function StepperWorkspace() {
           {runner.progress && <section className="stepper-panel"><h2>Накопительная статистика</h2><div className="stepper-stats"><div><span>Hits</span><strong>{runner.progress.summary.totals.hits}</strong></div><div><span>Misses</span><strong>{runner.progress.summary.totals.misses}</strong></div><div><span>Evictions</span><strong>{runner.progress.summary.totals.evictions}</strong></div><div><span>Writebacks</span><strong>{runner.progress.summary.totals.writebacks}</strong></div><div><span>Hit rate</span><strong>{runner.progress.summary.totals.hit_rate_percent == null ? "—" : `${runner.progress.summary.totals.hit_rate_percent.toFixed(2)}%`}</strong></div></div></section>}
         </>
       )}
+      <section className="stepper-panel stepper-logs">
+        <div className="stepper-panel-heading">
+          <h2>Журнал запросов к backend</h2>
+
+          <div className="stepper-actions">
+            <span className="stepper-tag">
+              {requestLogs.length} записей
+            </span>
+
+            <button
+              className="stepper-button secondary"
+              onClick={() => {
+                const text = requestLogs.map((log) => [
+                  `[${log.time}]`,
+                  `${log.method} ${log.url}`,
+                  `Status: ${log.status ?? "NETWORK ERROR"}`,
+                  `Duration: ${log.duration} ms`,
+                  `Success: ${log.ok}`,
+                  log.response,
+                ].join("\n")).join("\n\n-------------------------\n\n");
+
+                void navigator.clipboard.writeText(text);
+              }}
+              disabled={requestLogs.length === 0}
+            >
+              Копировать лог
+            </button>
+
+            <button
+              className="stepper-button secondary"
+              onClick={() => setRequestLogs([])}
+            >
+              Очистить
+            </button>
+          </div>
+        </div>
+
+        {requestLogs.length === 0 ? (
+          <p className="stepper-muted">
+            Запросов пока нет. Ошибки появятся здесь автоматически.
+          </p>
+        ) : (
+          <div className="stepper-log-list">
+            {[...requestLogs].reverse().map((log) => (
+              <details
+                className={`stepper-log-entry ${log.ok ? "success" : "failure"}`}
+                key={log.id}
+                open={!log.ok}
+              >
+                <summary>
+                  <span className="stepper-log-time">{log.time}</span>
+
+                  <strong>{log.method}</strong>
+
+                  <span className="stepper-log-url">
+                    {log.url}
+                  </span>
+
+                  <span className={`stepper-log-status ${log.ok ? "ok" : "bad"}`}>
+                    {log.status ?? "NETWORK ERROR"}
+                  </span>
+
+                  <span className="stepper-log-duration">
+                    {log.duration} ms
+                  </span>
+                </summary>
+
+                <div className="stepper-log-details">
+                  <p>
+                    **Результат:** {log.ok ? "Успешно" : "Ошибка"}
+                  </p>
+
+                  {!log.ok && (
+                    <>
+                      <strong>Ответ сервера / причина ошибки:</strong>
+                      <pre>{log.response}</pre>
+                    </>
+                  )}
+                </div>
+              </details>
+            ))}
+          </div>
+        )}
+      </section>
     </main>
   );
 }

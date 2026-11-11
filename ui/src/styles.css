@@ -678,3 +678,95 @@ summary {
     grid-template-columns: 1fr;
   }
 }
+
+/* Backend request diagnostics */
+
+.stepper-logs {
+  margin-top: 24px;
+}
+
+.stepper-log-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.stepper-log-entry {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.stepper-log-entry.failure {
+  border-left: 4px solid #dc2626;
+}
+
+.stepper-log-entry.success {
+  border-left: 4px solid #16a34a;
+}
+
+.stepper-log-entry summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 11px;
+  cursor: pointer;
+  font-size: .82rem;
+}
+
+.stepper-log-time,
+.stepper-log-duration {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.stepper-log-url {
+  flex: 1;
+  min-width: 180px;
+  overflow-wrap: anywhere;
+  font-family: ui-monospace, monospace;
+}
+
+.stepper-log-status {
+  font-weight: 700;
+}
+
+.stepper-log-status.ok {
+  color: #16a34a;
+}
+
+.stepper-log-status.bad {
+  color: #dc2626;
+}
+
+.stepper-log-details {
+  padding: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.stepper-log-details pre {
+  padding: 12px;
+  border-radius: 7px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  overflow-x: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: .78rem;
+  font-family: ui-monospace, monospace;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+@media (max-width: 600px) {
+  .stepper-log-entry summary {
+    gap: 7px;
+  }
+
+  .stepper-log-url {
+    flex-basis: 100%;
+    order: 3;
+  }
+}

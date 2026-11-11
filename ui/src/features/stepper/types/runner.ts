@@ -9,10 +9,10 @@ export interface LevelConfig {
   random_seed?: UInt64;
 }
 
-export interface EffectiveLevel extends LevelConfig {
+export interface EffectiveLevel extends Omit<LevelConfig, "random_seed"> {
+  random_seed: string | null;
   level: number;
   set_count: number;
-  random_seed: UInt64 | null;
 }
 
 export interface SessionLimits {
