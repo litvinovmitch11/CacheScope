@@ -185,15 +185,15 @@ def main() -> None:
         mlir_opt,
         file_check,
         args.plugin,
-        tests / "instrument-llvm-fallback.mlir",
-        fallback_pipeline,
+        tests / "arbitrary-rank.mlir",
+        semantic_pipeline,
     )
-    negative_case(
+    positive_case(
         mlir_opt,
         file_check,
         args.plugin,
-        tests / "invalid-rank.mlir",
-        semantic_pipeline,
+        tests / "instrument-llvm-fallback.mlir",
+        fallback_pipeline,
     )
     negative_case(
         mlir_opt,

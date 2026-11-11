@@ -6,7 +6,7 @@
 |---|---|---|
 | MemRef | `memref.load` | semantic read event |
 | MemRef | `memref.store` | semantic write event |
-| MemRef | rank-2 strided layout | offset/stride normalization |
+| MemRef | arbitrary-rank strided layout | offset/stride normalization |
 | MemRef | scalar int/float, кроме `i1` | byte-addressable size |
 | Roots | function arguments | ID равен номеру аргумента |
 | Roots | `memref.alloc`, `memref.alloca` | последовательный root ID |
@@ -38,7 +38,6 @@
 | неизвестный direct call | callee может скрывать memory accesses |
 | indirect call | нет доказательства memory effects |
 | scalable vector access | размер неизвестен compile-time |
-| rank != 2 на semantic stage | pass пока реализует только rank-2 normalization |
 | non-strided memref | нельзя вычислить текущую нормализованную формулу |
 | `i1` | не определён byte-level access size |
 
@@ -50,7 +49,7 @@
 - semantic atomics;
 - `vector.load/store/transfer_read/transfer_write` с vector provenance;
 - dynamic tensor shapes в PyTorch demo;
-- произвольные rank и element types frontend wrapper;
+- произвольные shapes и element types текущего PyTorch frontend wrapper;
 - межпроцедурный tracing;
 - recursion;
 - многопоточность;
