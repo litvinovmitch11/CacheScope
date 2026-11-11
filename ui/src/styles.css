@@ -887,3 +887,68 @@ summary {
 .stepper-chip:hover {
   background: var(--card);
 }
+
+/* Stepwise: per-step highlights */
+
+.stepper-way.way-hit {
+  outline: 2px solid #16a34a;
+  background: color-mix(in srgb, #16a34a 20%, var(--bg));
+}
+
+.stepper-way.way-miss {
+  outline: 2px solid #dc2626;
+  background: color-mix(in srgb, #dc2626 20%, var(--bg));
+}
+
+.stepper-way.way-hit small,
+.stepper-way.way-miss small {
+  font-weight: 600;
+}
+
+/* Stepwise: set heatmap */
+
+.stepper-heatmap {
+  display: grid;
+  gap: 10px;
+}
+
+.stepper-heatmap-legend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.stepper-heatmap-gradient {
+  display: inline-block;
+  width: 120px;
+  height: 10px;
+  border-radius: 4px;
+  background: linear-gradient(to right,
+      hsl(0, 70%, 75%),
+      hsl(60, 70%, 75%),
+      hsl(120, 70%, 75%));
+}
+
+.stepper-heatmap-cells {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(34px, 1fr));
+  gap: 4px;
+  max-height: 420px;
+  overflow: auto;
+  padding: 2px;
+}
+
+.stepper-heatmap-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  min-height: 32px;
+  border-radius: 5px;
+  font-size: 0.7rem;
+  color: #1c1c1e;
+  font-variant-numeric: tabular-nums;
+  cursor: default;
+}

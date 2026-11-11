@@ -3,8 +3,9 @@ import { readStageText } from "../api/localFiles";
 import { useEffect, useMemo, useState } from "react";
 import type { RunnerLogEntry } from "../api/runnerClient";
 import { useStepperSession } from "../hooks/useStepperSession";
-import type { LevelConfig, SourceStage } from "../types/runner";
+import type { EventOutcome, LevelConfig, SourceStage } from "../types/runner";
 import { TracePicker } from "./TracePicker";
+import { HeatmapGrid } from "./HeatmapGrid";
 
 const DEFAULT_LEVEL: LevelConfig = {
   name: "L1", size_bytes: 32768, line_size_bytes: 64, associativity: 8, replacement_policy: "LRU",
@@ -16,6 +17,24 @@ function isPowerOfTwo(value: number) {
 function numberValue(value: string, fallback: number) {
   const parsed = Number(value);
   return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+type HighlightKind = "hit" | "miss";
+
+function buildHighlights(
+  event: EventOutcome | null,
+): Map<number, Map<string, HighlightKind>> {
+  const result = new Map<number, Map<string, HighlightKind>>();
+  if (!event) return result;
+  for (const lr of event.level_results) {
+    const perLevel = new Map<string, HighlightKind>();
+    for (const line of lr.lines) {
+      if (line.way === null) continue;
+      perLevel.set(`${line.set}-${line.way}`, line.hit ? "hit" : "miss");
+    }
+    result.set(lr.level, perLevel);
+  }
+  return result;
 }
 
 export function StepperWorkspace() {
@@ -59,9 +78,9 @@ export function StepperWorkspace() {
   const [stageText, setStageText] = useState("");
   const [stageError, setStageError] = useState<string | null>(null);
   const [stageBusy, setStageBusy] = useState(false);
-
   const stages = runner.metadata?.source.source_map?.stages ?? [];
   const currentEvent = runner.progress?.last_event ?? null;
+  const highlights = useMemo(() => buildHighlights(currentEvent), [currentEvent]);
   const currentAccessId = currentEvent?.trace_event.access_id;
   const currentAccess = runner.metadata?.accesses.find((item) => item.access_id === currentAccessId);
   const locations = currentAccess?.stage_locations ?? [];
@@ -261,10 +280,52 @@ export function StepperWorkspace() {
             <div className="stepper-panel-heading"><h2>Физическое состояние кеша</h2><div className="stepper-tabs">{runner.session.levels.map((level) => <button key={level.level} className={selectedLevel === level.level ? "active" : ""} onClick={() => setSelectedLevel(level.level)}>{level.name}</button>)}</div></div>
             <div className="stepper-cache-meta">{runner.session.levels.find((level) => level.level === selectedLevel)?.set_count ?? 0} sets · {runner.session.levels.find((level) => level.level === selectedLevel)?.associativity ?? 0} ways</div>
             <div className="stepper-cache-grid">
-              {allSets.map((set) => <div className="stepper-set" key={set.set}><strong>Set {set.set}</strong><div className="stepper-ways">{set.ways.map((way) => <div className={way.valid ? "stepper-way valid" : "stepper-way"} key={way.way}><b>Way {way.way}</b><span>{way.valid ? way.line_address : "INVALID"}</span>{way.valid && <small>{way.dirty ? "DIRTY" : "CLEAN"}</small>}</div>)}</div></div>)}
+              {allSets.map((set) => (
+                <div className="stepper-set" key={set.set}>
+                  <strong>Set {set.set}</strong>
+                  <div className="stepper-ways">
+                    {set.ways.map((way) => {
+                      const kind = highlights.get(selectedLevel)?.get(`${set.set}-${way.way}`);
+                      const cls =
+                        "stepper-way" +
+                        (way.valid ? " valid" : "") +
+                        (kind === "hit" ? " way-hit" : "") +
+                        (kind === "miss" ? " way-miss" : "");
+                      return (
+                        <div className={cls} key={way.way}>
+                          <b>Way {way.way}</b>
+                          <span>{way.valid ? way.line_address : "INVALID"}</span>
+                          {way.valid && <small>{way.dirty ? "DIRTY" : "CLEAN"}</small>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
           </section>
-
+          <section className="stepper-panel">
+            <div className="stepper-panel-heading">
+              <h2>Тепловая карта сетов</h2>
+              <span className="stepper-tag">
+                {runner.session.levels.find((l) => l.level === selectedLevel)?.name ?? `L${selectedLevel}`}
+              </span>
+            </div>
+            <p className="stepper-note">
+              Hit rate по каждому сету выбранного уровня, накопленный по всем выполненным событиям.
+              Наведите на ячейку, чтобы увидеть точные значения.
+            </p>
+            <HeatmapGrid
+              setCount={
+                runner.session.levels.find((l) => l.level === selectedLevel)?.set_count ?? 0
+              }
+              levelName={
+                runner.session.levels.find((l) => l.level === selectedLevel)?.name ??
+                `L${selectedLevel}`
+              }
+              stats={runner.setStats[selectedLevel] ?? {}}
+            />
+          </section>
           {runner.progress && <section className="stepper-panel"><h2>Накопительная статистика</h2><div className="stepper-stats"><div><span>Hits</span><strong>{runner.progress.summary.totals.hits}</strong></div><div><span>Misses</span><strong>{runner.progress.summary.totals.misses}</strong></div><div><span>Evictions</span><strong>{runner.progress.summary.totals.evictions}</strong></div><div><span>Writebacks</span><strong>{runner.progress.summary.totals.writebacks}</strong></div><div><span>Hit rate</span><strong>{runner.progress.summary.totals.hit_rate_percent == null ? "—" : `${runner.progress.summary.totals.hit_rate_percent.toFixed(2)}%`}</strong></div></div></section>}
         </>
       )}
