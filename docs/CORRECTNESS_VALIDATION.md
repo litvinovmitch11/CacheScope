@@ -113,8 +113,10 @@ setup вне target function не являются частью semantic trace. 
 
 | Внешнее сравнение с drcachesim | `scripts/compare_drcachesim.py`, `scripts/compare_drcachesim_exclusive.py`, `scripts/compare_drcachesim_three_levels.py`, [методика](DRCACHESIM_COMPARISON.md) | L1D и двух- и трёхуровневая exclusive LRU; сравнение каждого префикса, dirty writeback не сравнивается |
 
+| Внешнее сравнение с Cachegrind | `scripts/compare_cachegrind.py`, [методика](CACHEGRIND_COMPARISON.md) | L1D LRU для трёх native kernels; по одному байту на обращение, каждый префикс |
+
 Эталонные и внешние проверки охватывают только указанные конфигурации и трассы.
-Сравнение с Cachegrind остаётся следующим этапом.
+Сопоставление trace producer и более широких нативных программ остаётся отдельной задачей.
 
 ## 4. Профили процессоров и границы утверждений
 
