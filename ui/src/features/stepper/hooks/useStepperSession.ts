@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { RunnerClient, RunnerHttpError } from "../api/runnerClient";
 import type {
   CachePage,
@@ -21,6 +21,14 @@ export interface SetStat {
 }
 export type SetStats = Record<number, Record<number, SetStat>>;
 
+export interface StepPoint {
+  sequence: number;
+  hits: number;
+  misses: number;
+  neutral: boolean;
+}
+export type StepHistory = Record<number, StepPoint[]>;
+
 export function useStepperSession(client: RunnerClient) {
   const [session, setSession] = useState<RunnerSession | null>(null);
   const [metadata, setMetadata] = useState<RunnerMetadata | null>(null);
@@ -30,6 +38,7 @@ export function useStepperSession(client: RunnerClient) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [setStats, setSetStats] = useState<SetStats>({});
+  const [stepHistory, setStepHistory] = useState<StepHistory>({});
 
   const accumulateSetStats = useCallback((events: EventOutcome[]) => {
     if (events.length === 0) return;
@@ -51,6 +60,53 @@ export function useStepperSession(client: RunnerClient) {
       return next;
     });
   }, []);
+
+  const accumulateStepHistory = useCallback(
+    (events: EventOutcome[], levelIds: number[]) => {
+      if (events.length === 0) return;
+      setStepHistory((prev) => {
+        const next: StepHistory = { ...prev };
+        const adds: Record<number, StepPoint[]> = {};
+        for (const ev of events) {
+          const seq = Number(ev.trace_event.sequence);
+          const seen = new Set<number>();
+          for (const lr of ev.level_results) {
+            seen.add(lr.level);
+            let hits = 0;
+            let misses = 0;
+            for (const line of lr.lines) {
+              if (line.hit) hits += 1;
+              else misses += 1;
+            }
+            (adds[lr.level] ??= []).push({
+              sequence: seq,
+              hits,
+              misses,
+              neutral: false,
+            });
+          }
+          for (const levelId of levelIds) {
+            if (!seen.has(levelId)) {
+              (adds[levelId] ??= []).push({
+                sequence: seq,
+                hits: 0,
+                misses: 0,
+                neutral: true,
+              });
+            }
+          }
+        }
+        const HISTORY_LIMIT = 2000;
+        for (const [level, items] of Object.entries(adds)) {
+          const l = Number(level);
+          const merged = [...(next[l] ?? []), ...items];
+          next[l] = merged.length > HISTORY_LIMIT ? merged.slice(-HISTORY_LIMIT) : merged;
+        }
+        return next;
+      });
+    },
+    [],
+  );
 
   const refreshState = useCallback(async (current: RunnerSession) => {
     const snapshots: LevelSnapshot[] = [];
@@ -83,6 +139,7 @@ export function useStepperSession(client: RunnerClient) {
     setBusy(true); setError(null);
     try {
       setSetStats({});
+      setStepHistory({});
       let current = await client.createSession({ trace_path: tracePath, levels });
       setSession(current);
       while (current.status === "preparing") {
@@ -103,7 +160,8 @@ export function useStepperSession(client: RunnerClient) {
       });
       await refreshState(current);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Неизвестная ошибка");
+      if (isBackendDown(cause)) handleBackendDown();
+      else setError(cause instanceof Error ? cause.message : "Неизвестная ошибка");
     } finally { setBusy(false); }
   }, [client, loadMetadata, refreshState]);
 
@@ -119,11 +177,17 @@ export function useStepperSession(client: RunnerClient) {
       setLastStep(result);
       setProgress(result);
       accumulateSetStats(result.events);
+      accumulateStepHistory(
+        result.events,
+        session.levels.map((l) => l.level),
+      );
       const current = await client.getSession(session.session_id);
       setSession(current);
       await refreshState({ ...current, revision: result.revision });
     } catch (cause) {
-      if (cause instanceof RunnerHttpError && cause.status === 409) {
+      if (isBackendDown(cause)) {
+        handleBackendDown();
+      } else if (cause instanceof RunnerHttpError && cause.status === 409) {
         try {
           const current = await client.getSession(session.session_id);
           setSession(current);
@@ -144,23 +208,75 @@ export function useStepperSession(client: RunnerClient) {
     try {
       const result = await client.reset(session.session_id, progress.revision);
       setProgress(result); setLastStep(null);
+      setProgress(result); setLastStep(null);
       setSetStats({});
+      setStepHistory({});
       const current = await client.getSession(session.session_id);
       setSession(current);
       await refreshState({ ...current, revision: result.revision });
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Не удалось сбросить сессию");
+      if (isBackendDown(cause)) handleBackendDown();
+      else setError(cause instanceof Error ? cause.message : "Не удалось сбросить сессию");
     } finally { setBusy(false); }
   }, [client, progress, refreshState, session]);
+
+  const clearLocalState = useCallback(() => {
+    setSession(null);
+    setMetadata(null);
+    setProgress(null);
+    setLastStep(null);
+    setCachePages([]);
+    setSetStats({});
+    setStepHistory({});
+  }, []);
+
+  const isBackendDown = (cause: unknown): boolean =>
+    cause instanceof RunnerHttpError && cause.status === 0;
+
+  const handleBackendDown = useCallback(() => {
+    clearLocalState();
+    setError("Backend недоступен — сессия завершена");
+  }, [clearLocalState]);
 
   const clear = useCallback(async () => {
     if (session) {
       try { await client.deleteSession(session.session_id, session.revision); }
-      catch (cause) { setError(cause instanceof Error ? cause.message : "Не удалось удалить сессию"); return; }
+      catch (cause) {
+        if (isBackendDown(cause)) {
+          // бэкенд уже лежит — удалять нечего, просто очищаем локально
+          clearLocalState();
+          return;
+        }
+        setError(cause instanceof Error ? cause.message : "Не удалось удалить сессию");
+        return;
+      }
     }
-    setSession(null); setMetadata(null); setProgress(null); setLastStep(null); setCachePages([]);
-    setSetStats({});
-  }, [client, session]);
+    clearLocalState();
+  }, [client, session, clearLocalState]);
 
-  return { session, metadata, progress, lastStep, cachePages, setStats, busy, error, create, step, reset, clear };
+  const heartbeatFailures = useRef(0);
+  const activeSessionId = session?.session_id;
+
+  useEffect(() => {
+    heartbeatFailures.current = 0;
+    if (!activeSessionId) return;
+    const id = window.setInterval(async () => {
+      try {
+        await client.getSession(activeSessionId);
+        heartbeatFailures.current = 0;
+      } catch (cause) {
+        if (isBackendDown(cause)) {
+          heartbeatFailures.current += 1;
+          if (heartbeatFailures.current >= 2) {
+            handleBackendDown();
+          }
+        } else {
+          heartbeatFailures.current = 0;
+        }
+      }
+    }, 3000);
+    return () => window.clearInterval(id);
+  }, [client, activeSessionId, handleBackendDown]);
+
+  return { session, metadata, progress, lastStep, cachePages, setStats, stepHistory, busy, error, create, step, reset, clear };
 }

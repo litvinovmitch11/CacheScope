@@ -952,3 +952,96 @@ summary {
   font-variant-numeric: tabular-nums;
   cursor: default;
 }
+
+.stepper-heatmap-stack {
+  display: grid;
+  gap: 22px;
+}
+
+.stepper-heatmap-block {
+  display: grid;
+  gap: 8px;
+}
+
+.stepper-heatmap-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Stepwise: hit/miss timeline (grid of squares) */
+
+.stepper-timeline-stack {
+  display: grid;
+  gap: 16px;
+}
+
+.stepper-timeline {
+  display: grid;
+  gap: 6px;
+}
+
+.stepper-timeline-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.stepper-timeline-cells {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 14px);
+  gap: 2px;
+  padding: 6px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.stepper-timeline-cell {
+  width: 14px;
+  height: 14px;
+  border-radius: 2px;
+  background: var(--line);
+  cursor: default;
+}
+
+.stepper-timeline-cell.neutral {
+  background: var(--line);
+  opacity: 0.5;
+}
+
+.stepper-timeline-legend {
+  display: flex;
+  gap: 14px;
+  font-size: 0.78rem;
+  color: var(--muted);
+  flex-wrap: wrap;
+}
+
+.stepper-timeline-legend i {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
+.stepper-timeline-legend-mixed {
+  /* используется только как контейнер для background из inline style */
+}
+
+.stepper-timeline-svg {
+  display: block;
+  width: 100%;
+  height: 100px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
