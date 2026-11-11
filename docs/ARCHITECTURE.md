@@ -133,10 +133,10 @@ builtin.module(
 
 ### Address normalization
 
-Для rank-2 strided memref вычисляется:
+Для arbitrary-rank strided memref вычисляется:
 
 ```text
-element_offset = offset + index0 * stride0 + index1 * stride1
+element_offset = offset + sum(index[d] * stride[d])
 byte_offset = element_offset * element_size_bytes
 ```
 

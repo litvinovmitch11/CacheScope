@@ -6,7 +6,8 @@
 
 ## Текущая точка
 
-Compiler/runtime вертикаль готова для статического rank-2 `f32` matmul:
+Каноническая compiler/runtime вертикаль готова для статического rank-2 `f32`
+matmul, а semantic instrumentation поддерживает arbitrary-rank strided memrefs:
 
 ```text
 PyTorch или MLIR payload
@@ -52,6 +53,7 @@ simulation reports и переносимый HTML в одной experiment direc
 
 ## M2: расширить memory coverage
 
+- arbitrary-rank strided `memref.load/store` — выполнено;
 - добавить semantic policies для `memref.copy` и atomics;
 - нормализовать или поддержать `vector.load/store/transfer_*`;
 - добавить LLVM handlers для memcpy/memmove/memset;

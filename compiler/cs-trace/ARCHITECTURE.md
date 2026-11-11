@@ -23,7 +23,7 @@
 - input: SCF/MemRef IR после lowering structured operations;
 - scope: одна `func.func`, выбранная через `target-func`;
 - output: semantic runtime calls и location provenance markers;
-- supported data operations: rank-2 `memref.load/store`.
+- supported data operations: arbitrary-rank strided `memref.load/store`.
 
 ### `cachescope-instrument-llvm-fallback`
 

@@ -59,7 +59,7 @@ public:
 
   StringRef getArgument() const final { return "cachescope-instrument-memory"; }
   StringRef getDescription() const final {
-    return "Insert CacheScope tracing calls before rank-2 memref loads/stores";
+    return "Insert CacheScope tracing calls before ranked memref loads/stores";
   }
 
   void getDependentDialects(DialectRegistry &registry) const final {
@@ -162,9 +162,8 @@ static LogicalResult collectAccessSites(func::FuncOp function,
     }
 
     auto memrefType = dyn_cast<MemRefType>(memref.getType());
-    if (!memrefType || memrefType.getRank() != 2 || indices.size() != 2) {
-      operation->emitError(
-          "CacheScope MVP supports only rank-2 memref.load/store");
+    if (!memrefType) {
+      operation->emitError("CacheScope requires a ranked memref");
       return WalkResult::interrupt();
     }
 
