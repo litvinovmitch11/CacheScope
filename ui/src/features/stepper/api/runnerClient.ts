@@ -5,6 +5,7 @@ import type {
   RunnerSession,
   StateResponse,
   StepResponse,
+  UploadResponse,
 } from "../types/runner";
 
 export interface RunnerLogEntry {
@@ -50,15 +51,19 @@ export class RunnerClient {
     const url = `${this.baseUrl}${path}`;
     const startedAt = Date.now();
 
+    const isFormData = init?.body instanceof FormData;
+
     let response: Response;
 
     try {
       response = await fetch(url, {
         ...init,
-        headers: {
-          "Content-Type": "application/json",
-          ...init?.headers,
-        },
+        headers: isFormData
+          ? init?.headers
+          : {
+            "Content-Type": "application/json",
+            ...init?.headers,
+          },
       });
     } catch (error) {
       const message =
@@ -96,7 +101,6 @@ export class RunnerClient {
         ok: true,
         response: "No Content",
       });
-
       return undefined as T;
     }
 
@@ -113,7 +117,7 @@ export class RunnerClient {
         message = body.error?.message ?? message;
         code = body.error?.code;
       } catch {
-        // Сохраняем исходное тело ответа, даже если это не JSON.
+        // сохраняем исходное тело ответа
       }
 
       this.log({
@@ -149,6 +153,32 @@ export class RunnerClient {
         response.status,
       );
     }
+  }
+
+  /** Загружает trace.json + опциональные MLIR-файлы на runner. */
+  uploadArtifacts(files: File[]): Promise<UploadResponse> {
+    const formData = new FormData();
+    for (const file of files) {
+      if (/trace\.json$/i.test(file.name)) {
+        formData.append("trace", file);
+      } else {
+        formData.append("stages", file, file.name);
+      }
+    }
+    return this.request<UploadResponse>("/uploads", {
+      method: "POST",
+      body: formData,
+    });
+  }
+
+  /** Читает MLIR-файл через runner (аналог прежнего Vite-плагина). */
+  async readSource(tracePath: string, stagePath: string): Promise<string> {
+    const query = new URLSearchParams({
+      trace_path: tracePath,
+      stage_path: stagePath,
+    });
+    const result = await this.request<{ text: string }>(`/source?${query}`);
+    return result.text;
   }
 
   createSession(body: CreateSessionRequest) {

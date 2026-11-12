@@ -8,12 +8,16 @@ import type { LoadResult } from "./types";
 import { StepperWorkspace } from "./features/stepper";
 import { ExperimentForm } from "./components/ExperimentForm";
 
-// Пошаговая симуляция зависит от dev-сервера Vite (обзор файлов и чтение MLIR),
-// поэтому в собранном приложении, в том числе в Docker, она отключена.
-const STEPPER_ENABLED = import.meta.env.DEV;
+function isEmbeddedReport(): boolean {
+  const el = document.getElementById("cachescope-data");
+  return !!el?.textContent && el.textContent.trim() !== "null";
+}
 
 export default function App() {
-  if (STEPPER_ENABLED && new URLSearchParams(window.location.search).get("view") === "stepper") {
+  if (
+    !isEmbeddedReport() &&
+    new URLSearchParams(window.location.search).get("view") === "stepper"
+  ) {
     return <StepperWorkspace />;
   }
   return <StatsView />;
@@ -37,10 +41,12 @@ function StatsView() {
 
   return (
     <main>
-      <div className="app-heading"><h1>CacheScope</h1>{STEPPER_ENABLED && !embedded && <a href="/?view=stepper">Пошаговая симуляция →</a>}</div>
+      <div className="app-heading">
+        <h1>CacheScope</h1>
+        {!embedded && <a href="/?view=stepper">Пошаговая симуляция →</a>}
+      </div>
 
       {!embedded && <ExperimentForm onResult={setResult} />}
-
       {!embedded && <FolderPicker onFiles={onFiles} busy={busy} />}
 
       {result && result.errors.length > 0 && (
