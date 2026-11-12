@@ -10,7 +10,7 @@ const base = process.env.CACHESCOPE_E2E_URL ?? "http://127.0.0.1:9055";
 const example = (name: string) => fileURLToPath(new URL(`../../examples/ui-upload/${name}`, import.meta.url));
 
 async function prepareCopy(page: Page, inPlace = false) {
-  await page.goto(base);
+  await page.goto(base + "/?view=mlir");
   const program = inPlace ? { name: "inplace.mlir", mimeType: "text/plain",
     buffer: Buffer.from(readFileSync(example("copy.mlir"), "utf8").replace("memref.store %v, %dst", "%one = arith.constant 1.0 : f32\n        %next = arith.addf %v, %one : f32\n        memref.store %next, %src")) } : example("copy.mlir");
   await page.getByLabel("MLIR-файл", { exact: true }).setInputFiles(program);
@@ -29,6 +29,57 @@ async function prepareCopy(page: Page, inPlace = false) {
   await page.getByLabel("L1 запись", { exact: true }).selectOption("write_back");
   await page.getByLabel("L1 размещение записи", { exact: true }).selectOption("write_allocate");
 }
+
+test("one product navigation connects experiments, results, and stepper", async ({ page }) => {
+  await page.goto(base);
+  await expect(page.getByRole("heading", { name: "Ваш Torch → MLIR эксперимент", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Проект", exact: true })).toHaveAttribute("aria-current", "page");
+  for (const schedule of ["baseline.mlir", "tile-6.mlir", "tile-10.mlir", "tile-14.mlir"])
+    await expect(page.getByRole("button", { name: schedule, exact: true })).toBeVisible();
+
+  await page.getByRole("link", { name: "Валидация", exact: true }).click();
+  await expect(page).toHaveURL(/\?view=validation$/);
+  await expect(page.getByRole("heading", { name: "Почему результатам cache model можно доверять", exact: true })).toBeVisible();
+  await expect(page.getByText("25 / 25 префиксов совпали", { exact: true })).toBeVisible();
+  await expect(page.getByText("19 + 45 + 49 префиксов совпали", { exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Валидация", exact: true })).toHaveAttribute("aria-current", "page");
+
+  await page.getByRole("link", { name: "Импорт результата", exact: true }).click();
+  await expect(page).toHaveURL(/\?view=import$/);
+  await expect(page.getByRole("heading", { name: "Импорт готового результата", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Импорт результата", exact: true })).toHaveAttribute("aria-current", "page");
+
+  await page.getByRole("link", { name: "Stepper", exact: true }).click();
+  await expect(page).toHaveURL(/\?view=stepper$/);
+  await expect(page.getByRole("heading", { name: "Пошаговая симуляция", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Stepper", exact: true })).toHaveAttribute("aria-current", "page");
+
+  await page.getByRole("link", { name: "MLIR / NPZ", exact: true }).click();
+  await expect(page).toHaveURL(/\?view=mlir$/);
+  await expect(page.getByRole("heading", { name: "Запустить MLIR", exact: true })).toBeVisible();
+
+  await page.getByRole("link", { name: "Проект", exact: true }).click();
+  await expect(page).toHaveURL(new RegExp("/$"));
+  await expect(page.getByRole("heading", { name: "Ваш Torch → MLIR эксперимент", exact: true })).toBeVisible();
+});
+
+test("Project Studio adds a documented hardware preset as an executable profile", async ({ page }) => {
+  await page.goto(base + "/?open=hardware-presets#hardware-presets");
+  await expect(page.getByText("Документированные hardware presets", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Добавить IntelDX2 — встроенный L1, WT", exact: true }).click();
+  const profiles = JSON.parse(await page.locator(".studio-editor textarea").inputValue());
+  expect(profiles["intel-dx2-l1-wt"]).toEqual({
+    levels: [{
+      name: "L1", size_bytes: 8192, line_size_bytes: 16, associativity: 4,
+      replacement_policy: "PLRU4", write_policy: "write_through",
+      allocation_policy: "no_write_allocate",
+    }],
+    hierarchy: {
+      inclusion_policies: [], writeback_clean: false,
+      non_inclusive_fill: "all_levels",
+    },
+  });
+});
 
 test("upload MLIR and tensors, run real compiler and show the report without navigation", async ({ page }) => {
   test.setTimeout(180_000);
@@ -70,7 +121,7 @@ test("embedded HTML report still works without contacting the backend", async ({
 
 test("invalid MLIR shows an error on the same page and allows a new upload", async ({ page }) => {
   test.setTimeout(60_000);
-  await page.goto(base);
+  await page.goto(base + "/?view=mlir");
   await page.getByLabel("MLIR-файл", { exact: true }).setInputFiles({ name: "invalid.mlir", mimeType: "text/plain", buffer: Buffer.from("not MLIR") });
   await page.getByLabel("Входные данные (NPZ)", { exact: true }).setInputFiles(example("inputs.npz"));
   await page.getByRole("button", { name: "Проверить файлы", exact: true }).click();

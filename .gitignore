@@ -1,7 +1,6 @@
 build/
 .deps/
 /output/*
-!/output/product-e2e/
 compile_commands.json
 venv/
 .venv/

@@ -1,9 +1,8 @@
 .git
 build
 .deps
-# Include the checked-in report; exclude other generated experiments.
-output/*
-!output/product-e2e/
+# Generated experiments are not runtime inputs.
+output
 venv
 .venv
 **/node_modules

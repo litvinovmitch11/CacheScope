@@ -8,6 +8,12 @@ runner: [семантика](../docs/RUNNER_API.md),
 [примеры запросов и ответов](fixtures/runner-api-v1/README.md).
 Существующие файловые форматы trace и отчётов не меняются.
 
+`cachescope.torch-project.v1.schema.json` задаёт редактируемый локальный
+Torch/MLIR project: Python entrypoints, варианты Transform Dialect, cache
+profiles и параметры validation/trace/Stepper. Cache profile принимает
+compact runner-строки либо structured `{levels, hierarchy}` для точных
+write/allocation policies и hardware presets.
+
 `fixtures/` содержит общие примеры для compiler, runner и UI:
 
 - `trace-v1-*.json` — полная, обрезанная и invalid трассы;

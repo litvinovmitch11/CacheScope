@@ -1,9 +1,10 @@
 # Проверка корректности CacheScope
 
-Этот документ фиксирует предмет и критерии проверки симулятора кеша, trace
-producer и полного pipeline. Он описывает план проверки, а не утверждает, что
-внешнее сравнение или формальное доказательство уже выполнены. Текущие ограничения
-реализации перечислены в [support matrix](SUPPORT_MATRIX.md), контракты — в
+Этот документ фиксирует предмет, реализованные проверки и критерии корректности
+симулятора, trace producer и полного pipeline. Внешние сравнения с Cachegrind,
+drcachesim и drmemtrace выполнены в явно ограниченных конфигурациях; это не
+формальное доказательство для всех workloads. Текущие ограничения перечислены
+в [support matrix](SUPPORT_MATRIX.md), контракты — в
 [описании иерархии](../simulator/README.md) и [формате статистики](SIMULATION_FORMAT.md).
 
 ## 1. Что проверяем
@@ -111,12 +112,14 @@ setup вне target function не являются частью semantic trace. 
 | Независимый эталон: один уровень, LRU/FIFO | `simulator/tests/reference_tests.cpp` | Все трассы длины 5 из четырёх строк, четыре геометрии; отдельная длинная трасса с фиксированным seed |
 | Независимый эталон: exclusive, два и три уровня, LRU/FIFO | `simulator/tests/exclusive_reference_tests.cpp` | Все трассы длины 5 из четырёх строк, пять конфигураций; отдельная длинная трасса с фиксированным seed |
 
-| Внешнее сравнение с drcachesim | `scripts/compare_drcachesim.py`, `scripts/compare_drcachesim_exclusive.py`, `scripts/compare_drcachesim_three_levels.py`, [методика](DRCACHESIM_COMPARISON.md) | L1D и двух- и трёхуровневая exclusive LRU; сравнение каждого префикса, dirty writeback не сравнивается |
+| Внешнее сравнение с drcachesim | `scripts/compare_drcachesim.py`, `scripts/compare_drcachesim_exclusive.py`, `scripts/compare_drcachesim_three_levels.py`, [методика](DRCACHESIM_COMPARISON.md) | L1D и exclusive L1/L2/L3: 19/45/49 префиксов совпали; dirty writeback не сравнивается |
 
-| Внешнее сравнение с Cachegrind | `scripts/compare_cachegrind.py`, [методика](CACHEGRIND_COMPARISON.md) | L1D LRU для трёх native kernels; по одному байту на обращение, каждый префикс |
+| Внешнее сравнение с Cachegrind | `scripts/compare_cachegrind.py`, [методика](CACHEGRIND_COMPARISON.md) | L1D LRU для трёх native kernels; 25/25 префиксов совпали |
+| Semantic trace против machine trace | `tests/compare_drmemtrace.py`, `tests/compare_drmemtrace_matmul.py`, [методика](DRMEMTRACE_COMPARISON.md) | 6 событий малого kernel и 16 384 события каждого из трёх matmul variants совпали |
 
 Эталонные и внешние проверки охватывают только указанные конфигурации и трассы.
-Сопоставление trace producer и более широких нативных программ остаётся отдельной задачей.
+Расширение на другие native programs, оптимизации и многопоточность остаётся
+отдельной задачей.
 
 ## 4. Профили процессоров и границы утверждений
 

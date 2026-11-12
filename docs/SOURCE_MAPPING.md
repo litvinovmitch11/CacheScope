@@ -224,9 +224,10 @@ origin. Для него mapping fields могут отсутствовать л�
 
 ## UI navigation
 
-Этот раздел задаёт целевое поведение consumer-а. Producer, validator и runner
-уже публикуют и сохраняют необходимые metadata; UI v0.1 пока не реализует эту
-навигацию и отображает только статистическую часть experiment bundle.
+Interactive Stepper реализует переход из dynamic event к MLIR stage: находит
+static access по `access_id`, выбирает `stage_location`, загружает соответствующий
+dump и подсвечивает operation. Обратный переход от произвольной строки editor к
+множеству events пока не реализован.
 
 Из dynamic event в IR:
 

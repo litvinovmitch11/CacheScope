@@ -27,6 +27,11 @@
 | Transform | tiling и loop interchange | проверено на примерах |
 | Source map | input → transformed → loops → instrumentation → LLVM | embedded `cachescope.source-map.v1` |
 | Provenance | один high-level origin → несколько access sites | проверено на baseline/tile/interchange |
+| Torch Studio | пользовательские `model.py`, `inputs.py`, Transform schedules | CPU f32 static shapes, один Tensor output; операции в пределах torch-mlir/current lowering |
+| Cache profiles | compact strings и structured `{levels, hierarchy}` | все schedules replay на одинаковых profiles |
+| Hardware presets | IntelDX2 L1 WT, Enhanced IntelDX4 L1 WB | документированные PLRU/write/allocation policies |
+| Interactive UI | report → выбранные schedule/profile → Stepper | точные levels/hierarchy, event, source location, sets/ways, timeline |
+| External validation | Cachegrind, drcachesim, drmemtrace | воспроизводимые scripts и CI workflows |
 
 ## Обнаруживается, но отклоняется
 
@@ -55,7 +60,7 @@
 - многопоточность;
 - GPU/NVVM/ROCDL memory spaces;
 - доказанная корректность provenance для произвольных fusion/unrolling passes;
-- интерактивная визуализация `events.json` и source-map navigation в UI.
+- обратная навигация из произвольной MLIR operation ко всем dynamic events.
 
 ## Trace runner
 

@@ -17,7 +17,8 @@ frontend
   → trace.v1 JSON
   → cache runner
   → statistics/events JSON
-  → standalone UI report
+  → comparative report
+  → selected schedule/profile Stepper
 ```
 
 `runner/` потребляет trace независимо от LLVM/MLIR, вызывает `CacheHierarchy`
@@ -53,14 +54,14 @@ trace producer. Он не является runtime cache emulator.
 
 ### `examples/trace_demo.py`
 
-Канонический orchestration driver. Он строит baseline/tile/interchange одного
-MLIR payload, запускает оба instrumentation passes, выполняет код, валидирует
-traces и сравнивает dynamic order. PyTorch frontend оставлен дополнительной
-интеграцией, а не основным способом понять систему.
+Канонический developer driver. Он строит baseline/tile/interchange одного MLIR
+payload, запускает оба instrumentation passes, выполняет код, валидирует traces
+и сравнивает dynamic order. Это минимальный regression/reference flow; основной
+пользовательский сценарий находится в локальном Torch Project Studio.
 
 ### `examples/product-e2e`
 
-Продуктовый orchestration driver. Он использует canonical compiler driver,
+CLI regression/reference driver. Он использует compiler driver,
 запускает `cachescope-runner` для каждого варианта, проверяет согласованность
 trace/statistics/events и передаёт готовую experiment directory генератору
 standalone UI report. Cache model может быть одним L1 или связанной
@@ -68,9 +69,21 @@ exclusive L1/L2/L3 hierarchy.
 
 ### `examples/torch-demo`
 
-Frontend и orchestration layer. Он экспортирует `torch.nn.Module` через
+Regression-проверка Torch frontend. Она экспортирует `torch.nn.Module` через
 torch-mlir, запускает Transform Dialect, bufferization, instrumentation,
 LLVM lowering, AOT compilation и вызов через `ctypes`.
+
+### Local Experiment Studio
+
+`runner/app` обслуживает собранный UI и lifecycle одного локального job.
+`compiler/torch_project_worker.py` принимает доверенный Torch project,
+независимо обрабатывает schedules, проверяет Torch oracle/provenance и
+воспроизводит traces на compact или structured cache profiles. Report и Stepper
+получают artifacts через тот же HTTP server.
+
+Вкладка Validation публикует границы и воспроизводимые результаты независимых
+сравнений Cachegrind, drcachesim и drmemtrace. Hardware presets задают
+документированные cache parameters, но не обещают cycle accuracy.
 
 ### `tests`
 
@@ -276,9 +289,9 @@ Runtime буферизует события в памяти. File I/O на ка�
 runtime. Поэтому документационный пример и CI не расходятся на две копии
 pipeline.
 
-## 9. PyTorch frontend
+## 9. PyTorch frontends
 
-Текущий frontend намеренно AOT и сохраняет каждый IR stage:
+Канонический `examples/torch-demo` намеренно AOT и сохраняет каждый IR stage:
 
 ```text
 torch.nn.Module.forward
@@ -293,9 +306,17 @@ torch.nn.Module.forward
   → ctypes call
 ```
 
-Wrapper принимает два input и один output buffer. Возвращённый MLIR buffer
-копируется в Python output и освобождается. Wrapper не входит в `target-func`,
-поэтому интеграционные load/store не попадают в kernel trace.
+Его фиксированный matmul-wrapper принимает два input и один output buffer.
+Возвращённый MLIR buffer копируется в Python output и освобождается. Wrapper не
+входит в `target-func`, поэтому интеграционные load/store не попадают в kernel
+trace.
+
+Universal worker Project Studio строит wrapper по фактическому непустому tuple
+из `create_inputs()` и поддерживает произвольное число CPU `float32` inputs с
+положительными static shapes, но пока также требует ровно один Tensor output.
+Граница поддерживаемых operations определяется torch-mlir export и текущим
+lowering pipeline; неподдержанный schedule завершается диагностикой отдельно от
+остальных.
 
 PyTorch одновременно является понятным frontend и numerical oracle:
 `torch.testing.assert_close` проверяет каждый compiled variant.

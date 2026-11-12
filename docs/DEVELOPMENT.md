@@ -92,8 +92,7 @@ baseline/tile/interchange end-to-end. Runner, hierarchy и simulator прове�
 CacheScope против готовых закреплённых apt.llvm.org packages. CI не скачивает
 LLVM source, не собирает LLVM и не кеширует LLVM build tree.
 
-Канонический пользовательский pipeline запускается отдельно и использует ту
-же сборку:
+Минимальный compiler reference flow использует ту же сборку:
 
 ```bash
 python3 examples/trace_demo.py
@@ -102,8 +101,8 @@ python3 examples/trace_demo.py
 Он создаёт три variants, traces и `output/trace-demo/summary.json`. Подробное
 описание находится в [`examples/README.md`](../examples/README.md).
 
-Полная продуктовая вертикаль дополнительно собирает runner CLI, воспроизводит
-три trace через демонстрационный L1 и создаёт standalone UI report:
+Полный CLI regression flow дополнительно собирает runner, воспроизводит три
+trace через демонстрационный L1 и создаёт standalone UI report:
 
 ```bash
 python3 examples/product-e2e/run.py
@@ -115,10 +114,13 @@ python3 examples/product-e2e/run.py
 Примеры LRU/FIFO/Random/PLRU4, разных геометрий и hardware-like конфигурации находятся
 в [`CACHE_MODELS.md`](CACHE_MODELS.md).
 
+Основной пользовательский сценарий — локальный Docker Project Studio. Его
+запуск и контракт проекта находятся в [корневом README](../README.md).
+
 ## PyTorch frontend
 
-Compiler и MLIR тесты не требуют PyTorch. Для полного frontend demo создайте
-окружение отдельно:
+Production Docker image уже содержит pinned PyTorch environment. Для нативной
+developer-проверки frontend и worker создайте окружение отдельно:
 
 ```bash
 python3 -m venv venv

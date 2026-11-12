@@ -19,10 +19,22 @@ git diff --check
 python3 examples/trace_demo.py
 ```
 
-Изменение границы compiler/runner/UI либо cache model дополнительно требует:
+Изменение compiler/runner boundary либо cache model дополнительно требует
+низкоуровневый reference flow:
 
 ```bash
 python3 examples/product-e2e/run.py
+```
+
+Изменение Project Studio, experiment API, report или Stepper дополнительно
+проверяется на поднятом Docker-приложении:
+
+```bash
+docker compose up --build -d
+docker compose exec -T cachescope python3 tests/experiment_suite.py \
+  --url http://127.0.0.1:9055 --repo .
+npm --prefix ui run test:e2e
+docker compose down
 ```
 
 Изменения PyTorch frontend дополнительно требуют:

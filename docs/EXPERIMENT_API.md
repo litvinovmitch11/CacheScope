@@ -9,21 +9,112 @@ UI и API обслуживаются одним процессом на `http://
 
 | Метод | Путь | Назначение |
 | --- | --- | --- |
-| POST | `/api/v1/experiments` | multipart `mlir` и `inputs`, по одному файлу; 202 + Location |
+| GET | `/api/v1/experiment-templates` | catalog встроенных experiment templates и их доступность |
+| POST | `/api/v1/experiments` | multipart `mlir` + `inputs`, JSON template либо JSON Torch project; 202 + Location |
 | GET | `/api/v1/experiments` | `{experiments: []}` или один текущий descriptor |
 | GET | `/api/v1/experiments/{id}` | текущий descriptor |
 | POST | `/api/v1/experiments/{id}/run` | JSON параметров запуска; 202 |
 | POST | `/api/v1/experiments/{id}/cancel` | отменить активную работу; 202, повторная отмена безопасна |
 | GET | `/api/v1/experiments/{id}/report` | `{statistics, trace}` только после полного успеха |
+| GET | `/api/v1/experiments/{id}/results` | compact comparison entries Torch template/project |
+| GET | `/api/v1/experiments/{id}/artifacts` | ссылки на опубликованные artifacts |
+| GET | `/api/v1/experiments/{id}/artifacts/report` | HTML встроенного template; для Torch project redirect на UI report screen |
+| GET | `/api/v1/experiments/{id}/artifacts/summary` | machine-readable summary |
+| GET | `/api/v1/experiments/{id}/artifacts/stepper?variant={name}&profile={name}` | manifest trace/stages выбранного schedule и выбранной cache config |
 
-Descriptor содержит `experiment_id`, `status`, `stage`, `metadata`, `spec`,
-`error`. Статусы: preparing → ready → running → completed; ошибки дают failed;
+Descriptor содержит `experiment_id`, `template_id`, `status`, `stage`,
+`progress`, `metadata`, `spec`, `artifacts`, `error`. Статусы: preparing →
+ready → running → completed; ошибки дают failed;
 отмена проходит через cancelling → cancelled. Этапы — inspection, compilation,
 execution, simulation. Для ready/completed stage равен null.
 
 Metadata содержит `functions` (name, supported, reason, arguments) и
 `arrays` (key, shape, dtype). Аргументы имеют index, type и shape; привязки
 задаются по порядку аргументов, без угадывания исходных SSA-имён.
+`inputs.npz` является обычным архивом `numpy.savez`: каждый именованный массив
+становится отдельным `arrays[].key`. Для binding допускается только `float32`
+массив с формой, точно равной статической форме соответствующего MLIR memref;
+reshape, broadcasting и неявное преобразование dtype не выполняются.
+
+Встроенный Torch experiment запускается тем же POST с JSON:
+
+```json
+{
+  "template_id": "depthwise-temporal-blocking",
+  "parameters": {"tile_sizes": [6, 10, 14], "stepper_events": 2048},
+  "timeout_seconds": 1800
+}
+```
+
+Он сразу переходит в running. `progress` содержит stage, message и, для
+variant/cache loops, current, total и variant. После completed `results`
+возвращает данные всех вариантов и двух cache profiles, а artifact manifest
+позволяет UI открыть report и создать Stepper session без filesystem paths.
+
+## Редактируемый локальный Torch project
+
+Experiment Studio отправляет весь доверенный проект в одном JSON-запросе:
+
+```json
+{
+  "schema": "cachescope.torch-project.v1",
+  "name": "My locality experiment",
+  "files": {
+    "model.py": "import torch\ndef create_model(): ...\n",
+    "inputs.py": "import torch\ndef create_inputs(): ...\n"
+  },
+  "variants": [
+    {"name": "baseline", "transform": "module attributes {transform.with_named_sequence} {...}"},
+    {"name": "tiled", "transform": "module attributes {transform.with_named_sequence} {...}"}
+  ],
+  "cache_profiles": {
+    "l1-small": ["L1:16384:64:4:lru"],
+    "intel-dx2-l1-wt": {
+      "levels": [{
+        "name": "L1", "size_bytes": 8192, "line_size_bytes": 16,
+        "associativity": 4, "replacement_policy": "PLRU4",
+        "write_policy": "write_through",
+        "allocation_policy": "no_write_allocate"
+      }],
+      "hierarchy": {
+        "inclusion_policies": [], "writeback_clean": false,
+        "non_inclusive_fill": "all_levels"
+      }
+    }
+  },
+  "settings": {
+    "stepper_events": 2048,
+    "trace_limit": 2000000,
+    "validation": {"rtol": 0.00001, "atol": 0.00001}
+  },
+  "timeout_seconds": 1800
+}
+```
+
+`model.py` экспортирует `create_model() -> torch.nn.Module`, `inputs.py` —
+`create_inputs() -> tuple[torch.Tensor, ...]`. Каждый schedule — независимый
+`@__transform_main`; ошибка одного варианта публикуется в `variants`, остальные
+продолжают pipeline. Код исполняется локально без sandbox как код доверенного
+пользователя. Контракт: [JSON Schema](../schemas/cachescope.torch-project.v1.schema.json).
+В job descriptor исходники из `files` и `variants[].transform` не повторяются:
+они остаются в локальном draft UI, а polling передаёт только manifest metadata и
+progress.
+
+Текущая поддерживаемая граница: CPU, float32, положительные static shapes,
+один Tensor на выходе и функция `forward`. Worker один раз вычисляет
+`model(*inputs)` в eager Torch, экспортирует Linalg-on-tensors, компилирует
+каждый schedule и вызывает
+`torch.testing.assert_close(compiled, eager, rtol=..., atol=...)`,
+снимает semantic trace и применяет одинаковые cache profiles ко всем успешным
+вариантам. Compact profile использует runner-строки; structured profile
+`{levels, hierarchy}` сохраняет write/allocation и межуровневые policies.
+Для каждого успешного schedule с ненулевым `stepper_events` worker
+публикует отдельный `stepper/<variant>/` bundle. UI report требует явного
+выбора варианта и cache profile и передаёт их в Stepper manifest endpoint.
+Manifest возвращает нормализованные `levels`, `hierarchy`, а также фактически
+выбранные `variant` и `profile`. Stepper создаёт interactive session с теми же
+inclusion/writeback/fill policies, которые использовались при batch replay, и
+показывает этот контекст над сессией.
 
 Пример `run`:
 
@@ -74,7 +165,10 @@ CACHESCOPE_BUILD_DIR=/absolute/path/build/app LLVM_ROOT=/usr/lib/llvm-22 \
   build/app/runner/cachescope_runner_server --app-dir "$PWD"
 ```
 
-Нужен Python с NumPy. Обычная standalone-сборка runner не требует LLVM;
+Для встроенного template нужен `venv/bin/python` с
+`requirements-torch-demo.lock` либо `CACHESCOPE_PYTHON=/path/to/python`.
+Catalog возвращает `available: false`, если pinned Python environment или
+compiler artifacts отсутствуют. Для MLIR upload нужен Python с NumPy. Обычная standalone-сборка runner не требует LLVM;
 без `--app-dir` API экспериментов возвращает 503, а sessions работают как раньше.
 Для разработки UI Vite проксирует `/api` на локальный порт 9055.
 

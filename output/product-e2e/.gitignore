@@ -1,3 +1,0 @@
-# Track the ready report bundle; keep temporary compiler dumps local.
-.*
-!.gitignore
