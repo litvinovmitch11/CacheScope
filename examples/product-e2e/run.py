@@ -55,33 +55,38 @@ def parse_args() -> argparse.Namespace:
         / "product-e2e",
     )
     parser.add_argument(
+        "--cache-profile",
+        choices=("intel-486dx-geometry", "amd-a8-3850-lru"),
+        help="Built-in approximate cache profile; cannot be combined with cache options.",
+    )
+    parser.add_argument(
         "--cache-size-bytes",
         type=int,
-        default=512,
+        default=None,
         help="Demonstration L1 capacity (default: 512).",
     )
     parser.add_argument(
         "--line-size-bytes",
         type=int,
-        default=64,
+        default=None,
         help="Cache line size (default: 64).",
     )
     parser.add_argument(
         "--associativity",
         type=int,
-        default=1,
+        default=None,
         help="Cache associativity (default: 1).",
     )
     parser.add_argument(
         "--replacement-policy",
         choices=("lru", "fifo", "random", "plru4"),
-        default="lru",
+        default=None,
         help="Replacement policy (default: lru).",
     )
     parser.add_argument(
         "--random-seed",
         type=int,
-        default=42,
+        default=None,
         help="Deterministic seed for random policy (default: 42).",
     )
     parser.add_argument(
@@ -104,7 +109,22 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Produce traces and simulation reports without building HTML.",
     )
-    return parser.parse_args()
+    args = parser.parse_args()
+    cache_defaults = {
+        "cache_size_bytes": 512,
+        "line_size_bytes": 64,
+        "associativity": 1,
+        "replacement_policy": "lru",
+        "random_seed": 42,
+    }
+    if args.cache_profile and (
+        args.cache_levels or any(getattr(args, name) is not None for name in cache_defaults)
+    ):
+        parser.error("--cache-profile cannot be combined with cache configuration options")
+    for name, default in cache_defaults.items():
+        if getattr(args, name) is None:
+            setattr(args, name, default)
+    return args
 
 
 def run(
@@ -216,7 +236,9 @@ def replay_variants(args: argparse.Namespace, runner: Path) -> list[dict]:
             "--output-dir",
             simulation_dir,
         ]
-        if args.cache_levels:
+        if args.cache_profile:
+            command.extend(["--cache-profile", args.cache_profile])
+        elif args.cache_levels:
             for level in args.cache_levels:
                 command.extend(["--cache-level", level])
         else:
@@ -256,7 +278,7 @@ def replay_variants(args: argparse.Namespace, runner: Path) -> list[dict]:
         if len(events.get("events", [])) != trace.get("recorded_events"):
             raise RuntimeError(f"Trace/timeline event mismatch: {variant}")
         results.append(statistics)
-    if not args.cache_levels and (
+    if not args.cache_profile and not args.cache_levels and (
         args.cache_size_bytes,
         args.line_size_bytes,
         args.associativity,
@@ -379,9 +401,19 @@ def publish_results(
         "",
         "Иерархия: exclusive, write-back, write-allocate.",
         "",
+    ]
+    if args.cache_profile:
+        profile = statistics[0]["profile"]
+        result_lines.extend([
+            f"Профиль: `{profile['id']}` — приближение аппаратной модели.",
+            f"Источник: {profile['source']}",
+            *[f"- {item}" for item in profile["limitations"]],
+            "",
+        ])
+    result_lines.extend([
         "| Level | Capacity | Line | Ways | Policy |",
         "|---|---:|---:|---:|---|",
-    ]
+    ])
     for level, config in zip(levels, configurations, strict=True):
         result_lines.append(
             f"| `{level['name']}` | {config['size_bytes']} B | "

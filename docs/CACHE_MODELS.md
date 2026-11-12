@@ -15,6 +15,79 @@
 UI, HTTP API и CLI `--config` поддерживают настройки, описанные ниже.
 Короткие CLI-флаги и product driver сохраняют прежние defaults.
 
+## Intel486 DX: приближение по геометрии
+
+```bash
+python3 examples/product-e2e/run.py --cache-profile intel-486dx-geometry \
+  --output-dir output/product-e2e-486dx
+
+build/runner/cachescope-runner --cache-profile intel-486dx-geometry \
+  --trace output/trace-demo/baseline/trace.json \
+  --output-dir output/trace-demo/486dx
+```
+
+Профиль задаёт L1 8 KiB, строку 16 B и 4-way (128 sets), как у
+[Intel486 DX](https://www.ardent-tool.com/CPU/docs/Intel/486/datasheets/240440-006.pdf).
+CLI-профиль нельзя смешивать с `--config`, отдельными cache-параметрами или
+`--cache-level`. Это отдельное приближение CLI; в список подтверждённых
+процессоров UI оно не включено.
+
+**Это приближение по геометрии, не точная модель процессора.** Intel486 DX
+использует pseudo-LRU и write-through; CacheScope — LRU и write-back с
+write-allocate. Аппаратный L1 объединяет инструкции и данные, а наши трассы
+содержат только обращения к данным. Поэтому количество hits/misses и трафик
+памяти могут отличаться от реального процессора. Модель адресов также зависит
+от размещения буферов в трассе. Метаданные профиля и ограничения сохраняются
+в `statistics.json`, `events.json` и `RESULTS.md` product run.
+
+## AMD A8-3850 (Llano): exclusive L1/L2
+
+```bash
+python3 examples/product-e2e/run.py --cache-profile amd-a8-3850-lru \
+  --output-dir output/product-e2e-a8-3850
+
+build/runner/cachescope-runner --cache-profile amd-a8-3850-lru \
+  --trace output/trace-demo/baseline/trace.json \
+  --output-dir output/trace-demo/a8-3850
+```
+
+Модель одного ядра: L1 data — 64 KiB, 64 B, 2-way LRU; L2 — 1 MiB,
+64 B, 16-way LRU. Иерархия exclusive, write-back и write-allocate.
+[Руководство AMD для Family 10h/12h](https://www.amd.com/content/dam/amd/en/documents/archived-tech-docs/software-optimization-guides/40546.pdf)
+подтверждает L1 LRU, write-back/write-allocate и exclusive L2;
+[замер CPUID для A8-3850](https://valid.x86.fr/ia50qn) подтверждает размеры
+и ассоциативности, а [отчёт CPU-Z](https://www.hwupgrade.it/forum/showthread.php?page=178&s=1300ebc54ff000cb5df6afbf8212370e&t=2371637)
+указывает строку 64 B для обоих уровней.
+
+Это **приближение**, а не точная модель: политика вытеснения L2 в указанном
+руководстве AMD не установлена, поэтому выбрана LRU. В аппаратный L2 попадают
+и инструкции; здесь моделируются только данные. Также отсутствуют аппаратный
+prefetch, спекулятивные обращения, когерентность и воздействие других ядер;
+детали перемещения строк могут отличаться. Ограничения включены в отчёты.
+CLI-профиль нельзя смешивать с `--config`, отдельными cache-параметрами или
+`--cache-level`; он не входит в список подтверждённых процессоров UI.
+
+### Проверка L2 на рабочем наборе 128 KiB
+
+```bash
+python3 examples/a8-l2/run.py
+```
+
+Пример компилирует и инструментирует MLIR-kernel, дважды читает массив
+128 KiB с шагом 64 B и воспроизводит полный trace на `amd-a8-3850-lru`.
+Размер массива вдвое больше L1 и помещается в L2. Первые 2048 обращений
+заполняют и вытесняют строки; повторный проход даёт L2 hits. Проверяемый
+результат для модели CacheScope:
+
+| L1 misses | L1 evictions | L2 hits | L2 misses |
+|---:|---:|---:|---:|
+| 4096 | 3072 | 2048 | 2048 |
+
+Trace и MLIR-стадии находятся в `output/a8-l2/baseline/`, отчёты — в
+`output/a8-l2/simulation/{statistics,events}.json`. Доступны `--llvm-root`,
+`--build-dir` и `--output-dir`. Это детерминированная проверка **модели**,
+а не измерение аппаратных счётчиков; ограничения профиля действуют и здесь.
+
 ## Reference product run
 
 ```bash

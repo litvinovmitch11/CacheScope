@@ -4,6 +4,9 @@
 
 #include <filesystem>
 #include <map>
+#include <optional>
+#include <string>
+#include <vector>
 
 namespace cache_simulator {
 
@@ -57,11 +60,18 @@ struct RunSummary {
   std::map<std::uint64_t, BufferLayout> buffers;
 };
 
+struct CacheProfile {
+  std::string id;
+  std::string source;
+  std::vector<std::string> limitations;
+};
+
 // Input must remain unchanged throughout both passes. Throws std::runtime_error
 // on invalid input, model failure or I/O failure. A failed replay may leave the
 // model partially populated, but never replaces a previously published report.
 RunSummary run_trace(const std::filesystem::path &input_path,
                      CacheHierarchy &hierarchy,
-                     const std::filesystem::path &report_path);
+                     const std::filesystem::path &report_path,
+                     const std::optional<CacheProfile> &profile = std::nullopt);
 
 } // namespace cache_simulator

@@ -702,7 +702,8 @@ std::optional<double> LineStatistics::hit_rate_percent() const {
 
 RunSummary run_trace(const std::filesystem::path &input_path,
                      CacheHierarchy &hierarchy,
-                     const std::filesystem::path &report_path) {
+                     const std::filesystem::path &report_path,
+                     const std::optional<CacheProfile> &profile) {
   using namespace runner_detail;
   try {
     std::ifstream input(input_path, std::ios::binary);
@@ -787,9 +788,16 @@ RunSummary run_trace(const std::filesystem::path &input_path,
                          {"base_address", hex_address(layout.base_address)},
                          {"min_offset", layout.min_offset},
                          {"end_offset", layout.end_offset}});
+    Json profile_json;
+    if (profile)
+      profile_json = {{"id", profile->id},
+                      {"source", profile->source},
+                      {"approximate", true},
+                      {"limitations", profile->limitations}};
     events.write(
         "{\"schema\":\"cachescope.simulation-events.v1\",\"variant\":" +
         header.at("variant").dump() + ",\"levels\":" + names.dump() +
+        (profile ? ",\"profile\":" + profile_json.dump() : "") +
         ",\"events\":[");
 
     hierarchy.clear();
@@ -848,6 +856,8 @@ RunSummary run_trace(const std::filesystem::path &input_path,
           {"writes", summary.memory_writes},
           {"write_bytes", summary.memory_write_bytes},
           {"writebacks", summary.memory_writebacks}}}};
+    if (profile)
+      report["profile"] = profile_json;
     auto prefix = report.dump();
     prefix.pop_back();
     statistics.write(prefix + ",\"instructions\":[");
