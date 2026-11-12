@@ -63,8 +63,12 @@ if(CACHESCOPE_BUILD_HTTP_SERVER)
 endif()
 
 if(BUILD_TESTING)
+  find_package(Python3 REQUIRED COMPONENTS Interpreter)
+  add_test(NAME cachescope.runner-cli-cache-profiles
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/profile_cli_test.py
+      $<TARGET_FILE:cachescope_runner_cli>
+      ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/example.trace.json)
   if(CACHESCOPE_BUILD_HTTP_SERVER)
-    find_package(Python3 REQUIRED COMPONENTS Interpreter)
     add_test(NAME cachescope.runner-http
       COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/http_tests.py
         --server $<TARGET_FILE:cachescope_runner_server>

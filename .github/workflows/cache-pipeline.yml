@@ -58,6 +58,14 @@ jobs:
       - name: Run cache pipeline CTest
         run: ctest --test-dir "${BUILD_DIR}" -R '^cachescope[.]cache-pipeline-e2e$' --output-on-failure --no-tests=error
 
+      - name: Run AMD A8 L2 MLIR workload
+        env:
+          CMAKE_BUILD_PARALLEL_LEVEL: 2
+        run: >-
+          python3 examples/a8-l2/run.py
+          --build-dir "${BUILD_DIR}"
+          --output-dir "${RUNNER_TEMP}/a8-l2-results"
+
       - name: Compare pipeline with drcachesim
         run: |
           python3 tests/cache_pipeline_e2e.py \
@@ -92,6 +100,7 @@ jobs:
         with:
           name: cache-pipeline-results
           path: |
+            ${{ runner.temp }}/a8-l2-results/
             ${{ runner.temp }}/cache-pipeline-results/
             ${{ runner.temp }}/drmemtrace-results/
             ${{ runner.temp }}/drmemtrace-matmul-results/
