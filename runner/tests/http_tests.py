@@ -142,6 +142,73 @@ class RunnerHTTP(unittest.TestCase):
     def endpoint(self, sid, resource=''):
         return '/api/v1/sessions/' + sid + ('/' + resource if resource else '')
 
+    def test_inclusive_dirty_state_and_counters(self):
+        _, value = self.trace()
+        accesses = [dict(value['accesses'][0], kind=kind, access_id=i)
+                    for i, kind in enumerate(['write', 'read'])]
+        events = [dict(value['events'][0], kind=kind, access_id=i,
+                       sequence=i, byte_offset=i * 64) for i, kind in enumerate(['write', 'read'])]
+        trace, _ = self.trace(events=events, accesses=accesses)
+        config = self.config(trace, ways=2, sets=1)
+        config['levels'].append(dict(config['levels'][0], name='L2', size_bytes=64, associativity=1))
+        config['hierarchy'] = dict(inclusion_policies=['inclusive'])
+        status, _, created = self.request('POST', '/api/v1/sessions', config)
+        self.assertEqual(status, 202, created)
+        sid = created['session_id']
+        self.assertEqual(self.ready(sid)['hierarchy']['inclusion_policy'], 'inclusive')
+        status, _, step = self.request('POST', self.endpoint(sid, 'step'), dict(expected_revision='1', count=2))
+        self.assertEqual(status, 200, step)
+        self.assertEqual(step['events'][1]['memory_writebacks'], '1')
+        self.assertEqual(step['events'][1]['memory_writes'], '1')
+        self.assertEqual(step['events'][1]['memory_write_bytes'], '64')
+        self.assertEqual(step['events'][1]['back_invalidations'][0]['dirty'], True)
+        _, _, state = self.request('GET', self.endpoint(sid, 'state'),
+            query=dict(expected_revision='2', level=1, set_limit=1))
+        cells = state['cache']['sets'][0]['ways']
+        self.assertEqual(sum(cell['valid'] for cell in cells), 1)
+        self.assertEqual(state['summary']['totals']['back_invalidations'], '1')
+        self.assertEqual(state['summary']['memory']['writes'], '1')
+
+    def test_invalid_policies_are_rejected_before_reserving_session(self):
+        trace, _ = self.trace()
+        for field, value in [('write_policy', 'write_around'), ('allocation_policy', True)]:
+            config = self.config(trace)
+            config['levels'][0][field] = value
+            status, _, response = self.request('POST', '/api/v1/sessions', config)
+            self.assertEqual((status, response['error']['code']), (400, 'invalid_config'))
+        for hierarchy in [None, {'inclusion_policies': ['inclusive']},
+                          {'writeback_clean': 'yes'}, {'non_inclusive_fill': 'prefetch'},
+                          {'inclusion_policies': [], 'unknown': False}]:
+            config = self.config(trace)
+            config['hierarchy'] = hierarchy
+            status, _, response = self.request('POST', '/api/v1/sessions', config)
+            self.assertEqual((status, response['error']['code']), (400, 'invalid_config'))
+        self.assertEqual(self.create(trace)[1]['status'], 'ready')
+
+    def test_plru4_uses_documented_victim_and_rejects_other_way_counts(self):
+        _, value = self.trace()
+        events = [dict(value['events'][0], sequence=i, byte_offset=offset, size_bytes=4)
+                  for i, offset in enumerate([0, 64, 128, 192, 0, 256])]
+        trace, _ = self.trace(events=events)
+        invalid = self.config(trace, policy='PLRU4', ways=2, sets=1)
+        status, _, response = self.request('POST', '/api/v1/sessions', invalid)
+        self.assertEqual((status, response['error']['code']), (400, 'invalid_config'))
+        seeded = self.config(trace, policy='PLRU4', ways=4, sets=1, seed='1')
+        status, _, response = self.request('POST', '/api/v1/sessions', seeded)
+        self.assertEqual((status, response['error']['code']), (400, 'invalid_config'))
+        sid, session = self.create(trace, policy='PLRU4', ways=4, sets=1)
+        self.assertEqual(session['levels'][0]['replacement_policy'], 'PLRU4')
+        _, _, step = self.request('POST', self.endpoint(sid, 'step'), dict(expected_revision='1', count=6))
+        self.assertEqual(step['events'][-1]['evictions'][0]['line_address'], '0x10000080')
+        self.assertEqual(step['summary']['totals']['hits'], '1')
+        _, _, state = self.request('GET', self.endpoint(sid, 'state'),
+            query=dict(expected_revision='2', level=1, set_limit=1))
+        self.assertEqual([cell['line_address'] for cell in state['cache']['sets'][0]['ways']],
+                         ['0x10000000', '0x10000040', '0x10000100', '0x100000c0'])
+        self.request('POST', self.endpoint(sid, 'reset'), dict(expected_revision='2'))
+        _, _, repeated = self.request('POST', self.endpoint(sid, 'step'), dict(expected_revision='3', count=6))
+        self.assert_dto(dict(step, revision='4'), repeated)
+
     def test_empty_reset_and_pages(self):
         trace, _ = self.trace(events=[])
         sid, session = self.create(trace)

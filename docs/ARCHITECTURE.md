@@ -337,7 +337,7 @@ LLVM pass. Канонический пример проверяет коорди
 
 ## 13. Симулятор кеша: разделение ответственности
 
-Реализованы `ICacheLevel`, SetAssociativeCacheLevel, LRU/FIFO/Random,
+Реализованы `ICacheLevel`, SetAssociativeCacheLevel, LRU/FIFO/Random/PLRU4,
 `CacheHierarchy` и cache runner. Иерархия поддерживает exclusive с
 write-back/write-allocate и одинаковым размером строк всех уровней. UI получает
 сводку и временной ряд по [общему контракту](SIMULATION_FORMAT.md).

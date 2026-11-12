@@ -75,7 +75,7 @@ compulsory misses. Маленькая учебная конфигурация д
 `baseline → tile4 → tile4-ikj`. Это демонстрационная модель, а не описание
 реального CPU cache.
 
-CLI и driver поддерживают `lru`, `fifo` и детерминированный `random` с
+CLI и driver поддерживают `lru`, `fifo`, `plru4` (только 4-way) и детерминированный `random` с
 `--random-seed`. Практические команды, ограничения геометрии и правила
 сравнения находятся в [CACHE_MODELS.md](../../docs/CACHE_MODELS.md).
 

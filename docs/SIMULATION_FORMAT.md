@@ -302,8 +302,9 @@ demand hits/misses.
 Строки внутри `level_results[].lines` имеют поля из раздела 2. Для нижних уровней
 `way` дополнительно может быть `null`: при exclusive miss строка не размещается
 на этом уровне. `null` нельзя превращать в way 0. На hit way всегда целый;
-на miss с фактическим заполнением way также известен. Базовый L1 `lines`
-сохраняет прежний целочисленный тип `way`.
+на miss с фактическим заполнением way также известен. При no-write-allocate miss `way` может быть null и в базовом L1 `lines`.
+Записанный слот отражает probe/fill; служебные вытеснения или inclusive
+инвалидации позже в том же событии могут удалить строку.
 
 Адреса всех уровней и вытеснений сохраняют hex-строковый формат раздела 2.
 Исходы запросов не являются полным журналом изменений состояния иерархии:
@@ -342,8 +343,8 @@ Producer может передавать дополнительные поля:
 
 | Поле | Смысл |
 |---|---|
-| `totals.writebacks`, в том числе у уровней и инструкций | число dirty victims, переданных ниже |
-| `statistics.memory` | `{reads, writebacks}` — line reads из памяти и dirty writebacks в память |
+| `totals.writebacks`, в том числе у уровней и инструкций | число dirty-передач ниже (включая inclusive-инвалидацию и слив в WT) |
+| `statistics.memory` | `{reads, writes, write_bytes, writebacks}` — fetch строк, все записи, байты записи и dirty writebacks в память |
 | `statistics.hierarchy` | описание inclusion/write/allocation policies иерархии |
 | `events[].evictions` | `{level, line_address, dirty}` для каждого фактического victim |
 | `events[].memory_reads`, `events[].memory_writebacks` | обращения в память, вызванные этим событием |
@@ -369,3 +370,21 @@ Producer может передавать дополнительные поля:
 Номера схем не меняются: прежние single-cache отчёты остаются валидными,
 а их поля сохраняют смысл и типы. UI, реализованный только по разделам 1–5,
 продолжит отображать L1 и не обязан понимать остальные уровни.
+
+### 6.5. Настраиваемые политики
+
+Новые поля совместимы с v1: старые readers игнорируют неизвестные поля,
+новые readers допускают их отсутствие. `cache_config` каждого уровня
+содержит эффективные `write_policy` и `allocation_policy`. `hierarchy`
+дополнен `inclusion_policies` для N−1 соседних пар, `writeback_clean` и
+`non_inclusive_fill`. Старые сводные поля получают `mixed` при различии
+политик уровней/связей. [Семантика](CACHE_MODELS.md#политики-записи-и-иерархии).
+
+`totals.back_invalidations` считает inclusive-инвалидации отдельно от
+capacity `evictions`. `writebacks` считает все dirty-передачи, поэтому
+соотношение `writebacks <= evictions` больше не требуется.
+`events[].back_invalidations` и `events[].writebacks` — массивы
+`{level, line_address, dirty}`. `memory_writes` и `memory_write_bytes`
+содержат транзакции/байты памяти события. В файловых артефактах счётчики
+остаются JSON integers; HTTP interactive API сериализует их decimal strings.
+Финального flush нет: dirty-строки в кэшах не входят в memory.writebacks.

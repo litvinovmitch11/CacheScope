@@ -6,14 +6,14 @@
 - capacity (`--cache-size-bytes`);
 - размер строки (`--line-size-bytes`);
 - associativity (`--associativity`);
-- replacement policy (`--replacement-policy lru|fifo|random`).
+- replacement policy (`--replacement-policy lru|fifo|random|plru4`).
 
 При прямом вызове `build/runner/cachescope-runner` capacity называется
 `--size-bytes`; остальные три параметра имеют те же имена.
 
-Иерархия использует exclusive placement, write-back и write-allocate. Эти
-политики фиксированы; геометрия и replacement policy каждого уровня
-настраиваются отдельно.
+По умолчанию иерархия использует exclusive, write-back и write-allocate.
+UI, HTTP API и CLI `--config` поддерживают настройки, описанные ниже.
+Короткие CLI-флаги и product driver сохраняют прежние defaults.
 
 ## Intel486 DX: приближение по геометрии
 
@@ -28,7 +28,9 @@ build/runner/cachescope-runner --cache-profile intel-486dx-geometry \
 
 Профиль задаёт L1 8 KiB, строку 16 B и 4-way (128 sets), как у
 [Intel486 DX](https://www.ardent-tool.com/CPU/docs/Intel/486/datasheets/240440-006.pdf).
-Его нельзя смешивать с отдельными cache-параметрами или `--cache-level`.
+CLI-профиль нельзя смешивать с `--config`, отдельными cache-параметрами или
+`--cache-level`. Это отдельное приближение CLI; в список подтверждённых
+процессоров UI оно не включено.
 
 **Это приближение по геометрии, не точная модель процессора.** Intel486 DX
 использует pseudo-LRU и write-through; CacheScope — LRU и write-back с
@@ -62,7 +64,8 @@ build/runner/cachescope-runner --cache-profile amd-a8-3850-lru \
 и инструкции; здесь моделируются только данные. Также отсутствуют аппаратный
 prefetch, спекулятивные обращения, когерентность и воздействие других ядер;
 детали перемещения строк могут отличаться. Ограничения включены в отчёты.
-Профиль нельзя смешивать с отдельными cache-параметрами или `--cache-level`.
+CLI-профиль нельзя смешивать с `--config`, отдельными cache-параметрами или
+`--cache-level`; он не входит в список подтверждённых процессоров UI.
 
 ### Проверка L2 на рабочем наборе 128 KiB
 
@@ -240,3 +243,80 @@ python3 examples/product-e2e/run.py \
   помещается в cache, а не ошибку instrumentation;
 - при сравнении проверяйте одинаковое deterministic buffer placement в
   `statistics.json`.
+
+## Политики записи и иерархии
+
+CLI `--config file.json`, POST `/api/v1/sessions` и запуск эксперимента из UI
+принимают одинаковые `levels` и необязательный `hierarchy`. Пример JSON
+конфигурации для CLI (в HTTP добавьте `trace_path`):
+
+```json
+{
+  "levels": [
+    {"name":"L1", "size_bytes":32768, "line_size_bytes":64,
+     "associativity":8, "replacement_policy":"LRU",
+     "write_policy":"write_through", "allocation_policy":"no_write_allocate"},
+    {"name":"L2", "size_bytes":262144, "line_size_bytes":64,
+     "associativity":8, "replacement_policy":"FIFO",
+     "write_policy":"write_back", "allocation_policy":"write_allocate"}
+  ],
+  "hierarchy": {
+    "inclusion_policies":["inclusive"],
+    "writeback_clean":false,
+    "non_inclusive_fill":"all_levels"
+  }
+}
+```
+
+```bash
+build/runner/cachescope-runner --config /tmp/cache-config.json \
+  --trace output/trace-demo/baseline/trace.json --output-dir output/policy-replay
+```
+
+`write_policy` каждого уровня: `write_back` (default) удерживает dirty до
+передачи вниз; `write_through` передаёт каждую CPU-запись дальше, сохраняя
+чистую локальную копию. `allocation_policy`: `write_allocate` (default)
+запрашивает строку при промахе CPU-записи; `no_write_allocate` передаёт запись
+дальше без заполнения этого уровня. Read miss всегда заполняет запрашиваемый
+уровень. Полные служебные writebacks и обязательные inclusive-копии размещаются
+независимо от CPU no-write-allocate; частичная запись не теряется.
+
+`inclusion_policies` содержит N−1 значений для N уровней, начиная с L1/L2:
+
+- `exclusive`: непрерывный exclusive-сегмент хранит одну копию строки;
+  promotion извлекает исходную строку, все victims передаются вниз;
+- `inclusive`: каждая строка верхнего уровня присутствует в нижнем;
+  lower eviction инвалидирует верхние копии и собирает их dirty-данные;
+- `non_inclusive` (NINE): дубли разрешены, lower eviction не инвалидирует
+  верхние копии. `non_inclusive_fill="all_levels"` заполняет уровни до найденной
+  строки/памяти, пока не встретит exclusive-связь. `"on_eviction"` заполняет
+  только запрашиваемый уровень; нижний получает victims.
+
+Можно смешивать политики соседних пар. `writeback_clean=false` (default)
+отбрасывает чистые victims на non-exclusive связях; `true` передаёт их ниже.
+Dirty victims передаются всегда. WT-запись обходит уровни exclusive-сегмента,
+если размещение там создало бы вторую копию. Передача dirty-линии в WT-кэш
+немедленно отправляет её дальше; WT-строки остаются чистыми.
+
+Defaults без новых полей: все связи exclusive, каждый уровень WB/WA.
+Размеры строк всех уровней должны совпадать. Prefetch, когерентность, задержки,
+write-combining и финальный flush не моделируются.
+
+`memory.writes` считает все записи в память; `writebacks` — их подмножество с
+полной dirty-строкой. `write_bytes` считает переданные байты: размер строки
+для dirty writeback и фактическую часть CPU-записи для WT/NWA. Событие через
+границу строки создаёт отдельную транзакцию на каждую часть. `totals.writebacks`
+считает dirty-передачи уровня, включая обратную инвалидацию или слив dirty
+при promotion в WT; он может превышать `evictions`. `back_invalidations`
+считает удалённые inclusive-копии отдельно от capacity evictions. Служебный
+трафик не добавляет hit/miss: один demand probe на пару (уровень, строка)
+за одно исходное событие, классификация read/write — по исходному запросу.
+
+## Документированные профили CPU
+
+UI включает IntelDX2 (L1 WT) и Write-Back Enhanced IntelDX4 (L1 WB).
+Геометрия, политики и условия режима подтверждены руководством Intel;
+[матрица параметров и ссылки](PROCESSOR_PRESET_AUDIT.md).
+PLRU4 — дерево четырёх ways, не замена на LRU. CLI/driver принимают
+`--replacement-policy plru4 --associativity 4`; для задания WT/NWA или WB/NWA
+передайте политики в `--config` или запустите профиль из UI.

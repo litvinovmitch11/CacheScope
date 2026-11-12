@@ -3,11 +3,24 @@ export interface ProgramFunction { name: string; supported: boolean; reason: str
 export interface InputArray { key: string; shape: number[]; dtype: string }
 export interface CacheLevel {
   name: string; size_bytes: number; line_size_bytes: number; associativity: number;
-  replacement_policy: "LRU" | "FIFO" | "Random"; random_seed?: string;
+  replacement_policy: "LRU" | "FIFO" | "Random" | "PLRU4"; random_seed?: string;
+  write_policy?: "write_back" | "write_through";
+  allocation_policy?: "write_allocate" | "no_write_allocate";
 }
+export type InclusionPolicy = "exclusive" | "inclusive" | "non_inclusive";
+export interface HierarchyConfig {
+  inclusion_policies: InclusionPolicy[];
+  writeback_clean: boolean;
+  non_inclusive_fill: "all_levels" | "on_eviction";
+}
+export const defaultHierarchy = (count: number): HierarchyConfig => ({
+  inclusion_policies: Array.from({ length: Math.max(0, count - 1) }, () => "exclusive"),
+  writeback_clean: false, non_inclusive_fill: "all_levels",
+});
 export type Binding = { source: "npz"; key: string } | { source: "zeros" };
 export interface RunSpec {
   function: string; bindings: Binding[]; levels: CacheLevel[];
+  hierarchy?: HierarchyConfig; cache_profile?: string;
   timeout_seconds: number | null; trace_limit: string | null;
 }
 export interface Experiment {

@@ -20,7 +20,7 @@ Fixture использует заданные исходы тестовых ур
 Базовые поля сводки `cache_config`,
 `processed`, `totals` и поле `lines` каждого события относятся к **L1**.
 Они сохраняют смысл и типы контракта PR. В частности, `way` L1 известен после
-hit или заполнения, а все адреса сериализуются hex-строками, включая адрес 0.
+hit или заполнения; при NWA miss может быть null. Все адреса сериализуются hex-строками, включая адрес 0.
 
 В `cache_config` записываются фактические значения, переданные при создании
 иерархии: size, line size, associativity, computed set count, replacement policy.
@@ -36,9 +36,9 @@ hit или заполнения, а все адреса сериализуютс
 | `instructions` | статистика по числовому `access_id`, отсортированная по ID |
 | `buffers` | модельные базы массивов и зарезервированные диапазоны смещений |
 | `source` | header исходной трассы, полный объект producer и optional source_map |
-| `hierarchy` | политики exclusive, write_back, write_allocate |
+| `hierarchy` | эффективные политики уровней и связей, mixed при различии |
 | `requests` | число исходных events, reads/writes и запрошенные байты |
-| `memory` | число line reads из памяти и dirty writebacks в память |
+| `memory` | число line reads, всех writes, байты записи и dirty writebacks в память |
 
 Корневой `producer` остаётся строкой `producer.name` исходной трассы, как
 требует UI. Полный объект с версиями и pipeline fingerprint доступен в
@@ -54,10 +54,9 @@ bundle. Записи уровня содержат `level`,
 Read/write counters классифицируются по исходному `event.kind`, а не по
 внутреннему чтению строки для write-allocate или служебным переносам.
 
-В `totals` дополнительно есть `writebacks` (dirty victims данного уровня,
-включая переносы ниже) и `hit_rate_percent = 100 * hits / line_accesses`.
+В `totals` дополнительно есть `writebacks` (dirty-передачи вниз) и `back_invalidations` (удалённые inclusive-копии) и `hit_rate_percent = 100 * hits / line_accesses`.
 При нуле probes процент равен `null`. Отдельно `memory.writebacks` считает только
-записи в память после вытеснения из последнего уровня. Финального flush нет.
+записи dirty-строк в память, включая обход exclusive-уровней при WT. Финального flush нет.
 
 Вытеснения считаются по фактическим insert victims, включая каскады. Служебные
 переносы не считаются дополнительными demand hits/misses. Все их счётчики
@@ -93,3 +92,6 @@ Read/write counters классифицируются по исходному `ev
 
 Прежний экспериментальный `cachescope.statistics.v1` с events внутри сводки
 больше не формируется. Новый контракт использует названия схем из PR #2.
+
+Настройки политик, определения новых счётчиков и конфигурация JSON:
+[CACHE_MODELS](CACHE_MODELS.md#политики-записи-и-иерархии).

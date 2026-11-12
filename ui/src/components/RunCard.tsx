@@ -43,6 +43,7 @@ export function RunCard({ run }: { run: Run }) {
     ["write misses", fmtCount(t.write_misses)],
     ["evictions", fmtCount(t.evictions)],
     ["writebacks", fmtCount(t.writebacks)],
+    ["back invalidations", fmtCount(t.back_invalidations)],
   ];
 
   return (
@@ -86,6 +87,7 @@ export function RunCard({ run }: { run: Run }) {
             <th>misses</th>
             <th>evictions</th>
             <th>writebacks</th>
+            <th>back inv.</th>
           </tr>
         </thead>
         <tbody>
@@ -101,6 +103,7 @@ export function RunCard({ run }: { run: Run }) {
               <td>{fmtCount(l.totals.misses)}</td>
               <td>{fmtCount(l.totals.evictions)}</td>
               <td>{fmtCount(l.totals.writebacks)}</td>
+              <td>{fmtCount(l.totals.back_invalidations)}</td>
             </tr>
           ))}
         </tbody>
@@ -113,7 +116,8 @@ export function RunCard({ run }: { run: Run }) {
 
       {s.memory && (
         <p className="muted">
-          Память: чтений строк {fmtCount(s.memory.reads)}, writebacks {fmtCount(s.memory.writebacks)}
+          Память: чтений строк {fmtCount(s.memory.reads)}, записей {fmtCount(s.memory.writes)}
+          {", байт записи "}{fmtCount(s.memory.write_bytes)}, writebacks {fmtCount(s.memory.writebacks)}
         </p>
       )}
 

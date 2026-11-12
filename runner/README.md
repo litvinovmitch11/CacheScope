@@ -2,7 +2,7 @@
 
 C++17-библиотека воспроизводит полный `cachescope.trace.v1` через переданный
 `CacheHierarchy`. Иерархия владеет уровнями `ICacheLevel`, разбивает обращения
-на строки и выполняет exclusive-переносы с сохранением dirty. Раннер назначает
+на строки и выполняет обмен между уровнями с сохранением dirty. Раннер назначает
 адреса буферам, собирает статистику и записывает отчёт для UI.
 
 Публичный интерфейс находится в `include/cache_simulator/trace_runner.hpp`,
@@ -29,8 +29,7 @@ ctest --test-dir build/runner --output-on-failure
 ## CLI
 
 Сборка создаёт `build/runner/cachescope-runner`. Он оборачивает тот же
-`run_trace` в configurable exclusive hierarchy с LRU/FIFO/Random,
-write-back и write-allocate. Один L1 задаётся так:
+`run_trace` в configurable hierarchy с LRU/FIFO/Random/PLRU4. Defaults — exclusive WB/WA. Один L1 задаётся так:
 
 ```bash
 build/runner/cachescope-runner \
@@ -56,7 +55,7 @@ build/runner/cachescope-runner \
 ```
 
 Формат уровня: `NAME:SIZE:LINE:WAYS:POLICY[:SEED]`. Seed разрешён только
-для `random`. Все уровни exclusive hierarchy должны иметь одинаковый
+для `random`. Все уровни hierarchy должны иметь одинаковый
 line size. При наличии `--cache-level` single-level options не используются.
 
 Команда создаёт `statistics.json` и `events.json` в output directory. Размеры
@@ -67,7 +66,7 @@ Random принимает воспроизводимый `--random-seed`, по �
 [инструкции по cache models](../docs/CACHE_MODELS.md).
 
 `--config FILE` вместо `--cache-level` читает JSON с полем `levels` в формате
-HTTP-контракта (LRU/FIFO/Random и строковый optional random_seed). Это сохраняет
+HTTP-контракта (LRU/FIFO/Random/PLRU4 и строковый optional random_seed). Это сохраняет
 имена уровней без ограничений разделителя CLI; вместе эти опции запрещены.
 
 ## Интерактивный HTTP backend
@@ -113,7 +112,7 @@ curl -s 'http://127.0.0.1:9055/api/v1/sessions/<id>/instructions?expected_revisi
 
 Полный [HTTP-контракт](../docs/RUNNER_API.md) описывает все девять операций,
 reset/delete, ошибки и порядок восстановления после потери ответа. Backend
-поддерживает LRU/FIFO/Random, exclusive/write-back/write-allocate, точные
+поддерживает LRU/FIFO/Random/PLRU4, настраиваемые политики записи/иерархии, точные
 64-битные строковые DTO, физические страницы slots и накопительную статистику.
 Встроенные лимиты — 1000 событий на step, 64 sets и 100 инструкций на страницу;
 клиенты читают актуальные лимиты из Session. API кэшей и файловые отчёты не меняются.
@@ -214,7 +213,7 @@ dirty evictions и память. [Контракт и fixtures](../docs/STATISTI
 
 Suites раннера и иерархии включают hierarchy, integration, real-cache,
 fifo-cache, random-cache, validation, random-miss, streaming и CLI smoke для
-LRU/FIFO/Random и L1/L2/L3; также запускаются upstream-тесты симулятора.
+LRU/FIFO/Random/PLRU4 и L1/L2/L3; также запускаются upstream-тесты симулятора.
 Hierarchy и real-cache используют настоящий SetAssociativeCacheLevel с LRU.
 Real-cache проверяет и канонические compiler fixtures, включая source mapping.
 Fifo-cache и random-cache прогоняют короткую трассу через настоящие уровни
@@ -237,3 +236,11 @@ ctest --test-dir build/runner -R random-miss -V
 
 Smoke сохраняет `trace.json`, `statistics.json`, `events.json` в подкаталоге
 `smoke/` каталога сборки. При следующем успешном запуске отчёт заменяется.
+
+## Политики
+
+Для WB/WT, WA/NWA, mixed exclusive/inclusive/NINE используйте CLI `--config`
+или поле `hierarchy` и политики в `levels` HTTP API. Короткие CLI-флаги
+сохраняют defaults exclusive WB/WA. [JSON-пример и семантика](../docs/CACHE_MODELS.md#политики-записи-и-иерархии).
+`statistics.json` сохраняет эффективные политики в `cache_config` каждого
+уровня и `hierarchy`; новые счётчики доступны и через interactive state.

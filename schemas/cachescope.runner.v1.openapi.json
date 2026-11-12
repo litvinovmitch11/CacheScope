@@ -510,12 +510,29 @@
             "enum": [
               "LRU",
               "FIFO",
-              "Random"
+              "Random",
+              "PLRU4"
             ]
           },
           "random_seed": {
             "$ref": "#/components/schemas/UInt64",
             "default": "0"
+          },
+          "write_policy": {
+            "type": "string",
+            "enum": [
+              "write_back",
+              "write_through"
+            ],
+            "default": "write_back"
+          },
+          "allocation_policy": {
+            "type": "string",
+            "enum": [
+              "write_allocate",
+              "no_write_allocate"
+            ],
+            "default": "write_allocate"
           }
         },
         "required": [
@@ -526,7 +543,7 @@
           "replacement_policy"
         ],
         "additionalProperties": false,
-        "description": "Request configuration. Names must be unique. Capacity must contain full sets; line_size_bytes and derived set_count must be powers of two. All levels have equal line_size_bytes. random_seed is allowed only for Random; omitted seed means 0. Each set gets an independent policy with this seed.",
+        "description": "Request configuration. Names must be unique. Capacity must contain full sets; line_size_bytes and derived set_count must be powers of two. All levels have equal line_size_bytes. random_seed is allowed only for Random; omitted seed means 0. Each set gets an independent policy with this seed. PLRU4 is the Intel486 four-way tree policy and requires associativity=4.",
         "allOf": [
           {
             "if": {
@@ -534,7 +551,8 @@
                 "replacement_policy": {
                   "enum": [
                     "LRU",
-                    "FIFO"
+                    "FIFO",
+                    "PLRU4"
                   ]
                 }
               }
@@ -544,6 +562,22 @@
                 "required": [
                   "random_seed"
                 ]
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "replacement_policy": {
+                  "const": "PLRU4"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "associativity": {
+                  "const": 4
+                }
               }
             }
           }
@@ -586,7 +620,8 @@
             "enum": [
               "LRU",
               "FIFO",
-              "Random"
+              "Random",
+              "PLRU4"
             ]
           },
           "random_seed": {
@@ -598,6 +633,22 @@
                 "type": "null"
               }
             ]
+          },
+          "write_policy": {
+            "type": "string",
+            "enum": [
+              "write_back",
+              "write_through"
+            ],
+            "default": "write_back"
+          },
+          "allocation_policy": {
+            "type": "string",
+            "enum": [
+              "write_allocate",
+              "no_write_allocate"
+            ],
+            "default": "write_allocate"
           }
         },
         "required": [
@@ -611,7 +662,7 @@
           "random_seed"
         ],
         "additionalProperties": false,
-        "description": "Ordered by level, starting at 1. random_seed is the effective seed for Random and null for LRU/FIFO.",
+        "description": "Ordered by level, starting at 1. random_seed is the effective seed for Random and null for LRU/FIFO/PLRU4.",
         "allOf": [
           {
             "if": {
@@ -635,6 +686,22 @@
                 }
               }
             }
+          },
+          {
+            "if": {
+              "properties": {
+                "replacement_policy": {
+                  "const": "PLRU4"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "associativity": {
+                  "const": 4
+                }
+              }
+            }
           }
         ]
       },
@@ -642,13 +709,53 @@
         "type": "object",
         "properties": {
           "inclusion_policy": {
-            "const": "exclusive"
+            "type": "string",
+            "enum": [
+              "exclusive",
+              "inclusive",
+              "non_inclusive",
+              "mixed"
+            ]
           },
           "write_policy": {
-            "const": "write_back"
+            "type": "string",
+            "enum": [
+              "write_back",
+              "write_through",
+              "mixed"
+            ]
           },
           "allocation_policy": {
-            "const": "write_allocate"
+            "type": "string",
+            "enum": [
+              "write_allocate",
+              "no_write_allocate",
+              "mixed"
+            ]
+          },
+          "inclusion_policies": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "exclusive",
+                "inclusive",
+                "non_inclusive"
+              ]
+            },
+            "description": "One per adjacent pair, L1/L2 first. Omitted means all exclusive; length must be levels.length - 1."
+          },
+          "writeback_clean": {
+            "type": "boolean",
+            "default": false
+          },
+          "non_inclusive_fill": {
+            "type": "string",
+            "enum": [
+              "all_levels",
+              "on_eviction"
+            ],
+            "default": "all_levels"
           }
         },
         "required": [
@@ -700,6 +807,9 @@
               "$ref": "#/components/schemas/LevelConfig"
             },
             "minItems": 1
+          },
+          "hierarchy": {
+            "$ref": "#/components/schemas/HierarchyConfig"
           }
         },
         "required": [
@@ -1374,7 +1484,7 @@
           "evicted_dirty"
         ],
         "additionalProperties": false,
-        "description": "Demand probe outcome. On L1 miss, way is the placement way; on a lower-level miss it is null. A lower-level hit way identifies the slot before promotion. L1 eviction fields describe its victim; cascading evictions are in EventOutcome.evictions.",
+        "description": "First demand probe per level/line. way is the observed hit/fill slot, or null for a non-allocating miss. Later service evictions or inclusive invalidations may remove that line; read cache state for final occupancy.",
         "allOf": [
           {
             "if": {
@@ -1484,6 +1594,62 @@
           },
           "memory_writebacks": {
             "$ref": "#/components/schemas/UInt64"
+          },
+          "back_invalidations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "level": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                },
+                "line_address": {
+                  "$ref": "#/components/schemas/Address"
+                },
+                "dirty": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "level",
+                "line_address",
+                "dirty"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "writebacks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "level": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                },
+                "line_address": {
+                  "$ref": "#/components/schemas/Address"
+                },
+                "dirty": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "level",
+                "line_address",
+                "dirty"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "memory_writes": {
+            "$ref": "#/components/schemas/UInt64"
+          },
+          "memory_write_bytes": {
+            "$ref": "#/components/schemas/UInt64"
           }
         },
         "required": [
@@ -1553,6 +1719,9 @@
             ],
             "minimum": 0,
             "maximum": 100
+          },
+          "back_invalidations": {
+            "$ref": "#/components/schemas/UInt64"
           }
         },
         "required": [
@@ -1644,6 +1813,12 @@
                 "$ref": "#/components/schemas/UInt64"
               },
               "writebacks": {
+                "$ref": "#/components/schemas/UInt64"
+              },
+              "writes": {
+                "$ref": "#/components/schemas/UInt64"
+              },
+              "write_bytes": {
                 "$ref": "#/components/schemas/UInt64"
               }
             },
@@ -2058,6 +2233,36 @@
         ],
         "additionalProperties": false,
         "description": "All declared instructions, including unexecuted ones with zeros, sorted numerically by access_id. Offset counts rows, not IDs. Same revision as state reads; no historical snapshot retention."
+      },
+      "HierarchyConfig": {
+        "type": "object",
+        "properties": {
+          "inclusion_policies": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "exclusive",
+                "inclusive",
+                "non_inclusive"
+              ]
+            },
+            "description": "One per adjacent pair, L1/L2 first. Omitted means all exclusive; length must be levels.length - 1."
+          },
+          "writeback_clean": {
+            "type": "boolean",
+            "default": false
+          },
+          "non_inclusive_fill": {
+            "type": "string",
+            "enum": [
+              "all_levels",
+              "on_eviction"
+            ],
+            "default": "all_levels"
+          }
+        },
+        "additionalProperties": false
       }
     },
     "responses": {

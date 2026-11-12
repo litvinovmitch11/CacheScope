@@ -111,6 +111,9 @@ def main():
     bad_geometry = spec()
     bad_geometry['levels'][0]['size_bytes'] = 127
     assert client.request('POST', '/' + eid + '/run', bad_geometry)[0] == 400
+    bad_plru = spec()
+    bad_plru['levels'][0]['replacement_policy'] = 'PLRU4'
+    assert client.request('POST', '/' + eid + '/run', bad_plru)[0] == 400
     duplicate_json = json.dumps(spec()).replace('"function": "copy_kernel"', '"function": "other", "function": "copy_kernel"').encode()
     assert client.request('POST', '/' + eid + '/run', duplicate_json)[0] == 400
     client.wait(eid, 'ready')

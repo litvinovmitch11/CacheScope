@@ -49,6 +49,18 @@ with tempfile.TemporaryDirectory() as temp:
     assert [level["cache_config"]["size_bytes"] for level in amd_stats["levels"]] == [65536, 1048576]
     assert [level["cache_config"]["associativity"] for level in amd_stats["levels"]] == [2, 16]
     assert amd_stats["hierarchy"]["inclusion_policy"] == "exclusive"
+    config = root / "cache.json"
+    config.write_text(json.dumps({"levels": [{
+        "name": "L1", "size_bytes": 8192, "line_size_bytes": 16,
+        "associativity": 4, "replacement_policy": "PLRU4",
+        "write_policy": "write_through", "allocation_policy": "no_write_allocate",
+    }]}))
+    for profile_id in ("intel-486dx-geometry", "amd-a8-3850-lru"):
+        replay(profile_id + "-json-conflict", "--config", str(config),
+               "--cache-profile", profile_id, succeeds=False)
+        replay(profile_id + "-json-conflict-reversed", "--cache-profile", profile_id,
+               "--config", str(config), succeeds=False)
+
     # Three lines map to one 2-way L1 set, forcing a later L2 hit.
     fixture = json.loads(Path(trace).read_text())
     fixture["accesses"] = [fixture["accesses"][1]]

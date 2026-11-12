@@ -27,13 +27,18 @@
               "replacement_policy": "Random",
               "random_seed": "9007199254740993",
               "level": 1,
-              "set_count": 1
+              "set_count": 1,
+              "write_policy": "write_back",
+              "allocation_policy": "write_allocate"
             }
           ],
           "hierarchy": {
             "inclusion_policy": "exclusive",
             "write_policy": "write_back",
-            "allocation_policy": "write_allocate"
+            "allocation_policy": "write_allocate",
+            "inclusion_policies": [],
+            "writeback_clean": false,
+            "non_inclusive_fill": "all_levels"
           },
           "limits": {
             "max_step_count": 1000,
@@ -78,7 +83,8 @@
               "write_misses": "1",
               "evictions": "2",
               "writebacks": "1",
-              "hit_rate_percent": 0.0
+              "hit_rate_percent": 0.0,
+              "back_invalidations": "0"
             },
             "levels": [
               {
@@ -98,7 +104,8 @@
                   "write_misses": "1",
                   "evictions": "2",
                   "writebacks": "1",
-                  "hit_rate_percent": 0.0
+                  "hit_rate_percent": 0.0,
+                  "back_invalidations": "0"
                 }
               }
             ],
@@ -111,7 +118,9 @@
             },
             "memory": {
               "reads": "3",
-              "writebacks": "1"
+              "writebacks": "1",
+              "writes": "1",
+              "write_bytes": "64"
             }
           },
           "last_event": {
@@ -148,7 +157,11 @@
               }
             ],
             "memory_reads": "1",
-            "memory_writebacks": "0"
+            "memory_writebacks": "0",
+            "back_invalidations": [],
+            "writebacks": [],
+            "memory_writes": "0",
+            "memory_write_bytes": "0"
           },
           "executed_count": 3,
           "events": [
@@ -180,7 +193,11 @@
               ],
               "evictions": [],
               "memory_reads": "1",
-              "memory_writebacks": "0"
+              "memory_writebacks": "0",
+              "back_invalidations": [],
+              "writebacks": [],
+              "memory_writes": "0",
+              "memory_write_bytes": "0"
             },
             {
               "trace_event": {
@@ -216,7 +233,17 @@
                 }
               ],
               "memory_reads": "1",
-              "memory_writebacks": "1"
+              "memory_writebacks": "1",
+              "back_invalidations": [],
+              "writebacks": [
+                {
+                  "level": 1,
+                  "line_address": "0x10000000",
+                  "dirty": true
+                }
+              ],
+              "memory_writes": "1",
+              "memory_write_bytes": "64"
             },
             {
               "trace_event": {
@@ -252,7 +279,11 @@
                 }
               ],
               "memory_reads": "1",
-              "memory_writebacks": "0"
+              "memory_writebacks": "0",
+              "back_invalidations": [],
+              "writebacks": [],
+              "memory_writes": "0",
+              "memory_write_bytes": "0"
             }
           ]
         }
@@ -291,7 +322,8 @@
               "write_misses": "0",
               "evictions": "0",
               "writebacks": "0",
-              "hit_rate_percent": null
+              "hit_rate_percent": null,
+              "back_invalidations": "0"
             },
             "levels": [
               {
@@ -311,7 +343,8 @@
                   "write_misses": "0",
                   "evictions": "0",
                   "writebacks": "0",
-                  "hit_rate_percent": null
+                  "hit_rate_percent": null,
+                  "back_invalidations": "0"
                 }
               }
             ],
@@ -324,7 +357,9 @@
             },
             "memory": {
               "reads": "0",
-              "writebacks": "0"
+              "writebacks": "0",
+              "writes": "0",
+              "write_bytes": "0"
             }
           },
           "last_event": null
@@ -365,7 +400,8 @@
               "write_misses": "1",
               "evictions": "2",
               "writebacks": "1",
-              "hit_rate_percent": 0.0
+              "hit_rate_percent": 0.0,
+              "back_invalidations": "0"
             },
             "levels": [
               {
@@ -385,7 +421,8 @@
                   "write_misses": "1",
                   "evictions": "2",
                   "writebacks": "1",
-                  "hit_rate_percent": 0.0
+                  "hit_rate_percent": 0.0,
+                  "back_invalidations": "0"
                 }
               }
             ],
@@ -398,7 +435,9 @@
             },
             "memory": {
               "reads": "3",
-              "writebacks": "1"
+              "writebacks": "1",
+              "writes": "1",
+              "write_bytes": "64"
             }
           },
           "last_event": {
@@ -435,7 +474,11 @@
               }
             ],
             "memory_reads": "1",
-            "memory_writebacks": "0"
+            "memory_writebacks": "0",
+            "back_invalidations": [],
+            "writebacks": [],
+            "memory_writes": "0",
+            "memory_write_bytes": "0"
           },
           "executed_count": 3,
           "events": [
@@ -467,7 +510,11 @@
               ],
               "evictions": [],
               "memory_reads": "1",
-              "memory_writebacks": "0"
+              "memory_writebacks": "0",
+              "back_invalidations": [],
+              "writebacks": [],
+              "memory_writes": "0",
+              "memory_write_bytes": "0"
             },
             {
               "trace_event": {
@@ -503,7 +550,17 @@
                 }
               ],
               "memory_reads": "1",
-              "memory_writebacks": "1"
+              "memory_writebacks": "1",
+              "back_invalidations": [],
+              "writebacks": [
+                {
+                  "level": 1,
+                  "line_address": "0x10000000",
+                  "dirty": true
+                }
+              ],
+              "memory_writes": "1",
+              "memory_write_bytes": "64"
             },
             {
               "trace_event": {
@@ -539,7 +596,11 @@
                 }
               ],
               "memory_reads": "1",
-              "memory_writebacks": "0"
+              "memory_writebacks": "0",
+              "back_invalidations": [],
+              "writebacks": [],
+              "memory_writes": "0",
+              "memory_write_bytes": "0"
             }
           ]
         }
@@ -571,7 +632,9 @@
               "replacement_policy": "FIFO",
               "level": 1,
               "set_count": 1,
-              "random_seed": null
+              "random_seed": null,
+              "write_policy": "write_back",
+              "allocation_policy": "write_allocate"
             },
             {
               "name": "L2",
@@ -581,13 +644,20 @@
               "replacement_policy": "FIFO",
               "level": 2,
               "set_count": 1,
-              "random_seed": null
+              "random_seed": null,
+              "write_policy": "write_back",
+              "allocation_policy": "write_allocate"
             }
           ],
           "hierarchy": {
             "inclusion_policy": "exclusive",
             "write_policy": "write_back",
-            "allocation_policy": "write_allocate"
+            "allocation_policy": "write_allocate",
+            "inclusion_policies": [
+              "exclusive"
+            ],
+            "writeback_clean": false,
+            "non_inclusive_fill": "all_levels"
           },
           "limits": {
             "max_step_count": 1000,
@@ -633,7 +703,8 @@
               "write_misses": "0",
               "evictions": "0",
               "writebacks": "0",
-              "hit_rate_percent": null
+              "hit_rate_percent": null,
+              "back_invalidations": "0"
             },
             "levels": [
               {
@@ -653,7 +724,8 @@
                   "write_misses": "0",
                   "evictions": "0",
                   "writebacks": "0",
-                  "hit_rate_percent": null
+                  "hit_rate_percent": null,
+                  "back_invalidations": "0"
                 }
               },
               {
@@ -673,7 +745,8 @@
                   "write_misses": "0",
                   "evictions": "0",
                   "writebacks": "0",
-                  "hit_rate_percent": null
+                  "hit_rate_percent": null,
+                  "back_invalidations": "0"
                 }
               }
             ],
@@ -686,7 +759,9 @@
             },
             "memory": {
               "reads": "0",
-              "writebacks": "0"
+              "writebacks": "0",
+              "writes": "0",
+              "write_bytes": "0"
             }
           },
           "last_event": null,
@@ -752,7 +827,8 @@
               "write_misses": "0",
               "evictions": "0",
               "writebacks": "0",
-              "hit_rate_percent": null
+              "hit_rate_percent": null,
+              "back_invalidations": "0"
             },
             "levels": [
               {
@@ -772,7 +848,8 @@
                   "write_misses": "0",
                   "evictions": "0",
                   "writebacks": "0",
-                  "hit_rate_percent": null
+                  "hit_rate_percent": null,
+                  "back_invalidations": "0"
                 }
               },
               {
@@ -792,7 +869,8 @@
                   "write_misses": "0",
                   "evictions": "0",
                   "writebacks": "0",
-                  "hit_rate_percent": null
+                  "hit_rate_percent": null,
+                  "back_invalidations": "0"
                 }
               }
             ],
@@ -805,7 +883,9 @@
             },
             "memory": {
               "reads": "0",
-              "writebacks": "0"
+              "writebacks": "0",
+              "writes": "0",
+              "write_bytes": "0"
             }
           },
           "last_event": null,
@@ -847,7 +927,8 @@
               "write_misses": "0",
               "evictions": "0",
               "writebacks": "0",
-              "hit_rate_percent": null
+              "hit_rate_percent": null,
+              "back_invalidations": "0"
             },
             "levels": [
               {
@@ -867,7 +948,8 @@
                   "write_misses": "0",
                   "evictions": "0",
                   "writebacks": "0",
-                  "hit_rate_percent": null
+                  "hit_rate_percent": null,
+                  "back_invalidations": "0"
                 }
               },
               {
@@ -887,7 +969,8 @@
                   "write_misses": "0",
                   "evictions": "0",
                   "writebacks": "0",
-                  "hit_rate_percent": null
+                  "hit_rate_percent": null,
+                  "back_invalidations": "0"
                 }
               }
             ],
@@ -900,7 +983,9 @@
             },
             "memory": {
               "reads": "0",
-              "writebacks": "0"
+              "writebacks": "0",
+              "writes": "0",
+              "write_bytes": "0"
             }
           },
           "last_event": null

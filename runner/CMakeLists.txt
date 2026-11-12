@@ -17,7 +17,7 @@ if(NOT TARGET cachescope_hierarchy)
   add_subdirectory(../simulator ${CMAKE_CURRENT_BINARY_DIR}/simulator)
 endif()
 
-add_library(cachescope_runner lib/trace_runner.cpp)
+add_library(cachescope_runner lib/trace_runner.cpp lib/cache_policies.cpp)
 add_library(CacheScope::Runner ALIAS cachescope_runner)
 target_compile_features(cachescope_runner PUBLIC cxx_std_17)
 target_include_directories(cachescope_runner PUBLIC
@@ -112,6 +112,19 @@ if(BUILD_TESTING)
       --cache-level L1:32768:64:8:lru
       --cache-level L2:262144:64:8:fifo
       --cache-level L3:8388608:64:16:random:42)
+  add_test(NAME cachescope.runner-cli-plru4
+    COMMAND cachescope_runner_cli
+      --trace ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/example.trace.json
+      --output-dir ${CMAKE_CURRENT_BINARY_DIR}/cli-smoke-plru4
+      --size-bytes 8192 --line-size-bytes 16 --associativity 4
+      --replacement-policy plru4)
+  add_test(NAME cachescope.runner-cli-rejects-plru4-ways
+    COMMAND cachescope_runner_cli
+      --trace ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/example.trace.json
+      --output-dir ${CMAKE_CURRENT_BINARY_DIR}/cli-invalid-plru4
+      --associativity 2 --replacement-policy plru4)
+  set_tests_properties(cachescope.runner-cli-rejects-plru4-ways
+    PROPERTIES WILL_FAIL TRUE)
   add_test(NAME cachescope.runner-cli-rejects-malformed-level
     COMMAND cachescope_runner_cli
       --trace ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/example.trace.json

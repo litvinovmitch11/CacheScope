@@ -89,7 +89,9 @@
               "replacement_policy": "FIFO",
               "level": 1,
               "set_count": 1,
-              "random_seed": null
+              "random_seed": null,
+              "write_policy": "write_back",
+              "allocation_policy": "write_allocate"
             },
             {
               "name": "L2",
@@ -99,13 +101,20 @@
               "replacement_policy": "FIFO",
               "level": 2,
               "set_count": 1,
-              "random_seed": null
+              "random_seed": null,
+              "write_policy": "write_back",
+              "allocation_policy": "write_allocate"
             }
           ],
           "hierarchy": {
             "inclusion_policy": "exclusive",
             "write_policy": "write_back",
-            "allocation_policy": "write_allocate"
+            "allocation_policy": "write_allocate",
+            "inclusion_policies": [
+              "exclusive"
+            ],
+            "writeback_clean": false,
+            "non_inclusive_fill": "all_levels"
           },
           "limits": {
             "max_step_count": 1000,
@@ -412,7 +421,9 @@
               "replacement_policy": "FIFO",
               "level": 1,
               "set_count": 1,
-              "random_seed": null
+              "random_seed": null,
+              "write_policy": "write_back",
+              "allocation_policy": "write_allocate"
             },
             {
               "name": "L2",
@@ -422,13 +433,20 @@
               "replacement_policy": "FIFO",
               "level": 2,
               "set_count": 1,
-              "random_seed": null
+              "random_seed": null,
+              "write_policy": "write_back",
+              "allocation_policy": "write_allocate"
             }
           ],
           "hierarchy": {
             "inclusion_policy": "exclusive",
             "write_policy": "write_back",
-            "allocation_policy": "write_allocate"
+            "allocation_policy": "write_allocate",
+            "inclusion_policies": [
+              "exclusive"
+            ],
+            "writeback_clean": false,
+            "non_inclusive_fill": "all_levels"
           },
           "limits": {
             "max_step_count": 1000,
@@ -503,7 +521,8 @@
               "write_misses": "0",
               "evictions": "0",
               "writebacks": "0",
-              "hit_rate_percent": null
+              "hit_rate_percent": null,
+              "back_invalidations": "0"
             },
             "levels": [
               {
@@ -523,7 +542,8 @@
                   "write_misses": "0",
                   "evictions": "0",
                   "writebacks": "0",
-                  "hit_rate_percent": null
+                  "hit_rate_percent": null,
+                  "back_invalidations": "0"
                 }
               },
               {
@@ -543,7 +563,8 @@
                   "write_misses": "0",
                   "evictions": "0",
                   "writebacks": "0",
-                  "hit_rate_percent": null
+                  "hit_rate_percent": null,
+                  "back_invalidations": "0"
                 }
               }
             ],
@@ -556,7 +577,9 @@
             },
             "memory": {
               "reads": "0",
-              "writebacks": "0"
+              "writebacks": "0",
+              "writes": "0",
+              "write_bytes": "0"
             }
           },
           "last_event": null
@@ -637,7 +660,9 @@
               "replacement_policy": "FIFO",
               "level": 1,
               "set_count": 1,
-              "random_seed": null
+              "random_seed": null,
+              "write_policy": "write_back",
+              "allocation_policy": "write_allocate"
             },
             {
               "name": "L2",
@@ -647,13 +672,20 @@
               "replacement_policy": "FIFO",
               "level": 2,
               "set_count": 1,
-              "random_seed": null
+              "random_seed": null,
+              "write_policy": "write_back",
+              "allocation_policy": "write_allocate"
             }
           ],
           "hierarchy": {
             "inclusion_policy": "exclusive",
             "write_policy": "write_back",
-            "allocation_policy": "write_allocate"
+            "allocation_policy": "write_allocate",
+            "inclusion_policies": [
+              "exclusive"
+            ],
+            "writeback_clean": false,
+            "non_inclusive_fill": "all_levels"
           },
           "limits": {
             "max_step_count": 1000,
@@ -697,7 +729,9 @@
               "replacement_policy": "FIFO",
               "level": 1,
               "set_count": 1,
-              "random_seed": null
+              "random_seed": null,
+              "write_policy": "write_back",
+              "allocation_policy": "write_allocate"
             },
             {
               "name": "L2",
@@ -707,13 +741,20 @@
               "replacement_policy": "FIFO",
               "level": 2,
               "set_count": 1,
-              "random_seed": null
+              "random_seed": null,
+              "write_policy": "write_back",
+              "allocation_policy": "write_allocate"
             }
           ],
           "hierarchy": {
             "inclusion_policy": "exclusive",
             "write_policy": "write_back",
-            "allocation_policy": "write_allocate"
+            "allocation_policy": "write_allocate",
+            "inclusion_policies": [
+              "exclusive"
+            ],
+            "writeback_clean": false,
+            "non_inclusive_fill": "all_levels"
           },
           "limits": {
             "max_step_count": 1000,

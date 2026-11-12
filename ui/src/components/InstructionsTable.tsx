@@ -32,6 +32,7 @@ export function InstructionsTable({ instructions, level }: Props) {
                             <th>misses</th>
                             <th>evictions</th>
                             <th>writebacks</th>
+                            <th>back inv.</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -50,6 +51,7 @@ export function InstructionsTable({ instructions, level }: Props) {
                                     <td>{fmtCount(L?.totals.misses)}</td>
                                     <td>{fmtCount(L?.totals.evictions)}</td>
                                     <td>{fmtCount(L?.totals.writebacks)}</td>
+                                    <td>{fmtCount(L?.totals.back_invalidations)}</td>
                                 </tr>
                             );
                         })}
