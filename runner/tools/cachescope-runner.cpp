@@ -43,6 +43,8 @@ struct Options {
   std::string replacement_policy = "lru";
   std::uint64_t random_seed = 42;
   std::vector<LevelOptions> cache_levels;
+  std::string cache_profile;
+  bool explicit_cache_options = false;
   bool help = false;
 };
 
@@ -50,6 +52,8 @@ void print_usage(std::ostream &output) {
   output << "Usage: cachescope-runner --trace <trace.json> --output-dir <dir> "
             "[options]\n\n"
          << "Options:\n"
+         << "  --cache-profile <id>      Built-in profile: "
+            "intel-486dx-geometry, amd-a8-3850-lru (approximate)\n"
          << "  --cache-name <name>       Cache level name (default: L1)\n"
          << "  --size-bytes <n>          Cache capacity (default: 32768)\n"
          << "  --line-size-bytes <n>     Cache line size (default: 64)\n"
@@ -136,6 +140,11 @@ Options parse_options(int argc, char **argv) {
   Options options;
   for (int index = 1; index < argc; ++index) {
     const std::string_view argument = argv[index];
+    if (argument == "--cache-name" || argument == "--size-bytes" ||
+        argument == "--line-size-bytes" || argument == "--associativity" ||
+        argument == "--replacement-policy" || argument == "--random-seed" ||
+        argument == "--cache-level")
+      options.explicit_cache_options = true;
     if (argument == "-h" || argument == "--help") {
       options.help = true;
     } else if (argument == "--config") {
@@ -144,6 +153,15 @@ Options parse_options(int argc, char **argv) {
       options.trace = value_after(index, argc, argv, argument);
     } else if (argument == "--output-dir") {
       options.output_dir = value_after(index, argc, argv, argument);
+    } else if (argument == "--cache-profile") {
+      if (!options.cache_profile.empty())
+        throw std::invalid_argument(
+            "--cache-profile may be specified only once");
+      options.cache_profile = value_after(index, argc, argv, argument);
+      if (options.cache_profile != "intel-486dx-geometry" &&
+          options.cache_profile != "amd-a8-3850-lru")
+        throw std::invalid_argument("unknown --cache-profile: " +
+                                    options.cache_profile);
     } else if (argument == "--cache-name") {
       options.cache_name = value_after(index, argc, argv, argument);
     } else if (argument == "--size-bytes") {
@@ -206,6 +224,18 @@ Options parse_options(int argc, char **argv) {
       throw std::invalid_argument("--trace is required");
     if (options.output_dir.empty())
       throw std::invalid_argument("--output-dir is required");
+    if (!options.cache_profile.empty() && options.explicit_cache_options)
+      throw std::invalid_argument("--cache-profile cannot be combined with "
+                                  "cache configuration options");
+    if (options.cache_profile == "intel-486dx-geometry") {
+      options.size_bytes = 8192;
+      options.line_size_bytes = 16;
+      options.associativity = 4;
+      options.replacement_policy = "lru";
+    } else if (options.cache_profile == "amd-a8-3850-lru") {
+      options.cache_levels = {{"L1", 64 * 1024, 64, 2, "lru"},
+                              {"L2", 1024 * 1024, 64, 16, "lru"}};
+    }
     if (options.cache_name.empty())
       throw std::invalid_argument("--cache-name must not be empty");
     if (options.replacement_policy != "lru" &&
@@ -286,8 +316,37 @@ int main(int argc, char **argv) {
     fs::create_directories(options.output_dir);
     auto hierarchy = make_hierarchy(options);
     const auto statistics_path = options.output_dir / "statistics.json";
-    const auto summary =
-        cache_simulator::run_trace(options.trace, hierarchy, statistics_path);
+    std::optional<cache_simulator::CacheProfile> profile;
+    if (options.cache_profile == "intel-486dx-geometry") {
+      profile = cache_simulator::CacheProfile{
+          options.cache_profile,
+          "https://www.ardent-tool.com/CPU/docs/Intel/486/datasheets/"
+          "240440-006.pdf",
+          {"Intel486 DX uses pseudo-LRU; this model uses LRU.",
+           "Intel486 DX uses write-through; this model uses write-back and "
+           "write-allocate.",
+           "The hardware cache is unified for instructions and data; the trace "
+           "covers data accesses only."}};
+    } else if (options.cache_profile == "amd-a8-3850-lru") {
+      profile = cache_simulator::CacheProfile{
+          options.cache_profile,
+          "https://www.amd.com/content/dam/amd/en/documents/archived-tech-docs/"
+          "software-optimization-guides/40546.pdf",
+          {"The L2 replacement policy is not established by the cited AMD "
+           "guide; LRU is assumed.",
+           "The L2 is shared by instruction and data traffic, but the trace "
+           "covers data only.",
+           "Hardware prefetching, speculative accesses, coherence and other "
+           "cores are not modeled.",
+           "Cache placement and transition details may differ from the "
+           "hardware."}};
+    }
+    if (profile)
+      std::cerr << "Note: " << options.cache_profile
+                << " is an approximation; see profile limitations in "
+                   "statistics.json.\n";
+    const auto summary = cache_simulator::run_trace(options.trace, hierarchy,
+                                                    statistics_path, profile);
 
     std::cout << "CacheScope replay complete\n"
               << "trace:      " << fs::absolute(options.trace) << '\n'

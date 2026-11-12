@@ -320,10 +320,12 @@ def compile_variant(
     tool_dir: Path,
     plugin: Path,
     runtime: Path,
+    expected_result: int = 16,
+    target_func: str = "matmul_kernel",
 ) -> dict:
     executable, trace_path = compile_stages(
         variant, payload=payload, output_root=output_root,
-        tool_dir=tool_dir, plugin=plugin,
+        tool_dir=tool_dir, plugin=plugin, target_function=target_func,
     )
     output = output_root / variant.name
     mlir_runner = tool(tool_dir, "mlir-runner")
@@ -349,9 +351,9 @@ def compile_variant(
         capture=True,
     )
     output_lines = execution.stdout.strip().splitlines()
-    if not output_lines or output_lines[-1] != "16":
+    if not output_lines or output_lines[-1] != str(expected_result):
         raise RuntimeError(
-            f"{variant.name}: expected numerical result 16, got {execution.stdout!r}"
+            f"{variant.name}: expected numerical result {expected_result}, got {execution.stdout!r}"
         )
 
     with trace_path.open(encoding="utf-8") as trace_file:
@@ -366,7 +368,7 @@ def compile_variant(
         raise RuntimeError(f"{variant.name}: unexpected LLVM fallback events")
 
     print(
-        f"{variant.name}: result=16, events={trace['total_events']}, "
+        f"{variant.name}: result={expected_result}, events={trace['total_events']}, "
         f"accesses={len(trace['accesses'])}, trace=valid"
     )
     return trace
