@@ -1046,23 +1046,122 @@ summary {
   border-radius: 6px;
 }
 
-.experiment-form { padding: 1rem; border: 1px solid var(--line); border-radius: .5rem; margin-bottom: 1.5rem; }
-.experiment-form form, .experiment-form fieldset { display: flex; flex-wrap: wrap; align-items: end; gap: 1rem; margin: 1rem 0; }
-.experiment-form fieldset { width: 100%; border: 1px solid var(--line); padding: 1rem; }
-.experiment-form label { display: flex; flex-direction: column; gap: .4rem; }
-.experiment-form input, .experiment-form select, .experiment-form button { font: inherit; padding: .4rem; max-width: 100%; }
-.experiment-form button { cursor: pointer; }
-.experiment-form button:disabled { cursor: default; }
-.cache-level { display: flex; flex-wrap: wrap; gap: .8rem; width: 100%; align-items: end; }
-.cache-level input { width: 8rem; }
-.experiment-progress { padding: .8rem 0; }
-.experiment-progress button { margin-left: 1rem; }
-.experiment-form pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 24rem; overflow: auto; }
+.experiment-form {
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: .5rem;
+  margin-bottom: 1.5rem;
+}
 
-.cache-preset-note { width: 100%; margin: 0; }
-.cache-preset-note p { margin: 0; }
-.cache-preset-note ul { margin: .4rem 0 0; }
+.experiment-form form,
+.experiment-form fieldset {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 1rem;
+  margin: 1rem 0;
+}
 
-.hierarchy-policies { display: grid; gap: 12px; margin: 16px 0; }
-.hierarchy-policies label { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.hierarchy-policies input[type="checkbox"] { width: auto; }
+.experiment-form fieldset {
+  width: 100%;
+  border: 1px solid var(--line);
+  padding: 1rem;
+}
+
+.experiment-form label {
+  display: flex;
+  flex-direction: column;
+  gap: .4rem;
+}
+
+.experiment-form input,
+.experiment-form select,
+.experiment-form button {
+  font: inherit;
+  padding: .4rem;
+  max-width: 100%;
+}
+
+.experiment-form button {
+  cursor: pointer;
+}
+
+.experiment-form button:disabled {
+  cursor: default;
+}
+
+.cache-level {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .8rem;
+  width: 100%;
+  align-items: end;
+}
+
+.cache-level input {
+  width: 8rem;
+}
+
+.experiment-progress {
+  padding: .8rem 0;
+}
+
+.experiment-progress button {
+  margin-left: 1rem;
+}
+
+.experiment-form pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 24rem;
+  overflow: auto;
+}
+
+.cache-preset-note {
+  width: 100%;
+  margin: 0;
+}
+
+.cache-preset-note p {
+  margin: 0;
+}
+
+.cache-preset-note ul {
+  margin: .4rem 0 0;
+}
+
+.hierarchy-policies {
+  display: grid;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.hierarchy-policies label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.hierarchy-policies input[type="checkbox"] {
+  width: auto;
+}
+
+/* Сетка уровня: 7 колонок вместо 6 (добавился «Пресет») */
+.stepper-level-config {
+  grid-template-columns: 1fr 1.4fr 1fr 1fr 1fr 1fr auto;
+}
+
+/* Блок загрузки файлов */
+.stepper-upload-note {
+  color: var(--muted);
+  font-size: 0.82rem;
+  margin: 4px 0 0;
+}
+
+.stepper-upload-result {
+  color: var(--muted);
+  font-size: 0.82rem;
+  margin: 8px 0 0;
+  overflow-wrap: anywhere;
+}

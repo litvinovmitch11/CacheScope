@@ -5,8 +5,10 @@ export interface LevelConfig {
   size_bytes: number;
   line_size_bytes: number;
   associativity: number;
-  replacement_policy: "LRU" | "FIFO" | "Random";
+  replacement_policy: "LRU" | "FIFO" | "Random" | "PLRU4";
   random_seed?: UInt64;
+  write_policy?: "write_back" | "write_through";
+  allocation_policy?: "write_allocate" | "no_write_allocate";
 }
 
 export interface EffectiveLevel extends Omit<LevelConfig, "random_seed"> {
@@ -183,4 +185,9 @@ export interface RunnerErrorBody {
   error?: { code?: string; message?: string; details?: unknown };
   session_id?: string;
   revision?: UInt64;
+}
+
+export interface UploadResponse {
+  trace_path: string;
+  stage_paths: string[];
 }

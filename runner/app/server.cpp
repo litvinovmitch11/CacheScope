@@ -7,13 +7,18 @@
 #include <cctype>
 #include <charconv>
 #include <csignal>
+#include <cstdlib>
+#include <ctime>
 #include <exception>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
+#include <iterator>
 #include <limits>
 #include <pthread.h>
 #include <set>
 #include <stdexcept>
+#include <string>
 #include <thread>
 #include <utility>
 #include <vector>
@@ -25,6 +30,40 @@ static Json error(const std::string &code, const std::string &message) {
       {"error",
        {{"code", code}, {"message", message}, {"details", Json::object()}}}};
 }
+
+namespace {
+std::filesystem::path make_upload_dir() {
+  auto base = std::filesystem::temp_directory_path() / "cachescope-uploads";
+  std::filesystem::create_directories(base);
+  for (int attempt = 0; attempt < 16; ++attempt) {
+    std::error_code ec;
+    auto candidate =
+        base /
+        (std::to_string(static_cast<long long>(std::time(nullptr))) + "-" +
+         std::to_string(std::rand()) + "-" + std::to_string(attempt));
+    if (std::filesystem::create_directory(candidate, ec)) {
+      return candidate;
+    }
+  }
+  throw std::runtime_error("cannot create upload directory");
+}
+
+std::string sanitize_filename(const std::string &raw) {
+  auto name = raw;
+  const auto slash = name.find_last_of("/\\");
+  if (slash != std::string::npos)
+    name = name.substr(slash + 1);
+  if (name.empty() || name == "." || name == "..") {
+    throw std::invalid_argument("invalid filename");
+  }
+  for (unsigned char c : name) {
+    if (c < 0x20 || c == '/' || c == '\\' || c == ':') {
+      throw std::invalid_argument("invalid character in filename");
+    }
+  }
+  return name;
+}
+} // namespace
 
 int main(int argc, char **argv) {
   int port = 9055;
@@ -126,6 +165,93 @@ int main(int argc, char **argv) {
     if (result.status != 204)
       response.set_content(result.body.dump(), "application/json");
   };
+
+  server.Post("/api/v1/uploads", [](const httplib::Request &req,
+                                    httplib::Response &res) {
+    try {
+      // Проверяем, что это действительно multipart/form-data
+      if (!req.is_multipart_form_data()) {
+        throw std::invalid_argument("Content-Type must be multipart/form-data");
+      }
+
+      // В новом API cpp-httplib файлы доступны через req.form
+      if (!req.form.has_file("trace")) {
+        throw std::invalid_argument("missing 'trace' file");
+      }
+
+      std::filesystem::path dir = make_upload_dir();
+      std::filesystem::path trace_path = dir / "trace.json";
+      std::vector<std::filesystem::path> stage_paths;
+
+      // 1. Сохраняем обязательный trace.json
+      const auto &trace_file = req.form.get_file("trace");
+      std::ofstream(trace_path, std::ios::binary)
+          .write(trace_file.content.data(),
+                 static_cast<std::streamsize>(trace_file.content.size()));
+
+      // 2. Сохраняем опциональные MLIR-файлы (поле "stages")
+      // get_files возвращает все файлы, отправленные под одним именем поля
+      for (const auto &stage_file : req.form.get_files("stages")) {
+        if (stage_file.filename.empty())
+          continue;
+        auto stage_path = dir / sanitize_filename(stage_file.filename);
+        std::ofstream(stage_path, std::ios::binary)
+            .write(stage_file.content.data(),
+                   static_cast<std::streamsize>(stage_file.content.size()));
+        stage_paths.push_back(std::move(stage_path));
+      }
+
+      Json stage_array = Json::array();
+      for (const auto &p : stage_paths)
+        stage_array.push_back(p.string());
+
+      res.status = 200;
+      res.set_content(Json{{"trace_path", trace_path.string()},
+                           {"stage_paths", std::move(stage_array)}}
+                          .dump(),
+                      "application/json");
+    } catch (const std::exception &e) {
+      res.status = 400;
+      res.set_content(error("invalid_request", e.what()).dump(),
+                      "application/json");
+    }
+  });
+
+  server.Get("/api/v1/source", [](const httplib::Request &req,
+                                  httplib::Response &res) {
+    try {
+      if (!req.has_param("trace_path") || !req.has_param("stage_path")) {
+        throw std::invalid_argument("need trace_path and stage_path");
+      }
+
+      const auto trace_path =
+          std::filesystem::absolute(req.get_param_value("trace_path"));
+      const auto trace_dir = trace_path.parent_path();
+      const auto target = std::filesystem::weakly_canonical(
+          trace_dir / req.get_param_value("stage_path"));
+
+      const auto rel = std::filesystem::relative(target, trace_dir);
+      if (rel.empty() || *rel.begin() == "..") {
+        throw std::invalid_argument("stage_path escapes trace directory");
+      }
+      if (!std::filesystem::is_regular_file(target)) {
+        throw std::invalid_argument("stage file not found");
+      }
+
+      std::ifstream in(target, std::ios::binary);
+      std::string text((std::istreambuf_iterator<char>(in)),
+                       std::istreambuf_iterator<char>());
+
+      res.status = 200;
+      res.set_content(Json{{"text", std::move(text)}}.dump(),
+                      "application/json");
+    } catch (const std::exception &e) {
+      res.status = 400;
+      res.set_content(error("invalid_request", e.what()).dump(),
+                      "application/json");
+    }
+  });
+
   server.Get(R"(/api/v1/.*)", handler);
   server.Post(R"(/api/v1/.*)", handler);
   server.Delete(R"(/api/v1/.*)", handler);
