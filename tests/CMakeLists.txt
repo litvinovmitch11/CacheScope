@@ -1,5 +1,10 @@
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
+add_executable(cachescope_runtime_unlimited runtime_unlimited.cpp)
+target_link_libraries(cachescope_runtime_unlimited PRIVATE cachescope_trace_runtime)
+add_test(NAME cachescope.runtime-unlimited COMMAND cachescope_runtime_unlimited)
+set_tests_properties(cachescope.runtime-unlimited PROPERTIES TIMEOUT 120)
+
 set(CACHESCOPE_TEST_COMMON_ARGS
   --repo ${PROJECT_SOURCE_DIR}
   --mlir-bin ${LLVM_TOOLS_BINARY_DIR}
@@ -51,3 +56,16 @@ set_tests_properties(
   cachescope.schema-suite
   PROPERTIES TIMEOUT 120
 )
+
+if(TARGET cachescope_runner_cli)
+  add_test(
+    NAME cachescope.cache-pipeline-e2e
+    COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_CURRENT_SOURCE_DIR}/cache_pipeline_e2e.py
+            --mlir-bin ${LLVM_TOOLS_BINARY_DIR}
+            --plugin $<TARGET_FILE:CacheScopePassPlugin>
+            --runtime $<TARGET_FILE:cachescope_trace_runtime>
+            --runner $<TARGET_FILE:cachescope_runner_cli>
+  )
+  set_tests_properties(cachescope.cache-pipeline-e2e PROPERTIES TIMEOUT 300)
+endif()

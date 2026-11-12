@@ -1,0 +1,38 @@
+{
+  "schema": "cachescope.demo-summary.v1",
+  "payload": "examples/workloads/matmul.mlir",
+  "variants": {
+    "baseline": {
+      "trace": "baseline/trace.json",
+      "total_events": 16384,
+      "accesses": 4,
+      "valid": true,
+      "complete": true
+    },
+    "tile4": {
+      "trace": "tile4/trace.json",
+      "total_events": 16384,
+      "accesses": 4,
+      "valid": true,
+      "complete": true
+    },
+    "tile4-ikj": {
+      "trace": "tile4-ikj/trace.json",
+      "total_events": 16384,
+      "accesses": 4,
+      "valid": true,
+      "complete": true
+    }
+  },
+  "comparisons": {
+    "baseline_vs_tile4": {
+      "first_dynamic_difference": 16
+    },
+    "baseline_vs_tile4-ikj": {
+      "first_dynamic_difference": 16
+    },
+    "tile4_vs_tile4-ikj": {
+      "first_dynamic_difference": 256
+    }
+  }
+}

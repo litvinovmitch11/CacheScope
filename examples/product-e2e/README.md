@@ -1,5 +1,10 @@
 # Полный продуктовый E2E
 
+[Готовый результат](../../output/product-e2e/README.md) уже сохранён в репозитории.
+Скачайте [report.html](../../output/product-e2e/report.html) через **Download raw file**
+и откройте его в браузере: Docker, LLVM, Node.js и backend для просмотра не нужны.
+Команды ниже нужны только для повторной генерации эксперимента.
+
 Одна команда собирает и соединяет все компоненты CacheScope:
 
 ```bash
@@ -83,3 +88,6 @@ CLI и driver поддерживают `lru`, `fifo` и детерминиров
 `cachescope.trace.v1`, `cachescope.simulation-statistics.v1` и
 `cachescope.simulation-events.v1`. UI по-прежнему можно запускать отдельно над
 полученной директорией эксперимента.
+
+Независимая проверка semantic trace, адресов runner и сравнение с drcachesim
+описаны в [CACHE_PIPELINE_VALIDATION.md](../../docs/CACHE_PIPELINE_VALIDATION.md).

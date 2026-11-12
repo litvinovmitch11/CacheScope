@@ -53,7 +53,7 @@ if(CACHESCOPE_BUILD_HTTP_SERVER)
   )
   FetchContent_MakeAvailable(httplib)
   find_package(Threads REQUIRED)
-  add_executable(cachescope_runner_server app/server.cpp lib/runner_api.cpp)
+  add_executable(cachescope_runner_server app/server.cpp app/experiments.cpp lib/runner_api.cpp)
   target_include_directories(cachescope_runner_server PRIVATE lib)
   target_link_libraries(cachescope_runner_server PRIVATE
     CacheScope::Runner httplib::httplib Threads::Threads)

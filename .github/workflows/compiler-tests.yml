@@ -30,6 +30,11 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Configure Ubuntu archive mirror
+        run: |
+          # cloud-init can restore ubuntu.sources while the job is running.
+          echo 'http://mirrors.kernel.org/ubuntu/' | sudo tee /etc/apt/apt-mirrors.txt
+
       - name: Install pinned LLVM and MLIR packages
         run: scripts/install-llvm-dependencies.sh
 

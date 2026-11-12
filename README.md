@@ -22,8 +22,30 @@ CacheScope показывает, как compiler transformations меняют п
   независимый trace runner со статистикой по уровням, инструкциям и
   подробным событийным рядом в `events.json`;
 - полный product E2E: compiler → trace → simulator → standalone HTML.
+- загрузка MLIR и NPZ из браузера, локальное выполнение и отчёт на одной странице.
 
 Точные границы перечислены в [support matrix](docs/SUPPORT_MATRIX.md).
+
+## Готовый отчёт без установки
+
+Скачайте [готовый report.html](output/product-e2e/report.html) через
+**Download raw file** и откройте его в браузере. Docker, LLVM, Node.js и
+backend для просмотра не нужны: UI и результаты уже встроены в файл.
+
+В [output/product-e2e](output/product-e2e/README.md) также сохранены полные
+трассы, результаты runner и MLIR-стадии трёх вариантов matmul.
+
+## Запуск из браузера
+
+```bash
+docker compose up --build
+```
+
+Откройте **http://localhost:9055**. Выберите MLIR, NPZ, функцию и источники
+аргументов, настройте кэши и нажмите «Выполнить». Пример с готовыми файлами и
+ожидаемыми показателями: [examples/ui-upload](examples/ui-upload/README.md).
+LLVM, compiler, runner и UI находятся в отдельном контейнере; история запусков
+и пошаговый UI в этот сценарий не входят.
 
 ## Раннер и кеш без LLVM
 
@@ -130,7 +152,7 @@ schemas/               общие контракты и fixtures
 examples/              compiler demo, product E2E и optional PyTorch frontend
 tests/                 compiler, ABI и проверки общих контрактов
 docs/                  архитектура и межкомпонентные контракты
-output/                локальные generated artifacts, ignored
+output/                готовый product-e2e отчёт и локальные generated artifacts
 ```
 
 ## Дополнительный PyTorch frontend

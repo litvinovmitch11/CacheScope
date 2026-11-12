@@ -1,0 +1,101 @@
+name: Cache pipeline validation
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cache-pipeline-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cache-pipeline:
+    name: MLIR to cache statistics and drcachesim (ARM64)
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    env:
+      BUILD_DIR: ${{ github.workspace }}/build/cache-pipeline
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Configure Ubuntu Ports mirror
+        run: sudo install -m 0644 .github/ubuntu-arm64.sources /etc/apt/sources.list.d/ubuntu.sources
+
+      - name: Install pinned LLVM and MLIR
+        run: scripts/install-llvm-dependencies.sh
+
+      - name: Install DynamoRIO dependency
+        run: sudo apt-get install -y libsnappy1v5
+
+      - name: Download and verify DynamoRIO
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="${RUNNER_TEMP}/dynamorio.tar.gz"
+          curl --fail --location --retry 3 --output "${archive}" \
+            https://github.com/DynamoRIO/dynamorio/releases/download/cronbuild-11.91.20763/DynamoRIO-AArch64-Linux-11.91.20763.tar.gz
+          echo "94b659aa61e6d13517280c438312e29421f4db841377d8025a240e4ebf1dfb43  ${archive}" | sha256sum --check --strict
+          mkdir -p "${RUNNER_TEMP}/dynamorio"
+          tar -xzf "${archive}" -C "${RUNNER_TEMP}/dynamorio"
+
+      - name: Configure and build
+        run: |
+          cmake -S . -B "${BUILD_DIR}" -G Ninja \
+            -DMLIR_DIR=/usr/lib/llvm-22/lib/cmake/mlir \
+            -DCMAKE_C_COMPILER=/usr/lib/llvm-22/bin/clang \
+            -DCMAKE_CXX_COMPILER=/usr/lib/llvm-22/bin/clang++ \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCACHESCOPE_BUILD_CACHE_MODEL=ON -DBUILD_TESTING=ON
+          cmake --build "${BUILD_DIR}" --target CacheScopePassPlugin cachescope_trace_runtime cachescope_runner_cli --parallel 2
+
+      - name: Run cache pipeline CTest
+        run: ctest --test-dir "${BUILD_DIR}" -R '^cachescope[.]cache-pipeline-e2e$' --output-on-failure --no-tests=error
+
+      - name: Compare pipeline with drcachesim
+        run: |
+          python3 tests/cache_pipeline_e2e.py \
+            --mlir-bin /usr/lib/llvm-22/bin \
+            --plugin "${BUILD_DIR}/lib/CacheScopePassPlugin.so" \
+            --runtime "${BUILD_DIR}/compiler/runtime/libcachescope_trace_runtime.so" \
+            --runner "${BUILD_DIR}/runner/cachescope-runner" \
+            --dynamorio-launcher "${RUNNER_TEMP}/dynamorio/DynamoRIO-AArch64-Linux-11.91.20763/tools/bin64/drmemtrace_launcher" \
+            --output-dir "${RUNNER_TEMP}/cache-pipeline-results"
+
+      - name: Compare semantic and native traces with drmemtrace
+        run: |
+          python3 tests/compare_drmemtrace.py \
+            --mlir-bin /usr/lib/llvm-22/bin \
+            --plugin "${BUILD_DIR}/lib/CacheScopePassPlugin.so" \
+            --runtime "${BUILD_DIR}/compiler/runtime/libcachescope_trace_runtime.so" \
+            --dynamorio "${RUNNER_TEMP}/dynamorio/DynamoRIO-AArch64-Linux-11.91.20763" \
+            --output-dir "${RUNNER_TEMP}/drmemtrace-results"
+
+      - name: Compare matmul semantic and native traces
+        run: |
+          python3 tests/compare_drmemtrace_matmul.py \
+            --mlir-bin /usr/lib/llvm-22/bin \
+            --plugin "${BUILD_DIR}/lib/CacheScopePassPlugin.so" \
+            --runtime "${BUILD_DIR}/compiler/runtime/libcachescope_trace_runtime.so" \
+            --dynamorio "${RUNNER_TEMP}/dynamorio/DynamoRIO-AArch64-Linux-11.91.20763" \
+            --output-dir "${RUNNER_TEMP}/drmemtrace-matmul-results"
+
+      - name: Upload pipeline results and diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cache-pipeline-results
+          path: |
+            ${{ runner.temp }}/cache-pipeline-results/
+            ${{ runner.temp }}/drmemtrace-results/
+            ${{ runner.temp }}/drmemtrace-matmul-results/
+            build/cache-pipeline/Testing/Temporary/LastTest.log
+            build/cache-pipeline/CMakeFiles/CMakeConfigureLog.yaml
+          if-no-files-found: ignore
+          retention-days: 7

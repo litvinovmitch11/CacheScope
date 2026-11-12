@@ -3,7 +3,10 @@
 #include "cache_simulator/Random.h"
 #include "cache_simulator/SetAssociativeCacheLevel.h"
 #include "cache_simulator/trace_runner.hpp"
+#include <fstream>
+#include <nlohmann/json.hpp>
 
+#include <cctype>
 #include <charconv>
 #include <cstdint>
 #include <filesystem>
@@ -30,6 +33,7 @@ struct LevelOptions {
 };
 
 struct Options {
+  fs::path config;
   fs::path trace;
   fs::path output_dir;
   std::string cache_name = "L1";
@@ -54,6 +58,8 @@ void print_usage(std::ostream &output) {
          << "  --random-seed <n>         Random policy seed (default: 42)\n"
          << "  --cache-level <spec>      Repeatable hierarchy level: "
             "NAME:SIZE:LINE:WAYS:POLICY[:SEED]\n"
+         << "  --config <file>           JSON levels using the HTTP "
+            "configuration format\n"
          << "  -h, --help                Show this help\n\n"
          << "When --cache-level is present, it replaces the single-level "
             "options. All hierarchy levels must use the same line size.\n"
@@ -132,6 +138,8 @@ Options parse_options(int argc, char **argv) {
     const std::string_view argument = argv[index];
     if (argument == "-h" || argument == "--help") {
       options.help = true;
+    } else if (argument == "--config") {
+      options.config = value_after(index, argc, argv, argument);
     } else if (argument == "--trace") {
       options.trace = value_after(index, argc, argv, argument);
     } else if (argument == "--output-dir") {
@@ -161,6 +169,39 @@ Options parse_options(int argc, char **argv) {
   }
 
   if (!options.help) {
+    if (!options.config.empty()) {
+      if (!options.cache_levels.empty())
+        throw std::invalid_argument(
+            "--config and --cache-level cannot be combined");
+      std::ifstream input(options.config);
+      nlohmann::json config;
+      input >> config;
+      const auto &levels = config.at("levels");
+      if (!levels.is_array() || levels.empty())
+        throw std::invalid_argument("config levels must be nonempty");
+      for (const auto &level : levels) {
+        auto policy = level.at("replacement_policy").get<std::string>();
+        for (auto &c : policy)
+          c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        LevelOptions entry{
+            level.at("name").get<std::string>(),
+            parse_size(level.at("size_bytes").dump(), "size_bytes"),
+            parse_size(level.at("line_size_bytes").dump(), "line_size_bytes"),
+            parse_size(level.at("associativity").dump(), "associativity"),
+            policy};
+        if (policy != "lru" && policy != "fifo" && policy != "random")
+          throw std::invalid_argument("unknown config replacement_policy");
+        if (level.contains("random_seed")) {
+          if (policy != "random")
+            throw std::invalid_argument("only Random accepts random_seed");
+          entry.random_seed = parse_u64(
+              level.at("random_seed").get<std::string>(), "random_seed");
+        } else if (policy == "random") {
+          entry.random_seed = 0;
+        }
+        options.cache_levels.push_back(std::move(entry));
+      }
+    }
     if (options.trace.empty())
       throw std::invalid_argument("--trace is required");
     if (options.output_dir.empty())

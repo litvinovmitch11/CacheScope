@@ -1,0 +1,7 @@
+# Independent mirror DNS for ARM64 CI; Ubuntu signatures remain required.
+Types: deb
+URIs: http://mirrors.ocf.berkeley.edu/ubuntu-ports/
+Suites: noble noble-updates noble-backports noble-security
+Components: main restricted universe multiverse
+Architectures: arm64
+Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
