@@ -4,8 +4,10 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import ctypes
 import hashlib
+import importlib.metadata
 import json
 import os
 import re
@@ -13,6 +15,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -29,7 +32,6 @@ from model import (
     OUTPUT_HEIGHT,
     OUTPUT_WIDTH,
     SEED,
-    TILE,
     WIDTH,
     DepthwiseBlock,
     verify_references,
@@ -46,15 +48,11 @@ from validate_trace import validate_trace  # noqa: E402
 class Variant:
     name: str
     transform: Path
+    tile_size: int | None
 
 
-VARIANTS = (
-    Variant("baseline", SCENARIO / "transforms/layerwise.transform.mlir"),
-    Variant(
-        "temporal-blocked",
-        SCENARIO / "transforms/temporal-blocked.transform.mlir",
-    ),
-)
+DEFAULT_TILE_SIZES = (6, 10, 14)
+DEFAULT_STEPPER_EVENTS = 2048
 
 DEMO_CACHE = ("L1:16384:64:4:lru",)
 REFERENCE_HIERARCHY = (
@@ -62,6 +60,10 @@ REFERENCE_HIERARCHY = (
     "L2:262144:64:8:lru",
     "L3:2097152:64:16:lru",
 )
+CACHE_PROFILES = {
+    "demo": DEMO_CACHE,
+    "reference": REFERENCE_HIERARCHY,
+}
 
 
 def pinned_llvm_root() -> Path:
@@ -113,7 +115,95 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Reuse an already built plugin, trace runtime, and runner.",
     )
+    parser.add_argument(
+        "--tile-sizes",
+        default=",".join(str(tile) for tile in DEFAULT_TILE_SIZES),
+        help=(
+            "Comma-separated positive spatial tile sizes. The baseline is "
+            "always included; default: %(default)s."
+        ),
+    )
+    parser.add_argument(
+        "--keep-events",
+        action="store_true",
+        help=(
+            "Keep batch simulation events.json files. They are not needed by "
+            "the report or interactive stepper and are large for this workload."
+        ),
+    )
+    parser.add_argument(
+        "--stepper-events",
+        type=int,
+        default=DEFAULT_STEPPER_EVENTS,
+        help=(
+            "Number of events in the compact interactive stepper bundle; "
+            "use 0 to disable it. Default: %(default)s."
+        ),
+    )
+    parser.add_argument(
+        "--progress-file",
+        type=Path,
+        help="Atomically publish machine-readable stage progress for an orchestrator.",
+    )
     return parser.parse_args()
+
+
+def publish_progress(
+    args: argparse.Namespace,
+    stage: str,
+    message: str,
+    *,
+    current: int | None = None,
+    total: int | None = None,
+    variant: str | None = None,
+) -> None:
+    if args.progress_file is None:
+        return
+    destination = args.progress_file.resolve()
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    payload: dict[str, object] = {"stage": stage, "message": message}
+    if current is not None:
+        payload["current"] = current
+    if total is not None:
+        payload["total"] = total
+    if variant is not None:
+        payload["variant"] = variant
+    temporary = destination.with_name(destination.name + f".tmp-{os.getpid()}")
+    temporary.write_text(json.dumps(payload) + "\n", encoding="utf-8")
+    os.replace(temporary, destination)
+
+
+def parse_tile_sizes(value: str) -> tuple[int, ...]:
+    try:
+        parsed = tuple(int(item.strip()) for item in value.split(","))
+    except ValueError as error:
+        raise RuntimeError("tile sizes must be comma-separated integers") from error
+    if not parsed or any(tile <= 0 for tile in parsed):
+        raise RuntimeError("tile sizes must contain positive integers")
+    if len(set(parsed)) != len(parsed):
+        raise RuntimeError("tile sizes must be unique")
+    return parsed
+
+
+def prepare_variants(output: Path, tile_sizes: tuple[int, ...]) -> tuple[Variant, ...]:
+    template = require_file(
+        SCENARIO / "transforms/temporal-blocked.transform.mlir.in",
+        "temporal-blocked transform template",
+    ).read_text(encoding="utf-8")
+    generated = output / "transforms"
+    generated.mkdir(parents=True, exist_ok=True)
+    variants = [
+        Variant(
+            "baseline",
+            SCENARIO / "transforms/layerwise.transform.mlir",
+            None,
+        )
+    ]
+    for tile in tile_sizes:
+        transform = generated / f"temporal-blocked-{tile}.transform.mlir"
+        transform.write_text(template.replace("@TILE@", str(tile)), encoding="utf-8")
+        variants.append(Variant(f"tile-{tile}", transform, tile))
+    return tuple(variants)
 
 
 def run(
@@ -139,6 +229,72 @@ def require_file(path: Path, description: str) -> Path:
     if not path.is_file():
         raise RuntimeError(f"missing {description}: {path}")
     return path
+
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(block)
+    return "sha256:" + digest.hexdigest()
+
+
+def package_version(distribution: str) -> str:
+    try:
+        return importlib.metadata.version(distribution)
+    except importlib.metadata.PackageNotFoundError:
+        return "unknown"
+
+
+def captured(command: list[object], *, cwd: Path = ROOT) -> str:
+    completed = subprocess.run(
+        [str(argument) for argument in command],
+        cwd=cwd,
+        check=True,
+        text=True,
+        capture_output=True,
+    )
+    return completed.stdout.strip()
+
+
+def is_scenario_output(path: Path) -> bool:
+    input_manifest = path / "input.json"
+    if not input_manifest.is_file():
+        return False
+    try:
+        value = json.loads(input_manifest.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False
+    return value.get("scenario") == "depthwise-temporal-blocking"
+
+
+def validate_output_destination(path: Path) -> None:
+    if not path.exists():
+        return
+    if not path.is_dir():
+        raise RuntimeError(f"output path is not a directory: {path}")
+    if any(path.iterdir()) and not is_scenario_output(path):
+        raise RuntimeError(
+            f"refusing to replace non-CacheScope scenario output: {path}"
+        )
+
+
+def publish_output(staging: Path, destination: Path) -> None:
+    validate_output_destination(destination)
+    backup = destination.with_name(
+        f".{destination.name}.previous-{os.getpid()}"
+    )
+    if backup.exists():
+        raise RuntimeError(f"temporary output backup already exists: {backup}")
+    if destination.exists():
+        os.replace(destination, backup)
+    try:
+        os.replace(staging, destination)
+    except BaseException:
+        if backup.exists() and not destination.exists():
+            os.replace(backup, destination)
+        raise
+    shutil.rmtree(backup, ignore_errors=True)
 
 
 def find_library(directory: Path, stem: str) -> Path:
@@ -205,7 +361,9 @@ def tool(args: argparse.Namespace, name: str) -> Path:
 
 
 def write_inputs(
-    output: Path, inputs: tuple[torch.Tensor, ...]
+    output: Path,
+    inputs: tuple[torch.Tensor, ...],
+    tile_sizes: tuple[int, ...],
 ) -> None:
     names = ("input", "weight1", "bias1", "weight2", "bias2")
     arrays = {
@@ -218,7 +376,7 @@ def write_inputs(
         "scenario": "depthwise-temporal-blocking",
         "seed": SEED,
         "dtype": "float32",
-        "tile": [TILE, TILE],
+        "tile_sizes": [[tile, tile] for tile in tile_sizes],
         "inputs": [
             {"name": name, "shape": list(array.shape)}
             for name, array in arrays.items()
@@ -226,6 +384,81 @@ def write_inputs(
         "archive": "inputs.npz",
     }
     (output / "input.json").write_text(
+        json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
+    )
+
+
+def write_experiment_manifest(
+    output: Path,
+    variants: tuple[Variant, ...],
+    args: argparse.Namespace,
+    payload: Path,
+    plugin: Path,
+    runtime: Path,
+    runner: Path,
+) -> None:
+    revision = captured(["git", "rev-parse", "HEAD"])
+    dirty = bool(captured(["git", "status", "--porcelain"]))
+    mlir_version = captured([tool(args, "mlir-opt"), "--version"]).splitlines()[0]
+    manifest = {
+        "schema": "cachescope.experiment.v1",
+        "name": "depthwise-temporal-blocking",
+        "frontend": {
+            "kind": "torch",
+            "module": "model.py:DepthwiseBlock",
+            "inputs": "inputs.npz",
+        },
+        "reproducibility": {
+            "seed": SEED,
+            "repository_revision": revision,
+            "repository_dirty": dirty,
+            "versions": {
+                "python": sys.version.split()[0],
+                "torch": torch.__version__,
+                "torch_mlir": package_version("torch-mlir"),
+                "numpy": np.__version__,
+                "mlir": mlir_version,
+            },
+            "fingerprints": {
+                "model": sha256_file(SCENARIO / "model.py"),
+                "inputs": sha256_file(output / "inputs.npz"),
+                "torch_payload": sha256_file(payload),
+                "compiler_plugin": sha256_file(plugin),
+                "trace_runtime": sha256_file(runtime),
+                "runner": sha256_file(runner),
+            },
+        },
+        "variants": [
+            {
+                "name": variant.name,
+                "tile_size": variant.tile_size,
+                "transform": str(variant.transform.relative_to(output))
+                if variant.transform.is_relative_to(output)
+                else str(variant.transform.relative_to(ROOT)),
+                "transform_fingerprint": sha256_file(variant.transform),
+            }
+            for variant in variants
+        ],
+        "cache_profiles": {
+            name: list(levels) for name, levels in CACHE_PROFILES.items()
+        },
+        "validation": {
+            "torch_reference": {"rtol": 1e-5, "atol": 1e-5},
+            "compiled_variants": "bitwise",
+            "require_complete_trace": True,
+            "require_semantic_addresses": True,
+            "require_matching_provenance": True,
+        },
+        "artifacts": {
+            "summary": "summary.json",
+            "results": "RESULTS.md",
+            "report": None if args.skip_ui else "report.html",
+            "stepper_demo": (
+                "stepper-demo" if args.stepper_events > 0 else None
+            ),
+        },
+    }
+    (output / "experiment.json").write_text(
         json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
     )
 
@@ -326,12 +559,13 @@ def compile_variant(
     object_file = directory / "07-module.o"
     library = directory / f"libcachescope-{variant.name}.so"
     trace = directory / "trace.json"
+    payload_argument = Path(os.path.relpath(payload, directory))
 
     mlir_opt = tool(args, "mlir-opt")
     run(
         [
             mlir_opt,
-            payload,
+            payload_argument,
             f"--load-pass-plugin={plugin}",
             "--pass-pipeline=builtin.module("
             "snapshot-op-locations{filename=input.mlir tag=cachescope.stage.input},"
@@ -556,6 +790,8 @@ def replay(
     trace: Path,
     destination: Path,
     cache: tuple[str, ...],
+    *,
+    keep_events: bool,
 ) -> dict:
     command: list[object] = [
         runner,
@@ -567,7 +803,12 @@ def replay(
     for level in cache:
         command.extend(["--cache-level", level])
     run(command)
-    return json.loads((destination / "statistics.json").read_text(encoding="utf-8"))
+    statistics = json.loads(
+        (destination / "statistics.json").read_text(encoding="utf-8")
+    )
+    if not keep_events:
+        (destination / "events.json").unlink(missing_ok=True)
+    return statistics
 
 
 def trace_metrics(trace: dict) -> dict[str, int]:
@@ -583,9 +824,7 @@ def trace_metrics(trace: dict) -> dict[str, int]:
 
 def assert_comparable_provenance(traces: dict[str, dict]) -> None:
     baseline = traces["baseline"]
-    blocked = traces["temporal-blocked"]
     baseline_map = baseline["source_map"]
-    blocked_map = blocked["source_map"]
     expected_stages = (
         "input",
         "after-transform",
@@ -594,18 +833,22 @@ def assert_comparable_provenance(traces: dict[str, dict]) -> None:
         "after-llvm-lowering",
     )
 
-    for name, source_map in (
-        ("baseline", baseline_map),
-        ("temporal-blocked", blocked_map),
-    ):
+    for name, trace in traces.items():
+        source_map = trace["source_map"]
         stage_ids = tuple(stage["stage_id"] for stage in source_map["stages"])
         if stage_ids != expected_stages:
             raise RuntimeError(f"{name}: incomplete source-map stage coverage")
-
-    if baseline_map["payload_fingerprint"] != blocked_map["payload_fingerprint"]:
-        raise RuntimeError("variants do not originate from the same input payload")
-    if baseline_map["origins"] != blocked_map["origins"]:
-        raise RuntimeError("fusion changed the scenario's high-level origins")
+        if (
+            baseline_map["payload_fingerprint"]
+            != source_map["payload_fingerprint"]
+        ):
+            raise RuntimeError(
+                f"{name}: variant does not originate from the baseline payload"
+            )
+        if baseline_map["origins"] != source_map["origins"]:
+            raise RuntimeError(
+                f"{name}: fusion changed the scenario's high-level origins"
+            )
 
     def signature(trace: dict) -> list[tuple]:
         result = []
@@ -631,8 +874,10 @@ def assert_comparable_provenance(traces: dict[str, dict]) -> None:
             )
         return result
 
-    if signature(baseline) != signature(blocked):
-        raise RuntimeError("fusion changed static access provenance")
+    baseline_signature = signature(baseline)
+    for name, trace in traces.items():
+        if signature(trace) != baseline_signature:
+            raise RuntimeError(f"{name}: fusion changed static access provenance")
 
 
 def assert_comparable_simulations(
@@ -640,26 +885,38 @@ def assert_comparable_simulations(
 ) -> None:
     for profile, variants in simulations.items():
         baseline = variants["baseline"]
-        blocked = variants["temporal-blocked"]
-        if baseline["buffers"] != blocked["buffers"]:
-            raise RuntimeError(
-                f"{profile}: variants use different model buffer placement"
-            )
         baseline_configs = [level["cache_config"] for level in baseline["levels"]]
-        blocked_configs = [level["cache_config"] for level in blocked["levels"]]
-        if baseline_configs != blocked_configs:
-            raise RuntimeError(
-                f"{profile}: variants use different cache configurations"
-            )
-        if baseline["hierarchy"] != blocked["hierarchy"]:
-            raise RuntimeError(f"{profile}: variants use different hierarchies")
+        for name, statistics in variants.items():
+            if baseline["buffers"] != statistics["buffers"]:
+                raise RuntimeError(
+                    f"{profile}/{name}: variants use different model buffer placement"
+                )
+            configs = [
+                level["cache_config"] for level in statistics["levels"]
+            ]
+            if baseline_configs != configs:
+                raise RuntimeError(
+                    f"{profile}/{name}: variants use different cache configurations"
+                )
+            if baseline["hierarchy"] != statistics["hierarchy"]:
+                raise RuntimeError(
+                    f"{profile}/{name}: variants use different hierarchies"
+                )
         expected_hierarchy = {
             "allocation_policy": "write_allocate",
             "inclusion_policy": "exclusive",
             "write_policy": "write_back",
         }
-        if baseline["hierarchy"] != expected_hierarchy:
+        if any(
+            baseline["hierarchy"].get(key) != value
+            for key, value in expected_hierarchy.items()
+        ):
             raise RuntimeError(f"{profile}: unexpected hierarchy semantics")
+        if any(
+            policy != "exclusive"
+            for policy in baseline["hierarchy"].get("inclusion_policies", ())
+        ):
+            raise RuntimeError(f"{profile}: expected an exclusive hierarchy")
 
 
 def simulation_metrics(statistics: dict) -> dict:
@@ -692,39 +949,171 @@ def node_is_supported() -> bool:
     return (major == 20 and minor >= 19) or (major == 22 and minor >= 12) or major > 22
 
 
-def build_report_bundle(args: argparse.Namespace) -> Path:
+def build_report_bundle(
+    args: argparse.Namespace,
+    variants: tuple[Variant, ...],
+) -> Path:
     bundle = args.output_dir / "report-input"
     if bundle.exists():
         shutil.rmtree(bundle)
     (bundle / "simulation").mkdir(parents=True)
-    for variant in VARIANTS:
-        shutil.copytree(
-            args.output_dir / variant.name,
-            bundle / variant.name,
-            ignore=shutil.ignore_patterns(".*", "*.o", "*.so", "*.ll"),
+    for variant in variants:
+        variant_bundle = bundle / variant.name
+        variant_bundle.mkdir()
+        os.link(
+            args.output_dir / variant.name / "trace.json",
+            variant_bundle / "trace.json",
         )
-        shutil.copytree(
-            args.output_dir / "simulation/demo" / variant.name,
-            bundle / "simulation" / variant.name,
-        )
+        for profile in CACHE_PROFILES:
+            simulation = f"{profile}--{variant.name}"
+            shutil.copytree(
+                args.output_dir / "simulation" / simulation,
+                bundle / "simulation" / simulation,
+            )
     if not node_is_supported():
         raise RuntimeError("UI requires Node.js ^20.19.0 or >=22.12.0")
     ui = ROOT / "ui"
     if args.npm_ci or not (ui / "node_modules/.bin/vite").is_file():
         run(["npm", "ci"], cwd=ui)
     report = args.output_dir / "report.html"
-    run(
-        ["npm", "run", "report", "--", "--input", bundle, "--output", report],
-        cwd=ui,
-    )
+    try:
+        run(
+            ["npm", "run", "report", "--", "--input", bundle, "--output", report],
+            cwd=ui,
+        )
+    finally:
+        shutil.rmtree(bundle, ignore_errors=True)
     return require_file(report, "HTML report")
+
+
+def build_stepper_bundle(
+    args: argparse.Namespace,
+    variants: tuple[Variant, ...],
+    traces: dict[str, dict],
+) -> dict | None:
+    if args.stepper_events == 0:
+        return None
+    if args.stepper_events < 0:
+        raise RuntimeError("stepper event count must be non-negative")
+
+    preferred = next(
+        (variant for variant in variants if variant.tile_size == 10),
+        next(variant for variant in variants if variant.tile_size is not None),
+    )
+    source = traces[preferred.name]
+    event_count = min(args.stepper_events, len(source["events"]))
+    preview = copy.deepcopy(source)
+    preview["events"] = preview["events"][:event_count]
+    preview["total_events"] = event_count
+    preview["recorded_events"] = event_count
+    preview["complete"] = True
+    preview["truncated"] = False
+    preview["producer"]["pipeline_fingerprint"] += (
+        f"-stepper-prefix-{event_count}"
+    )
+    preview["producer"]["derived_from_variant"] = preferred.name
+    preview["producer"]["source_total_events"] = source["total_events"]
+
+    bundle = args.output_dir / "stepper-demo"
+    if bundle.exists():
+        shutil.rmtree(bundle)
+    bundle.mkdir()
+    trace_path = bundle / "trace.json"
+    trace_path.write_text(json.dumps(preview) + "\n", encoding="utf-8")
+    for stage in preview["source_map"]["stages"]:
+        stage_path = Path(stage["path"])
+        source_path = args.output_dir / preferred.name / stage_path
+        destination = bundle / stage_path
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source_path, destination)
+    validate_trace(preview, artifact_root=bundle)
+
+    metadata = {
+        "variant": preferred.name,
+        "events": event_count,
+        "source_total_events": source["total_events"],
+        "trace": "stepper-demo/trace.json",
+        "purpose": "interactive UI preview; excluded from experiment metrics",
+    }
+    (bundle / "README.md").write_text(
+        "\n".join(
+            [
+                "# Interactive stepper demo bundle",
+                "",
+                f"Компактный prefix первых {event_count} событий варианта "
+                f"`{preferred.name}`. Он предназначен только для живой "
+                "пошаговой демонстрации и не участвует в расчёте метрик.",
+                "",
+                "В Docker UI откройте `/?view=stepper`, выберите все файлы "
+                "этой директории и создайте сессию. Полный trace находится в "
+                f"`../{preferred.name}/trace.json`.",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    return metadata
+
+
+def write_demo_guide(
+    args: argparse.Namespace,
+    stepper_demo: dict | None,
+    report: Path | None,
+) -> None:
+    lines = [
+        "# CacheScope presentation demo",
+        "",
+        "## 1. Сравнительный результат",
+        "",
+        "Откройте `RESULTS.md`, затем `report.html` и покажите tile-size sweep "
+        "на одинаковых inputs и cache profiles.",
+        "",
+        "Ключевой тезис: CacheScope сравнивает low-level schedules одной "
+        "Torch-модели и объясняет компромисс между locality и дополнительной "
+        "работой, а cache simulator служит измерительным механизмом.",
+    ]
+    if report is None:
+        lines.extend(["", "Standalone report отключён флагом `--skip-ui`."])
+    if stepper_demo is not None:
+        lines.extend(
+            [
+                "",
+                "## 2. Интерактивное объяснение",
+                "",
+                "1. Из корня репозитория выполните `docker compose up --build`.",
+                "2. Откройте `http://localhost:9055/?view=stepper`.",
+                "3. Выберите все файлы из `stepper-demo/`.",
+                "4. Создайте сессию и покажите event, MLIR source mapping, "
+                "sets/ways, heatmap и hit/miss timeline.",
+                "",
+                f"Stepper bundle содержит {stepper_demo['events']} событий "
+                f"варианта `{stepper_demo['variant']}` и весит существенно "
+                "меньше полного trace. Он не используется для итоговых метрик.",
+            ]
+        )
+    lines.extend(
+        [
+            "",
+            "## 3. Доказательства корректности",
+            "",
+            "При вопросах жюри покажите `experiment.json`: там зафиксированы "
+            "версии, fingerprints, transforms, cache profiles и validation "
+            "policy. `summary.json` содержит машинно-читаемые результаты.",
+            "",
+        ]
+    )
+    (args.output_dir / "DEMO.md").write_text(
+        "\n".join(lines), encoding="utf-8"
+    )
 
 
 def publish_results(
     args: argparse.Namespace,
+    variants: tuple[Variant, ...],
     traces: dict[str, dict],
     simulations: dict[str, dict[str, dict]],
     report: Path | None,
+    stepper_demo: dict | None,
 ) -> None:
     summary = {
         "schema": "cachescope.ml-locality-experiment.v1",
@@ -740,7 +1129,11 @@ def publish_results(
         "operation": "DWConv3x3(ReLU(DWConv3x3(input)))",
         "input_shape": [BATCH, CHANNELS, HEIGHT, WIDTH],
         "output_shape": [BATCH, CHANNELS, OUTPUT_HEIGHT, OUTPUT_WIDTH],
-        "tile": [TILE, TILE],
+        "tile_sizes": [
+            [variant.tile_size, variant.tile_size]
+            for variant in variants
+            if variant.tile_size is not None
+        ],
         "numerical_equivalence": {
             "compiled_variants": "bitwise",
             "torch_reference": {"rtol": 1e-5, "atol": 1e-5},
@@ -753,11 +1146,13 @@ def publish_results(
             "cache_configuration": "identical per cache profile",
             "hierarchy_semantics": "identical exclusive/write-back/write-allocate",
         },
+        "stepper_demo": stepper_demo,
         "variants": {},
     }
-    for variant in VARIANTS:
+    for variant in variants:
         name = variant.name
         summary["variants"][name] = {
+            "tile_size": variant.tile_size,
             "trace": f"{name}/trace.json",
             "trace_metrics": trace_metrics(traces[name]),
             "demo_cache": simulation_metrics(simulations["demo"][name]),
@@ -766,51 +1161,109 @@ def publish_results(
             ),
         }
     baseline = summary["variants"]["baseline"]
-    blocked = summary["variants"]["temporal-blocked"]
-    summary["comparison"] = {
-        "event_delta": (
-            blocked["trace_metrics"]["events"]
-            - baseline["trace_metrics"]["events"]
-        ),
-        "requested_byte_delta": (
-            blocked["trace_metrics"]["requested_bytes"]
-            - baseline["trace_metrics"]["requested_bytes"]
-        ),
-        "demo_l1_miss_delta": (
-            blocked["demo_cache"]["levels"][0]["misses"]
-            - baseline["demo_cache"]["levels"][0]["misses"]
-        ),
-        "demo_l1_miss_reduction_percent": (
-            100.0
-            * (
-                baseline["demo_cache"]["levels"][0]["misses"]
-                - blocked["demo_cache"]["levels"][0]["misses"]
-            )
-            / baseline["demo_cache"]["levels"][0]["misses"]
-        ),
-        "reference_l1_miss_delta": (
-            blocked["reference_hierarchy"]["levels"][0]["misses"]
-            - baseline["reference_hierarchy"]["levels"][0]["misses"]
-        ),
-        "reference_l1_miss_reduction_percent": (
-            100.0
-            * (
-                baseline["reference_hierarchy"]["levels"][0]["misses"]
-                - blocked["reference_hierarchy"]["levels"][0]["misses"]
-            )
-            / baseline["reference_hierarchy"]["levels"][0]["misses"]
-        ),
-        "reference_l2_hit_delta": (
-            blocked["reference_hierarchy"]["levels"][1]["hits"]
-            - baseline["reference_hierarchy"]["levels"][1]["hits"]
-        ),
-        "reference_memory_read_delta": (
-            blocked["reference_hierarchy"]["memory_reads"]
-            - baseline["reference_hierarchy"]["memory_reads"]
-        ),
+    comparisons = {}
+    for variant in variants:
+        if variant.name == "baseline":
+            continue
+        candidate = summary["variants"][variant.name]
+        demo_baseline_misses = baseline["demo_cache"]["levels"][0]["misses"]
+        demo_candidate_misses = candidate["demo_cache"]["levels"][0]["misses"]
+        reference_baseline_misses = baseline["reference_hierarchy"]["levels"][0][
+            "misses"
+        ]
+        reference_candidate_misses = candidate["reference_hierarchy"]["levels"][
+            0
+        ]["misses"]
+        comparisons[variant.name] = {
+            "event_delta": (
+                candidate["trace_metrics"]["events"]
+                - baseline["trace_metrics"]["events"]
+            ),
+            "requested_byte_delta": (
+                candidate["trace_metrics"]["requested_bytes"]
+                - baseline["trace_metrics"]["requested_bytes"]
+            ),
+            "demo_l1_miss_delta": demo_candidate_misses - demo_baseline_misses,
+            "demo_l1_miss_reduction_percent": (
+                100.0
+                * (demo_baseline_misses - demo_candidate_misses)
+                / demo_baseline_misses
+            ),
+            "reference_l1_miss_delta": (
+                reference_candidate_misses - reference_baseline_misses
+            ),
+            "reference_l1_miss_reduction_percent": (
+                100.0
+                * (reference_baseline_misses - reference_candidate_misses)
+                / reference_baseline_misses
+            ),
+            "reference_l2_hit_delta": (
+                candidate["reference_hierarchy"]["levels"][1]["hits"]
+                - baseline["reference_hierarchy"]["levels"][1]["hits"]
+            ),
+            "reference_memory_read_delta": (
+                candidate["reference_hierarchy"]["memory_reads"]
+                - baseline["reference_hierarchy"]["memory_reads"]
+            ),
+        }
+    summary["comparisons"] = comparisons
+    tiled_names = [variant.name for variant in variants if variant.tile_size is not None]
+    demo_misses = {
+        name: summary["variants"][name]["demo_cache"]["levels"][0]["misses"]
+        for name in tiled_names
+    }
+    reference_misses = {
+        name: summary["variants"][name]["reference_hierarchy"]["levels"][0][
+            "misses"
+        ]
+        for name in tiled_names
+    }
+    summary["best_variants"] = {
+        "demo_l1_misses": [
+            name for name, misses in demo_misses.items()
+            if misses == min(demo_misses.values())
+        ],
+        "reference_l1_misses": [
+            name for name, misses in reference_misses.items()
+            if misses == min(reference_misses.values())
+        ],
     }
     summary_path = args.output_dir / "summary.json"
     summary_path.write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
+
+    ui_entries = []
+    trace_fields = (
+        "schema",
+        "variant",
+        "total_events",
+        "recorded_events",
+        "truncated",
+        "valid",
+        "complete",
+    )
+    for variant in variants:
+        ui_entries.append(
+            {
+                "path": f"{variant.name}/trace.json",
+                "data": {
+                    key: traces[variant.name][key]
+                    for key in trace_fields
+                    if key in traces[variant.name]
+                },
+            }
+        )
+        for profile in CACHE_PROFILES:
+            ui_entries.append(
+                {
+                    "path": (
+                        f"simulation/{profile}--{variant.name}/statistics.json"
+                    ),
+                    "data": simulations[profile][variant.name],
+                }
+            )
+    (args.output_dir / "ui-results.json").write_text(
+        json.dumps({"entries": ui_entries}) + "\n", encoding="utf-8"
+    )
 
     lines = [
         "# Depthwise temporal blocking results",
@@ -823,7 +1276,7 @@ def publish_results(
         "32 KiB L1 misses | L2 hits | Memory reads |",
         "|---|---:|---:|---:|---:|---:|---:|",
     ]
-    for variant in VARIANTS:
+    for variant in variants:
         item = summary["variants"][variant.name]
         trace = item["trace_metrics"]
         lines.append(
@@ -834,55 +1287,97 @@ def publish_results(
             f"{item['reference_hierarchy']['levels'][1]['hits']} | "
             f"{item['reference_hierarchy']['memory_reads']} |"
         )
-    comparison = summary["comparison"]
+    lines.extend(["", "## Дельты относительно baseline", ""])
+    for variant in variants:
+        if variant.name == "baseline":
+            continue
+        comparison = comparisons[variant.name]
+        lines.extend(
+            [
+                f"### `{variant.name}`",
+                "",
+                f"- dynamic events: {comparison['event_delta']:+d};",
+                f"- requested bytes: {comparison['requested_byte_delta']:+d};",
+                f"- 16 KiB L1 misses: {comparison['demo_l1_miss_delta']:+d} "
+                f"({comparison['demo_l1_miss_reduction_percent']:.1f}% fewer);",
+                f"- 32 KiB L1 misses: {comparison['reference_l1_miss_delta']:+d} "
+                f"({comparison['reference_l1_miss_reduction_percent']:.1f}% fewer);",
+                f"- reference L2 hits: {comparison['reference_l2_hit_delta']:+d};",
+                "- reference hierarchy memory reads: "
+                f"{comparison['reference_memory_read_delta']:+d}.",
+                "",
+            ]
+        )
     lines.extend(
         [
-            "",
-            "## Дельта temporal-blocked относительно baseline",
-            "",
-            f"- dynamic events: {comparison['event_delta']:+d};",
-            f"- requested bytes: {comparison['requested_byte_delta']:+d};",
-            f"- 16 KiB L1 misses: {comparison['demo_l1_miss_delta']:+d} "
-            f"({comparison['demo_l1_miss_reduction_percent']:.1f}% fewer);",
-            f"- 32 KiB L1 misses: {comparison['reference_l1_miss_delta']:+d} "
-            f"({comparison['reference_l1_miss_reduction_percent']:.1f}% fewer);",
-            f"- reference L2 hits: {comparison['reference_l2_hit_delta']:+d};",
-            "- reference hierarchy memory reads: "
-            f"{comparison['reference_memory_read_delta']:+d}.",
-            "",
             "Temporal blocking выполняет producer и consumer для одного spatial "
             "tile подряд, поэтому промежуточные значения переиспользуются в L1. "
             "Цена — повторное вычисление halo соседних tiles, что увеличивает "
-            "число обращений. Равное число memory reads означает, что неизменный "
-            "compulsory footprint удерживается нижними уровнями; эффект schedule "
-            "виден в сокращении L1 misses и обращений к L2.",
+            "число обращений. Sweep показывает этот компромисс для нескольких "
+            "размеров tile при неизменных inputs и cache profiles.",
+            "",
+            "Лучшие варианты по 16 KiB L1 misses: "
+            + ", ".join(
+                f"`{name}`"
+                for name in summary["best_variants"]["demo_l1_misses"]
+            )
+            + ".",
+            "Лучшие варианты по 32 KiB L1 misses: "
+            + ", ".join(
+                f"`{name}`"
+                for name in summary["best_variants"]["reference_l1_misses"]
+            )
+            + ".",
         ]
     )
     if report is not None:
         lines.extend(["", "Standalone UI: [report.html](report.html)."])
+    if stepper_demo is not None:
+        lines.extend(
+            [
+                "Interactive preview: [stepper-demo](stepper-demo/README.md).",
+                "Полный сценарий показа: [DEMO.md](DEMO.md).",
+            ]
+        )
     (args.output_dir / "RESULTS.md").write_text(
         "\n".join(lines) + "\n", encoding="utf-8"
     )
-    print(json.dumps(summary["comparison"], indent=2))
+    print(json.dumps(summary["comparisons"], indent=2))
     print(f"Summary: {summary_path}")
     print(f"Results: {args.output_dir / 'RESULTS.md'}")
 
 
-def main() -> int:
-    args = parse_args()
-    args.llvm_root = args.llvm_root.resolve()
-    args.build_dir = args.build_dir.resolve()
-    args.output_dir = args.output_dir.resolve()
-    args.output_dir.mkdir(parents=True, exist_ok=True)
+def run_experiment(
+    args: argparse.Namespace, tile_sizes: tuple[int, ...]
+) -> None:
+    publish_progress(
+        args,
+        "preparation",
+        "Preparing deterministic inputs and compiler schedules",
+    )
+    variants = prepare_variants(args.output_dir, tile_sizes)
 
-    inputs, expected = verify_references()
-    write_inputs(args.output_dir, inputs)
+    inputs, expected = verify_references(tile_sizes)
+    write_inputs(args.output_dir, inputs, tile_sizes)
+    publish_progress(args, "export", "Exporting the Torch graph to MLIR")
     payload = export_torch_graph(args.output_dir, inputs)
+    publish_progress(args, "toolchain", "Checking the CacheScope toolchain")
     plugin, runtime, runner = configure_and_build(args)
+    write_experiment_manifest(
+        args.output_dir, variants, args, payload, plugin, runtime, runner
+    )
 
     traces: dict[str, dict] = {}
     compiled_outputs: dict[str, torch.Tensor] = {}
-    for variant in VARIANTS:
+    for index, variant in enumerate(variants, 1):
+        publish_progress(
+            args,
+            "compilation",
+            f"Compiling and tracing {variant.name}",
+            current=index,
+            total=len(variants),
+            variant=variant.name,
+        )
         artifacts = compile_variant(args, variant, payload, plugin, runtime)
         actual, trace = execute_variant(variant, artifacts, inputs)
         torch.testing.assert_close(actual, expected, rtol=1e-5, atol=1e-5)
@@ -892,36 +1387,88 @@ def main() -> int:
             f"{variant.name}: Torch reference OK, "
             f"events={trace['total_events']}"
         )
-    torch.testing.assert_close(
-        compiled_outputs["temporal-blocked"],
-        compiled_outputs["baseline"],
-        rtol=0.0,
-        atol=0.0,
+    publish_progress(
+        args,
+        "validation",
+        "Validating numerical equivalence and cross-variant provenance",
     )
-    print("compiled baseline and temporal-blocked outputs match bitwise")
+    for variant in variants:
+        torch.testing.assert_close(
+            compiled_outputs[variant.name],
+            compiled_outputs["baseline"],
+            rtol=0.0,
+            atol=0.0,
+        )
+    print("all compiled variants match baseline bitwise")
     assert_comparable_provenance(traces)
     print("cross-variant origins and static access provenance match")
 
-    simulations: dict[str, dict[str, dict]] = {"demo": {}, "reference": {}}
-    for variant in VARIANTS:
-        trace_path = args.output_dir / variant.name / "trace.json"
-        simulations["demo"][variant.name] = replay(
-            runner,
-            trace_path,
-            args.output_dir / "simulation/demo" / variant.name,
-            DEMO_CACHE,
-        )
-        simulations["reference"][variant.name] = replay(
-            runner,
-            trace_path,
-            args.output_dir / "simulation/reference" / variant.name,
-            REFERENCE_HIERARCHY,
-        )
+    simulations: dict[str, dict[str, dict]] = {
+        profile: {} for profile in CACHE_PROFILES
+    }
+    simulation_total = len(CACHE_PROFILES) * len(variants)
+    simulation_index = 0
+    for profile, cache in CACHE_PROFILES.items():
+        for variant in variants:
+            simulation_index += 1
+            publish_progress(
+                args,
+                "simulation",
+                f"Simulating {variant.name} on the {profile} cache profile",
+                current=simulation_index,
+                total=simulation_total,
+                variant=variant.name,
+            )
+            trace_path = args.output_dir / variant.name / "trace.json"
+            simulations[profile][variant.name] = replay(
+                runner,
+                trace_path,
+                args.output_dir
+                / "simulation"
+                / f"{profile}--{variant.name}",
+                cache,
+                keep_events=args.keep_events,
+            )
     assert_comparable_simulations(simulations)
     print("cache configurations and model buffer placements match")
 
-    report = None if args.skip_ui else build_report_bundle(args)
-    publish_results(args, traces, simulations, report)
+    publish_progress(args, "stepper", "Building the compact Stepper artifact")
+    stepper_demo = build_stepper_bundle(args, variants, traces)
+    publish_progress(args, "report", "Building the standalone comparison report")
+    report = None if args.skip_ui else build_report_bundle(args, variants)
+    publish_progress(args, "results", "Publishing the experiment summary")
+    write_demo_guide(args, stepper_demo, report)
+    publish_results(args, variants, traces, simulations, report, stepper_demo)
+
+
+def main() -> int:
+    args = parse_args()
+    args.llvm_root = args.llvm_root.resolve()
+    args.build_dir = args.build_dir.resolve()
+    if args.progress_file is not None:
+        args.progress_file = args.progress_file.resolve()
+    destination = args.output_dir.resolve()
+    tile_sizes = parse_tile_sizes(args.tile_sizes)
+    if args.stepper_events < 0:
+        raise RuntimeError("stepper event count must be non-negative")
+
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    validate_output_destination(destination)
+    staging = Path(
+        tempfile.mkdtemp(
+            prefix=f".{destination.name}.staging-",
+            dir=destination.parent,
+        )
+    )
+    args.output_dir = staging
+    try:
+        run_experiment(args, tile_sizes)
+        publish_progress(args, "publishing", "Publishing the completed bundle")
+        publish_output(staging, destination)
+    except BaseException:
+        shutil.rmtree(staging, ignore_errors=True)
+        raise
+    print(f"Published experiment: {destination}")
     return 0
 
 

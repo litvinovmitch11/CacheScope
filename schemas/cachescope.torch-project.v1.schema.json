@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cachescope.dev/schemas/cachescope.torch-project.v1.schema.json",
+  "title": "CacheScope local Torch project",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "name", "files", "variants", "cache_profiles", "settings", "timeout_seconds"],
+  "properties": {
+    "schema": {"const": "cachescope.torch-project.v1"},
+    "name": {"type": "string", "minLength": 1, "maxLength": 128},
+    "files": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["model.py", "inputs.py"],
+      "properties": {
+        "model.py": {"type": "string", "minLength": 1, "maxLength": 262144},
+        "inputs.py": {"type": "string", "minLength": 1, "maxLength": 262144}
+      }
+    },
+    "variants": {
+      "type": "array", "minItems": 1, "maxItems": 12,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["name", "transform"],
+        "properties": {
+          "name": {"type": "string", "pattern": "^[A-Za-z0-9_-]{1,64}$"},
+          "transform": {"type": "string", "minLength": 1, "maxLength": 262144}
+        }
+      }
+    },
+    "cache_profiles": {
+      "type": "object", "minProperties": 1, "maxProperties": 8,
+      "propertyNames": {"pattern": "^[A-Za-z0-9_-]{1,64}$"},
+      "additionalProperties": {
+        "oneOf": [
+          {
+            "type": "array", "minItems": 1, "maxItems": 8,
+            "items": {"type": "string", "minLength": 1, "maxLength": 128}
+          },
+          {
+            "type": "object", "additionalProperties": false,
+            "required": ["levels"],
+            "properties": {
+              "levels": {
+                "type": "array", "minItems": 1, "maxItems": 8,
+                "items": {
+                  "type": "object",
+                  "required": ["name", "size_bytes", "line_size_bytes", "associativity", "replacement_policy"],
+                  "properties": {
+                    "name": {"type": "string", "minLength": 1, "maxLength": 64},
+                    "size_bytes": {"type": "integer", "minimum": 1},
+                    "line_size_bytes": {"type": "integer", "minimum": 1},
+                    "associativity": {"type": "integer", "minimum": 1},
+                    "replacement_policy": {"enum": ["LRU", "FIFO", "Random", "PLRU4"]},
+                    "random_seed": {"type": "string", "pattern": "^(0|[1-9][0-9]*)$"},
+                    "write_policy": {"enum": ["write_back", "write_through"]},
+                    "allocation_policy": {"enum": ["write_allocate", "no_write_allocate"]}
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "hierarchy": {"type": "object"}
+            }
+          }
+        ]
+      }
+    },
+    "settings": {
+      "type": "object", "additionalProperties": false,
+      "required": ["stepper_events", "trace_limit", "validation"],
+      "properties": {
+        "stepper_events": {"type": "integer", "minimum": 0, "maximum": 10000},
+        "trace_limit": {"type": "integer", "minimum": 1000, "maximum": 10000000},
+        "validation": {
+          "type": "object", "additionalProperties": false,
+          "required": ["rtol", "atol"],
+          "properties": {
+            "rtol": {"type": "number", "minimum": 0},
+            "atol": {"type": "number", "minimum": 0}
+          }
+        }
+      }
+    },
+    "timeout_seconds": {"type": ["number", "null"], "exclusiveMinimum": 0, "maximum": 7200}
+  }
+}

@@ -27,22 +27,23 @@ export function ExperimentForm({ onResult }: { onResult: (result: LoadResult | n
   const acceptJob = useCallback((value: Experiment | null) => {
     setJob(value);
     if (!value?.metadata) { setFunctionName(""); setBindings([]); return; }
-    setFunctionName(value.spec?.function ?? value.metadata.functions.find(f => f.supported)?.name ?? "");
-    setBindings(value.spec?.bindings.map(binding => binding.source === "zeros" ? "zeros" : "npz:" + binding.key) ?? []);
-    if (value.spec) {
-      setLevels(value.spec.levels);
-      const policies = value.spec.hierarchy ?? defaultHierarchy(value.spec.levels.length);
+    const spec = value.spec && "function" in value.spec ? value.spec : null;
+    setFunctionName(spec?.function ?? value.metadata.functions.find(f => f.supported)?.name ?? "");
+    setBindings(spec?.bindings.map(binding => binding.source === "zeros" ? "zeros" : "npz:" + binding.key) ?? []);
+    if (spec) {
+      setLevels(spec.levels);
+      const policies = spec.hierarchy ?? defaultHierarchy(spec.levels.length);
       setHierarchy(policies);
-      setCachePresetId(value.spec.cache_profile === "" ? "" : findCachePreset(value.spec.levels, policies, value.spec.cache_profile)?.id ?? "");
-      setTimeoutValue(value.spec.timeout_seconds?.toString() ?? "");
-      setTraceLimit(value.spec.trace_limit ?? "");
+      setCachePresetId(spec.cache_profile === "" ? "" : findCachePreset(spec.levels, policies, spec.cache_profile)?.id ?? "");
+      setTimeoutValue(spec.timeout_seconds?.toString() ?? "");
+      setTraceLimit(spec.trace_limit ?? "");
     }
   }, []);
 
   useEffect(() => {
     let stopped = false;
     experimentRequest<{ experiments: Experiment[] }>().then(data => {
-      if (!stopped) acceptJob(data.experiments[0] ?? null);
+      if (!stopped) acceptJob(data.experiments.find(item => !item.template_id) ?? null);
     }).catch(e => { if (!stopped) setError(`Сервис запуска недоступен: ${e.message}`); });
     return () => { stopped = true; };
   }, [acceptJob]);
@@ -145,7 +146,17 @@ export function ExperimentForm({ onResult }: { onResult: (result: LoadResult | n
 
   return <section className="experiment-form">
     <h2>Запустить MLIR</h2>
-    <p>Загрузите программу и NPZ, выберите функцию и источники её аргументов.</p>
+    <p>Загрузите программу и NumPy-архив, затем явно сопоставьте каждый аргумент функции с массивом или нулевым буфером.</p>
+    <details className="npz-help">
+      <summary>Что находится в inputs.npz?</summary>
+      <p>
+        Это файл, созданный <code>numpy.savez</code>, например
+        <code> np.savez("inputs.npz", source=array.astype(np.float32))</code>.
+        Имя <code>source</code> станет вариантом в списке. UI разрешит выбрать
+        его только для аргумента с таким же dtype <code>float32</code> и точно
+        такой же статической формой.
+      </p>
+    </details>
     <form onSubmit={upload}>
       <label>MLIR-файл<input aria-label="MLIR-файл" type="file" accept=".mlir" required disabled={running || busy} onChange={e => setMlir(e.target.files?.[0] ?? null)} /></label>
       <label>Входные данные (NPZ)<input aria-label="Входные данные (NPZ)" type="file" accept=".npz" required disabled={running || busy} onChange={e => setNpz(e.target.files?.[0] ?? null)} /></label>

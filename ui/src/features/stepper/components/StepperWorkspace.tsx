@@ -1,12 +1,13 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RunnerClient } from "../api/runnerClient";
 import type { RunnerLogEntry } from "../api/runnerClient";
 import { useStepperSession } from "../hooks/useStepperSession";
-import type { EventOutcome, LevelConfig, SourceStage } from "../types/runner";
+import type { EventOutcome, HierarchyConfig, LevelConfig, SourceStage } from "../types/runner";
 import { HeatmapGrid } from "./HeatmapGrid";
 import { HitMissTimeline } from "./HitMissTimeline";
 import { plural } from "../../../plural";
 import { CACHE_PRESETS } from "../../../cachePresets";
+import { ProductNav } from "../../../components/ProductNav";
 
 const DEFAULT_LEVEL: LevelConfig = {
   name: "L1",
@@ -71,15 +72,28 @@ function presetToLevelPatch(preset: {
   };
 }
 
-function findMatchingPresetId(level: LevelConfig): string | null {
+type PresetComparableLevel = Pick<
+  LevelConfig,
+  | "size_bytes"
+  | "line_size_bytes"
+  | "associativity"
+  | "replacement_policy"
+  | "write_policy"
+  | "allocation_policy"
+>;
+
+function findMatchingPresetId(level: PresetComparableLevel): string | null {
   for (const preset of CACHE_PRESETS) {
+    if (preset.levels.length !== 1) continue;
     const lvl = preset.levels?.[0];
     if (!lvl) continue;
     if (
       lvl.size_bytes === level.size_bytes &&
       lvl.line_size_bytes === level.line_size_bytes &&
       lvl.associativity === level.associativity &&
-      lvl.replacement_policy === level.replacement_policy
+      lvl.replacement_policy === level.replacement_policy &&
+      (lvl.write_policy ?? "write_back") === (level.write_policy ?? "write_back") &&
+      (lvl.allocation_policy ?? "write_allocate") === (level.allocation_policy ?? "write_allocate")
     ) {
       return preset.id;
     }
@@ -88,7 +102,13 @@ function findMatchingPresetId(level: LevelConfig): string | null {
 }
 
 export function StepperWorkspace() {
-  const [baseUrl, setBaseUrl] = useState("http://127.0.0.1:9055/api/v1");
+  const [baseUrl, setBaseUrl] = useState(() => `${window.location.origin}/api/v1`);
+  const query = new URLSearchParams(window.location.search);
+  const experimentId = query.get("experiment");
+  const experimentVariant = query.get("variant");
+  const experimentProfile = query.get("profile");
+  const autoStartArtifact = query.get("autostart") === "1";
+  const artifactAttempt = useRef("");
 
   // Загрузка файлов на runner
   const [uploadedTracePath, setUploadedTracePath] = useState<string | null>(null);
@@ -99,7 +119,13 @@ export function StepperWorkspace() {
 
   const [skipCount, setSkipCount] = useState(1);
   const [levels, setLevels] = useState<LevelConfig[]>([{ ...DEFAULT_LEVEL }]);
+  const [hierarchy, setHierarchy] = useState<HierarchyConfig | undefined>();
   const [requestLogs, setRequestLogs] = useState<RunnerLogEntry[]>([]);
+  const [artifactSelection, setArtifactSelection] = useState<{
+    experimentId: string;
+    variant: string;
+    profile: string | null;
+  } | null>(null);
 
   const client = useMemo(
     () =>
@@ -112,6 +138,7 @@ export function StepperWorkspace() {
   );
 
   const runner = useStepperSession(client);
+  const createStepperSession = runner.create;
   const [selectedLevel, setSelectedLevel] = useState(1);
   const [selectedStage, setSelectedStage] = useState("");
   const [stageText, setStageText] = useState("");
@@ -140,7 +167,7 @@ export function StepperWorkspace() {
   );
   const allSets = selectedSnapshot?.pages.flatMap((page) => page.sets) ?? [];
 
-  async function onFilesPicked(files: File[]) {
+  const onFilesPicked = useCallback(async (files: File[]) => {
     if (files.length === 0) return;
     setUploadBusy(true);
     setUploadError(null);
@@ -153,6 +180,7 @@ export function StepperWorkspace() {
       const result = await client.uploadArtifacts(files);
       setUploadedTracePath(result.trace_path);
       setUploadedStageCount(result.stage_paths.length);
+      return result.trace_path;
     } catch (error) {
       setUploadError(
         error instanceof Error ? error.message : "Не удалось загрузить файлы",
@@ -160,7 +188,37 @@ export function StepperWorkspace() {
     } finally {
       setUploadBusy(false);
     }
-  }
+  }, [client]);
+
+  useEffect(() => {
+    const artifactKey = `${experimentId ?? ""}:${experimentVariant ?? ""}:${experimentProfile ?? ""}`;
+    if (!experimentId || artifactAttempt.current === artifactKey) return;
+    artifactAttempt.current = artifactKey;
+    setUploadBusy(true);
+    setUploadError(null);
+    client.downloadExperimentStepper(experimentId, experimentVariant, experimentProfile)
+      .then(async (artifact) => {
+        setArtifactSelection({
+          experimentId: artifact.experimentId,
+          variant: artifact.variant,
+          profile: artifact.profile,
+        });
+        setLevels(artifact.levels);
+        setHierarchy(artifact.hierarchy);
+        const tracePath = await onFilesPicked(artifact.files);
+        if (autoStartArtifact && tracePath) {
+          await createStepperSession(tracePath, artifact.levels, artifact.hierarchy);
+        }
+      })
+      .catch((error) => {
+        setUploadError(
+          error instanceof Error
+            ? error.message
+            : "Не удалось открыть experiment artifact",
+        );
+        setUploadBusy(false);
+      });
+  }, [autoStartArtifact, client, createStepperSession, experimentId, experimentProfile, experimentVariant, onFilesPicked]);
 
   async function loadStage(stage: SourceStage) {
     if (!runner.session) return;
@@ -192,6 +250,37 @@ export function StepperWorkspace() {
     );
   }
 
+  function resizeHierarchy(levelCount: number) {
+    setHierarchy((current) => current ? {
+      ...current,
+      inclusion_policies: Array.from(
+        { length: Math.max(0, levelCount - 1) },
+        (_, index) => current.inclusion_policies[index] ?? "exclusive",
+      ),
+    } : undefined);
+  }
+
+  function removeLevel(index: number) {
+    const next = levels.filter((_, position) => position !== index);
+    setLevels(next);
+    resizeHierarchy(next.length);
+  }
+
+  function addLevel() {
+    const last = levels[levels.length - 1];
+    const next = [
+      ...levels,
+      {
+        ...DEFAULT_LEVEL,
+        name: `L${levels.length + 1}`,
+        size_bytes: last.size_bytes * 4,
+        line_size_bytes: levels[0].line_size_bytes,
+      },
+    ];
+    setLevels(next);
+    resizeHierarchy(next.length);
+  }
+
   function applyPreset(index: number, presetId: string) {
     const preset = CACHE_PRESETS.find((p) => p.id === presetId);
     if (!preset) return;
@@ -217,7 +306,20 @@ export function StepperWorkspace() {
           level.size_bytes / (level.line_size_bytes * level.associativity),
         ),
     ) &&
-    levels.every((level) => level.line_size_bytes === levels[0].line_size_bytes);
+    levels.every((level) => level.line_size_bytes === levels[0].line_size_bytes) &&
+    (!hierarchy || hierarchy.inclusion_policies.length === levels.length - 1);
+  const effectiveLevels = runner.session?.levels ?? levels;
+  const manualPresetId = !artifactSelection && effectiveLevels.length === 1
+    ? findMatchingPresetId(effectiveLevels[0])
+    : null;
+  const selectedPreset = artifactSelection?.profile
+    ? CACHE_PRESETS.find((preset) => preset.id === artifactSelection.profile)
+    : CACHE_PRESETS.find((preset) => preset.id === manualPresetId);
+  const profileLabel = artifactSelection?.profile
+    ? selectedPreset
+      ? `${artifactSelection.profile} — ${selectedPreset.name}`
+      : artifactSelection.profile
+    : selectedPreset?.name ?? "Ручная конфигурация (не именованный preset)";
 
   return (
     <main className="stepper-shell">
@@ -230,23 +332,66 @@ export function StepperWorkspace() {
             кэша.
           </p>
         </div>
-        <a className="stepper-back" href="/">
-          ← К статистике
-        </a>
+        <ProductNav current="stepper" />
       </div>
+
+      {(artifactSelection || uploadedTracePath || runner.session) && (
+        <section className="stepper-context" aria-label="Анализируемый schedule и cache profile">
+          <div>
+            <span>Источник</span>
+            <strong>{artifactSelection ? `Эксперимент ${artifactSelection.experimentId}` : "Ручной artifact"}</strong>
+          </div>
+          <div>
+            <span>Schedule / trace variant</span>
+            <strong>{artifactSelection?.variant ?? runner.metadata?.source.variant ?? uploadedFileName ?? "загружается"}</strong>
+          </div>
+          <div>
+            <span>Cache profile</span>
+            <strong>{profileLabel}</strong>
+          </div>
+          <div className="stepper-context-levels">
+            <span>Фактическая конфигурация сессии</span>
+            <strong>{effectiveLevels.map((level) => `${level.name}: ${level.size_bytes} B, line ${level.line_size_bytes} B, ${level.associativity}-way, ${level.replacement_policy}, ${level.write_policy ?? "write_back"}/${level.allocation_policy ?? "write_allocate"}`).join(" · ")}</strong>
+            {(runner.session?.hierarchy.inclusion_policies ?? hierarchy?.inclusion_policies)?.length ? <small>
+              Hierarchy: {(runner.session?.hierarchy.inclusion_policies ?? hierarchy?.inclusion_policies)?.join(" → ")}; writeback clean: {String(runner.session?.hierarchy.writeback_clean ?? hierarchy?.writeback_clean ?? false)}; NINE fill: {runner.session?.hierarchy.non_inclusive_fill ?? hierarchy?.non_inclusive_fill ?? "all_levels"}
+            </small> : null}
+          </div>
+        </section>
+      )}
+
+      {!runner.session && (
+        <section className="tool-intro stepper-input-intro">
+          <p className="product-eyebrow">MANUAL ARTIFACT TOOL</p>
+          <h2>Что требуется Stepper</h2>
+          <p>
+            В основном сценарии открывайте Stepper кнопкой завершённого проекта —
+            trace, MLIR stages и cache profile подставятся автоматически. Этот
+            экран нужен для ручного исследования уже существующей трассы.
+          </p>
+          <div className="input-contract">
+            <strong>Ручной вход</strong>
+            <span><code>trace.json</code> — обязательная полная semantic trace</span>
+            <span><code>input.mlir</code>, <code>01-transformed.mlir</code> и другие stages — необязательно, для source mapping</span>
+            <span>Конфигурация кэша задаётся ниже перед созданием session</span>
+          </div>
+        </section>
+      )}
 
       {!runner.session && (
         <section className="stepper-panel">
           <h2>Новая сессия</h2>
 
-          <label className="stepper-field">
-            <span>Адрес backend API</span>
-            <input
-              value={baseUrl}
-              onChange={(event) => setBaseUrl(event.target.value)}
-              spellCheck={false}
-            />
-          </label>
+          <details className="stepper-advanced">
+            <summary>Подключение к backend</summary>
+            <label className="stepper-field">
+              <span>Адрес backend API</span>
+              <input
+                value={baseUrl}
+                onChange={(event) => setBaseUrl(event.target.value)}
+                spellCheck={false}
+              />
+            </label>
+          </details>
 
           <label className="stepper-field">
             <span>Файлы трассировки (trace.json + MLIR, опционально)</span>
@@ -256,6 +401,8 @@ export function StepperWorkspace() {
               accept=".json,.mlir,.txt"
               onChange={(event) => {
                 const files = Array.from(event.target.files ?? []);
+                setArtifactSelection(null);
+                setHierarchy(undefined);
                 void onFilesPicked(files);
               }}
               disabled={uploadBusy}
@@ -388,9 +535,7 @@ export function StepperWorkspace() {
                 {levels.length > 1 && (
                   <button
                     className="stepper-remove"
-                    onClick={() =>
-                      setLevels((items) => items.filter((_, i) => i !== index))
-                    }
+                    onClick={() => removeLevel(index)}
                   >
                     Удалить
                   </button>
@@ -401,20 +546,7 @@ export function StepperWorkspace() {
           <div className="stepper-actions">
             <button
               className="stepper-button secondary"
-              onClick={() =>
-                setLevels((items) => {
-                  const last = items[items.length - 1];
-                  return [
-                    ...items,
-                    {
-                      ...DEFAULT_LEVEL,
-                      name: `L${items.length + 1}`,
-                      size_bytes: last.size_bytes * 4,
-                      line_size_bytes: items[0].line_size_bytes,
-                    },
-                  ];
-                })
-              }
+              onClick={addLevel}
             >
               Добавить уровень
             </button>
@@ -423,7 +555,7 @@ export function StepperWorkspace() {
               disabled={!canCreate || runner.busy}
               onClick={() =>
                 uploadedTracePath &&
-                void runner.create(uploadedTracePath, levels)
+                void runner.create(uploadedTracePath, levels, hierarchy)
               }
             >
               Создать сессию

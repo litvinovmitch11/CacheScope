@@ -18,7 +18,8 @@ jobs:
       - name: Build and start complete application
         shell: bash
         run: |
-          docker compose up --build -d 2>&1 | tee "${RUNNER_TEMP}/cachescope-build.log"
+          docker compose build --build-arg CACHESCOPE_BUILD_TESTING=ON 2>&1 | tee "${RUNNER_TEMP}/cachescope-build.log"
+          docker compose up -d
           for attempt in $(seq 1 60); do
             if curl -fsS http://127.0.0.1:9055/api/v1/experiments; then exit 0; fi
             sleep 1

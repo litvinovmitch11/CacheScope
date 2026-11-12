@@ -1,5 +1,7 @@
 import type {
   CreateSessionRequest,
+  HierarchyConfig,
+  LevelConfig,
   Progress,
   RunnerMetadata,
   RunnerSession,
@@ -169,6 +171,52 @@ export class RunnerClient {
       method: "POST",
       body: formData,
     });
+  }
+
+  async downloadExperimentStepper(
+    experimentId: string,
+    variant?: string | null,
+    profile?: string | null,
+  ): Promise<{
+    files: File[];
+    levels: LevelConfig[];
+    hierarchy: HierarchyConfig;
+    experimentId: string;
+    variant: string;
+    profile: string | null;
+  }> {
+    const manifest = await this.request<{
+      experiment_id: string;
+      variant: string;
+      profile: string | null;
+      hierarchy: HierarchyConfig;
+      files: { name: string; url: string }[];
+      levels: LevelConfig[];
+    }>(`/experiments/${encodeURIComponent(experimentId)}/artifacts/stepper?${new URLSearchParams({
+      ...(variant ? { variant } : {}),
+      ...(profile ? { profile } : {}),
+    })}`);
+    const files = await Promise.all(manifest.files.map(async (artifact) => {
+      const response = await fetch(artifact.url);
+      if (!response.ok) {
+        throw new RunnerHttpError(
+          `Не удалось получить artifact ${artifact.name}`,
+          response.status,
+        );
+      }
+      const name = artifact.name.split("/").pop() || artifact.name;
+      return new File([await response.blob()], name, {
+        type: artifact.name.endsWith(".json") ? "application/json" : "text/plain",
+      });
+    }));
+    return {
+      files,
+      levels: manifest.levels,
+      hierarchy: manifest.hierarchy,
+      experimentId: manifest.experiment_id,
+      variant: manifest.variant,
+      profile: manifest.profile,
+    };
   }
 
   /** Читает MLIR-файл через runner (аналог прежнего Vite-плагина). */

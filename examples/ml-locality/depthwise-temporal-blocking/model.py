@@ -121,11 +121,16 @@ def make_inputs() -> tuple[torch.Tensor, ...]:
     return input_tensor, weight1, bias1, weight2, bias2
 
 
-def verify_references() -> tuple[tuple[torch.Tensor, ...], torch.Tensor]:
+def verify_references(
+    tile_sizes: tuple[int, ...] = (TILE,),
+) -> tuple[tuple[torch.Tensor, ...], torch.Tensor]:
     inputs = make_inputs()
     expected = DepthwiseBlock().eval()(*inputs)
-    blocked = temporal_blocked_reference(*inputs)
-    torch.testing.assert_close(blocked, expected, rtol=0.0, atol=0.0)
+    for tile in tile_sizes:
+        if tile <= 0:
+            raise ValueError(f"tile size must be positive, got {tile}")
+        blocked = temporal_blocked_reference(*inputs, tile=tile)
+        torch.testing.assert_close(blocked, expected, rtol=0.0, atol=0.0)
     return inputs, expected
 
 

@@ -58,8 +58,8 @@ scripts/check.sh --with-lint
 python3 examples/trace_demo.py
 ```
 
-Изменения optional PyTorch frontend дополнительно требуют
-`scripts/check.sh --with-torch`.
+Изменения Torch frontend или project worker дополнительно требуют
+`scripts/check.sh --with-torch` и Docker/UI vertical.
 
 ## 2–3. Cache emulator
 
@@ -130,10 +130,10 @@ UI получает:
 - `statistics.json` и опциональный `events.json` от emulator.
 
 Контракты позволяют UI показывать порядок обращений, offsets, read/write kind и
-формальный результат cache model. Текущий UI v0.1 показывает сравнительную
-статистику и instruction aggregates; timeline `events.json` и source navigation
-ещё не визуализируются. UI не должен делать выводы о wall-clock performance или
-CPU cycles только по trace.
+формальный результат cache model. Comparative report показывает статистику и
+instruction aggregates; interactive Stepper показывает timeline, состояние
+sets/ways и переход от события к MLIR source location. UI не должен делать
+выводы о wall-clock performance или CPU cycles только по trace.
 
 Stage-aware navigation определена в [SOURCE_MAPPING.md](SOURCE_MAPPING.md).
 UI обязан feature-detect поле `source_map` для совместимости со старыми traces

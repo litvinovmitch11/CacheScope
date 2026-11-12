@@ -28,15 +28,19 @@ function issuesText(issues: { path: PropertyKey[]; message: string }[]) {
 }
 
 function sortRuns(runs: Run[]) {
-  const ORDER = ["baseline", "tile4", "tile4-ikj"];
-  const rank = (v: string) => {
-    const i = ORDER.indexOf(v);
-    return i === -1 ? ORDER.length : i;
+  const rank = (variant: string): [number, number, string] => {
+    if (variant === "baseline") return [0, 0, variant];
+    const tile = /^tile-([0-9]+)$/.exec(variant);
+    if (tile) return [1, Number(tile[1]), variant];
+    return [2, 0, variant];
   };
   runs.sort(
-    (a, b) =>
-      rank(a.stats.variant) - rank(b.stats.variant) ||
-      a.path.localeCompare(b.path),
+    (a, b) => {
+      const left = rank(a.stats.variant);
+      const right = rank(b.stats.variant);
+      return left[0] - right[0] || left[1] - right[1]
+        || left[2].localeCompare(right[2]) || a.path.localeCompare(b.path);
+    },
   );
 }
 
@@ -142,4 +146,17 @@ export function loadReport(report: { statistics: unknown; trace: unknown }): Loa
     { path: "experiment/baseline/trace.json", json: report.trace },
     { path: "experiment/simulation/baseline/statistics.json", json: report.statistics },
   ]);
+}
+
+/** Compact artifact DTO produced by a server-side experiment template. */
+export function loadResultEntries(
+  entries: { path: string; data?: unknown; error?: string }[],
+): LoadResult {
+  return collect(
+    entries.map((entry) => ({
+      path: entry.path,
+      json: entry.data,
+      error: entry.error,
+    })),
+  );
 }

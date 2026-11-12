@@ -1,7 +1,7 @@
 # CacheScope roadmap
 
-Этот roadmap отражает состояние репозитория, а не первоначальный хакатонный
-замысел. Реализованные возможности перечислены в
+Этот roadmap отражает состояние репозитория, а не первоначальный прототип.
+Реализованные возможности перечислены в
 [docs/SUPPORT_MATRIX.md](docs/SUPPORT_MATRIX.md).
 
 ## Текущая точка
@@ -30,6 +30,22 @@ PyTorch или MLIR payload
 Reference product flow `compiler → trace → simulator → standalone UI` запускается
 одной командой `python3 examples/product-e2e/run.py`. Он создаёт три variants,
 simulation reports и переносимый HTML в одной experiment directory.
+
+Отдельный Torch product experiment сравнивает layer-wise depthwise CNN с
+несколькими temporal-blocked schedules. Он проверяет численную эквивалентность,
+provenance и одинаковые cache profiles и публикует tile-size sweep для
+объяснения компромисса между halo recomputation и L1 locality.
+
+Локальный Experiment Studio обобщает этот сценарий: пользователь редактирует
+`model.py`, `inputs.py`, произвольные Transform Dialect schedules и cache
+profiles, а общий worker выполняет Torch oracle → export → compilation →
+validation → tracing → simulation. Depthwise experiment теперь служит
+загружаемым примером, а не единственным UI-сценарием.
+
+Production vertical запускается через Docker Compose и включает Torch worker,
+comparative report, выбор schedule/cache profile для Stepper и вкладку
+Validation. Внешняя доказательная база включает Cachegrind, drcachesim и
+drmemtrace; документированные IntelDX2/DX4 presets доступны в основном Studio.
 
 ## M0: контракт trace producer — выполнено
 
@@ -89,10 +105,11 @@ simulation reports и переносимый HTML в одной experiment direc
 ## P3: визуализация — частично
 
 - реализованы statistics comparison и экспорт воспроизводимого HTML-отчёта;
-- далее: payload и transform IR рядом;
-- далее: event timeline и состояние cache sets/ways;
+- реализован stepper в dev-режиме и Docker: загрузка trace/MLIR через backend,
+  payload/transform IR, event timeline, heatmap и состояние cache sets/ways;
 - далее: синхронный baseline/transformed replay;
-- далее: переход из события к исходной MLIR operation.
+- переход из события к MLIR operation реализован через source map;
+- реализован Validation hub с внешними reference checks и hardware presets;
 
 ## Не входит в ближайшие этапы
 

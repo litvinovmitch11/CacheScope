@@ -1,9 +1,8 @@
 # Полный продуктовый E2E
 
-[Готовый результат](../../output/product-e2e/README.md) уже сохранён в репозитории.
-Скачайте [report.html](../../output/product-e2e/report.html) через **Download raw file**
-и откройте его в браузере: Docker, LLVM, Node.js и backend для просмотра не нужны.
-Команды ниже нужны только для повторной генерации эксперимента.
+Это низкоуровневый regression/reference flow над matmul. Основной
+пользовательский сценарий — Docker Project Studio из
+[корневого README](../../README.md#быстрый-запуск).
 
 Одна команда собирает и соединяет все компоненты CacheScope:
 
@@ -36,6 +35,9 @@ simulation/
 RESULTS.md
 report.html
 ```
+
+Каталог генерируется локально и не хранится в Git. `report.html` после запуска
+можно открыть напрямую в браузере: backend для просмотра не нужен.
 
 `RESULTS.md` содержит cache configuration, абсолютные значения, дельты
 относительно baseline и явный вывод по минимальному числу misses. HTML показывает

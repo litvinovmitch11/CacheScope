@@ -11,6 +11,12 @@ export interface LevelConfig {
   allocation_policy?: "write_allocate" | "no_write_allocate";
 }
 
+export interface HierarchyConfig {
+  inclusion_policies: Array<"exclusive" | "inclusive" | "non_inclusive">;
+  writeback_clean: boolean;
+  non_inclusive_fill: "all_levels" | "on_eviction";
+}
+
 export interface EffectiveLevel extends Omit<LevelConfig, "random_seed"> {
   random_seed: string | null;
   level: number;
@@ -32,10 +38,10 @@ export interface RunnerSession {
   total_events: UInt64 | null;
   trace_path: string;
   levels: EffectiveLevel[];
-  hierarchy: {
-    inclusion_policy: "exclusive";
-    write_policy: "write_back";
-    allocation_policy: "write_allocate";
+  hierarchy: HierarchyConfig & {
+    inclusion_policy: "exclusive" | "inclusive" | "non_inclusive" | "mixed";
+    write_policy: "write_back" | "write_through" | "mixed";
+    allocation_policy: "write_allocate" | "no_write_allocate" | "mixed";
   };
   limits: SessionLimits;
   error: { code: string; message: string; recovery?: "reset" | "recreate" } | null;
@@ -179,6 +185,7 @@ export interface RunnerMetadata {
 export interface CreateSessionRequest {
   trace_path: string;
   levels: LevelConfig[];
+  hierarchy?: HierarchyConfig;
 }
 
 export interface RunnerErrorBody {

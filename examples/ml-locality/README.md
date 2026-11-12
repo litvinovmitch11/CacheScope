@@ -1,8 +1,8 @@
 # ML locality experiments
 
-Эта серия сравнивает попарно две реализации одной ML-функции. В каждой паре
-совпадают входы, веса, результат, backend flags и cache hierarchy; меняются
-только schedule и материализация промежуточных тензоров.
+Эта серия сравнивает несколько реализаций одной ML-функции. В одном
+эксперименте совпадают входы, веса, результат, backend flags и cache hierarchy;
+меняются только schedule и материализация промежуточных тензоров.
 
 План:
 
@@ -10,7 +10,8 @@
 2. Transformer MLP: materialized expanded hidden tensor против tiled fusion;
 3. EmbeddingBag: materialized gather против fused gather-reduce.
 
-Первый реализованный сценарий находится в
+Первый реализованный сценарий выполняет baseline и sweep размеров tile и
+находится в
 [`depthwise-temporal-blocking`](depthwise-temporal-blocking/README.md).
 
 Эти сценарии сравнивают compiler schedules внутри явно заданной CacheScope
