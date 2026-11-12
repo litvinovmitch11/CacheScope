@@ -5,9 +5,21 @@ import { ComparisonTable } from "./components/ComparisonTable";
 import { loadEmbedded, loadExperiment } from "./loadExperiment";
 import { describeConfig, groupByConfig } from "./metrics";
 import type { LoadResult } from "./types";
+import { StepperWorkspace } from "./features/stepper";
 import { ExperimentForm } from "./components/ExperimentForm";
 
+// Пошаговая симуляция зависит от dev-сервера Vite (обзор файлов и чтение MLIR),
+// поэтому в собранном приложении, в том числе в Docker, она отключена.
+const STEPPER_ENABLED = import.meta.env.DEV;
+
 export default function App() {
+  if (STEPPER_ENABLED && new URLSearchParams(window.location.search).get("view") === "stepper") {
+    return <StepperWorkspace />;
+  }
+  return <StatsView />;
+}
+
+function StatsView() {
   const [embedded] = useState<LoadResult | null>(loadEmbedded);
   const [result, setResult] = useState<LoadResult | null>(embedded);
   const [busy, setBusy] = useState(false);
@@ -25,7 +37,7 @@ export default function App() {
 
   return (
     <main>
-      <h1>CacheScope</h1>
+      <div className="app-heading"><h1>CacheScope</h1>{STEPPER_ENABLED && !embedded && <a href="/?view=stepper">Пошаговая симуляция →</a>}</div>
 
       {!embedded && <ExperimentForm onResult={setResult} />}
 

@@ -242,6 +242,810 @@ summary {
 .instructions-table td {
   white-space: nowrap;
 }
+
+/* Existing experiment dashboard remains unchanged; styles below belong to stepper. */
+.app-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.app-heading a {
+  color: var(--fg);
+}
+
+.stepper-shell {
+  max-width: 1440px;
+}
+
+.stepper-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.stepper-topbar h1 {
+  margin: 4px 0 6px;
+  font-size: clamp(1.8rem, 4vw, 2.5rem);
+}
+
+.stepper-eyebrow {
+  margin: 0;
+  color: var(--muted);
+  font-size: .72rem;
+  letter-spacing: .13em;
+  font-weight: 700;
+}
+
+.stepper-subtitle,
+.stepper-muted,
+.stepper-note {
+  color: var(--muted);
+}
+
+.stepper-subtitle {
+  margin: 0;
+}
+
+.stepper-back {
+  color: var(--fg);
+  white-space: nowrap;
+}
+
+.stepper-panel {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 18px;
+  margin: 16px 0;
+  min-width: 0;
+}
+
+.stepper-panel h2 {
+  margin: 0 0 14px;
+  font-size: 1.1rem;
+}
+
+.stepper-panel h3 {
+  margin: 18px 0 10px;
+  font-size: .95rem;
+}
+
+.stepper-field {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0;
+}
+
+.stepper-field>span,
+.stepper-level-config label span {
+  color: var(--muted);
+  font-size: .82rem;
+}
+
+.stepper-field input,
+.stepper-field select,
+.stepper-level-config input,
+.stepper-level-config select {
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--fg);
+  background: var(--bg);
+  font: inherit;
+}
+
+.stepper-field small {
+  color: var(--muted);
+}
+
+.stepper-level-config {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr 1fr 1fr 1fr auto;
+  gap: 10px;
+  align-items: end;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+}
+
+.stepper-level-config label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.stepper-actions,
+.stepper-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+
+.stepper-button {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 9px 14px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.stepper-button:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+.stepper-button.primary {
+  color: white;
+  background: #2563eb;
+  border-color: #2563eb;
+}
+
+.stepper-button.secondary {
+  color: var(--fg);
+  background: var(--card);
+}
+
+.stepper-remove {
+  border: 0;
+  background: transparent;
+  color: #dc2626;
+  padding: 8px;
+  cursor: pointer;
+}
+
+.stepper-note {
+  font-size: .82rem;
+}
+
+.stepper-error {
+  padding: 12px 14px;
+  border: 1px solid #ef4444;
+  border-radius: 9px;
+  color: #dc2626;
+  background: color-mix(in srgb, #ef4444 7%, var(--card));
+  margin: 12px 0;
+}
+
+.stepper-loading {
+  color: var(--muted);
+  margin: 12px 0;
+}
+
+.stepper-sessionbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 24px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+}
+
+.stepper-sessionbar>div {
+  display: grid;
+  gap: 3px;
+}
+
+.stepper-sessionbar>button {
+  margin-left: auto;
+}
+
+.stepper-muted {
+  font-size: .82rem;
+}
+
+.stepper-next {
+  min-width: 170px;
+}
+
+.stepper-grid {
+  display: grid;
+  grid-template-columns: minmax(300px, .85fr) minmax(420px, 1.15fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.stepper-panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.stepper-panel-heading h2 {
+  margin-bottom: 0;
+}
+
+.stepper-tag {
+  font-size: .75rem;
+  color: var(--muted);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 4px 9px;
+}
+
+.stepper-kv {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: 8px 12px;
+  font-size: .88rem;
+}
+
+.stepper-kv dt {
+  color: var(--muted);
+}
+
+.stepper-kv dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-family: ui-monospace, monospace;
+}
+
+.stepper-event-level {
+  display: grid;
+  grid-template-columns: 42px 1fr;
+  gap: 8px;
+  align-items: center;
+  margin: 8px 0;
+  font-size: .82rem;
+}
+
+.stepper-event-level span {
+  grid-column: 2;
+}
+
+.stepper-event-level .hit {
+  color: #16a34a;
+}
+
+.stepper-event-level .miss {
+  color: #dc2626;
+}
+
+.stepper-small {
+  font-size: .82rem;
+  margin: 5px 0;
+}
+
+.stepper-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.stepper-tabs button {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--fg);
+  padding: 5px 12px;
+  cursor: pointer;
+}
+
+.stepper-tabs button.active {
+  background: var(--fg);
+  color: var(--bg);
+}
+
+.stepper-cache-meta {
+  color: var(--muted);
+  font-size: .82rem;
+  margin: 12px 0;
+}
+
+.stepper-cache-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 10px;
+  max-height: 650px;
+  overflow: auto;
+}
+
+.stepper-set {
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 10px;
+  min-width: 0;
+}
+
+.stepper-set>strong {
+  display: block;
+  margin-bottom: 8px;
+  font-size: .82rem;
+}
+
+.stepper-ways {
+  display: grid;
+  gap: 5px;
+}
+
+.stepper-way {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 4px 8px;
+  padding: 7px;
+  border-radius: 6px;
+  background: var(--bg);
+  font-size: .72rem;
+}
+
+.stepper-way span {
+  overflow-wrap: anywhere;
+  font-family: ui-monospace, monospace;
+}
+
+.stepper-way small {
+  grid-column: 2;
+  color: var(--muted);
+}
+
+.stepper-way.valid {
+  outline: 1px solid color-mix(in srgb, #16a34a 35%, transparent);
+}
+
+.stepper-source {
+  max-height: 520px;
+  overflow: auto;
+  padding: 10px 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+  font-size: .76rem;
+  line-height: 1.55;
+}
+
+.stepper-source .source-line {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  min-width: max-content;
+  padding: 0 10px;
+}
+
+.stepper-source .source-line>span {
+  color: var(--muted);
+  text-align: right;
+  padding-right: 12px;
+  user-select: none;
+}
+
+.stepper-source .source-line.active {
+  background: color-mix(in srgb, #f59e0b 22%, transparent);
+}
+
+.stepper-source code {
+  white-space: pre;
+}
+
+.stepper-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+}
+
+.stepper-stats>div {
+  display: grid;
+  gap: 5px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+}
+
+.stepper-stats span {
+  color: var(--muted);
+  font-size: .8rem;
+}
+
+.stepper-stats strong {
+  font-size: 1.3rem;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 900px) {
+  .stepper-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stepper-level-config {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .stepper-topbar {
+    flex-direction: column;
+  }
+
+  .stepper-sessionbar {
+    gap: 12px;
+  }
+
+  .stepper-sessionbar>button {
+    margin-left: 0;
+  }
+
+  .stepper-level-config {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Backend request diagnostics */
+
+.stepper-logs {
+  margin-top: 24px;
+}
+
+.stepper-log-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.stepper-log-entry {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.stepper-log-entry.failure {
+  border-left: 4px solid #dc2626;
+}
+
+.stepper-log-entry.success {
+  border-left: 4px solid #16a34a;
+}
+
+.stepper-log-entry summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 11px;
+  cursor: pointer;
+  font-size: .82rem;
+}
+
+.stepper-log-time,
+.stepper-log-duration {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.stepper-log-url {
+  flex: 1;
+  min-width: 180px;
+  overflow-wrap: anywhere;
+  font-family: ui-monospace, monospace;
+}
+
+.stepper-log-status {
+  font-weight: 700;
+}
+
+.stepper-log-status.ok {
+  color: #16a34a;
+}
+
+.stepper-log-status.bad {
+  color: #dc2626;
+}
+
+.stepper-log-details {
+  padding: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.stepper-log-details pre {
+  padding: 12px;
+  border-radius: 7px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  overflow-x: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: .78rem;
+  font-family: ui-monospace, monospace;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+@media (max-width: 600px) {
+  .stepper-log-entry summary {
+    gap: 7px;
+  }
+
+  .stepper-log-url {
+    flex-basis: 100%;
+    order: 3;
+  }
+}
+
+/* Stepwise: file picker modal and recent traces */
+
+.stepper-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+
+.stepper-modal {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px;
+  width: min(760px, 100%);
+  max-height: min(82vh, 720px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.stepper-modal header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.stepper-modal header h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.stepper-modal-path,
+.stepper-modal-manual {
+  display: flex;
+  gap: 6px;
+}
+
+.stepper-modal-cwd,
+.stepper-modal-manual input {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+  font-family: ui-monospace, monospace;
+}
+
+.stepper-modal-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  border-top: 1px solid var(--line);
+}
+
+.stepper-modal-entry {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.stepper-modal-entry:hover {
+  background: var(--bg);
+}
+
+.stepper-modal-entry.file {
+  color: #16a34a;
+}
+
+.stepper-modal-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stepper-recent-traces {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 4px 0 0;
+}
+
+.stepper-chip {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--fg);
+  padding: 4px 10px;
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.stepper-chip:hover {
+  background: var(--card);
+}
+
+/* Stepwise: per-step highlights */
+
+.stepper-way.way-hit {
+  outline: 2px solid #16a34a;
+  background: color-mix(in srgb, #16a34a 20%, var(--bg));
+}
+
+.stepper-way.way-miss {
+  outline: 2px solid #dc2626;
+  background: color-mix(in srgb, #dc2626 20%, var(--bg));
+}
+
+.stepper-way.way-hit small,
+.stepper-way.way-miss small {
+  font-weight: 600;
+}
+
+/* Stepwise: set heatmap */
+
+.stepper-heatmap {
+  display: grid;
+  gap: 10px;
+}
+
+.stepper-heatmap-legend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.stepper-heatmap-gradient {
+  display: inline-block;
+  width: 120px;
+  height: 10px;
+  border-radius: 4px;
+  background: linear-gradient(to right,
+      hsl(0, 70%, 75%),
+      hsl(60, 70%, 75%),
+      hsl(120, 70%, 75%));
+}
+
+.stepper-heatmap-cells {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(34px, 1fr));
+  gap: 4px;
+  max-height: 420px;
+  overflow: auto;
+  padding: 2px;
+}
+
+.stepper-heatmap-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  min-height: 32px;
+  border-radius: 5px;
+  font-size: 0.7rem;
+  color: #1c1c1e;
+  font-variant-numeric: tabular-nums;
+  cursor: default;
+}
+
+.stepper-heatmap-stack {
+  display: grid;
+  gap: 22px;
+}
+
+.stepper-heatmap-block {
+  display: grid;
+  gap: 8px;
+}
+
+.stepper-heatmap-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Stepwise: hit/miss timeline (grid of squares) */
+
+.stepper-timeline-stack {
+  display: grid;
+  gap: 16px;
+}
+
+.stepper-timeline {
+  display: grid;
+  gap: 6px;
+}
+
+.stepper-timeline-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.stepper-timeline-cells {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 14px);
+  gap: 2px;
+  padding: 6px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.stepper-timeline-cell {
+  width: 14px;
+  height: 14px;
+  border-radius: 2px;
+  background: var(--line);
+  cursor: default;
+}
+
+.stepper-timeline-cell.neutral {
+  background: var(--line);
+  opacity: 0.5;
+}
+
+.stepper-timeline-legend {
+  display: flex;
+  gap: 14px;
+  font-size: 0.78rem;
+  color: var(--muted);
+  flex-wrap: wrap;
+}
+
+.stepper-timeline-legend i {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
+.stepper-timeline-legend-mixed {
+  /* используется только как контейнер для background из inline style */
+}
+
+.stepper-timeline-svg {
+  display: block;
+  width: 100%;
+  height: 100px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
 .experiment-form { padding: 1rem; border: 1px solid var(--line); border-radius: .5rem; margin-bottom: 1.5rem; }
 .experiment-form form, .experiment-form fieldset { display: flex; flex-wrap: wrap; align-items: end; gap: 1rem; margin: 1rem 0; }
 .experiment-form fieldset { width: 100%; border: 1px solid var(--line); padding: 1rem; }

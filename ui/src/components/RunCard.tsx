@@ -61,7 +61,7 @@ export function RunCard({ run }: { run: Run }) {
           trace: {run.trace.recorded_events.toLocaleString("ru-RU")} из{" "}
           {run.trace.total_events.toLocaleString("ru-RU")} событий
           {run.trace.truncated ? " · УСЕЧЁН" : ""}
-          {!run.trace.valid ? " · НЕВАЛИДНА" : ""}
+          {!run.trace.valid ? " · НЕВАЛИДЕН" : ""}
         </p>
       ) : (
         <p className="muted">
