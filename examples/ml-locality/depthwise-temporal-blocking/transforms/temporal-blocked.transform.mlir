@@ -1,0 +1,20 @@
+module attributes {transform.with_named_sequence} {
+  transform.named_sequence @__transform_main(
+      %root: !transform.any_op {transform.readonly}) {
+    %convolutions = transform.structured.match
+      ops{["linalg.depthwise_conv_2d_nchw_chw"]} in %root
+      : (!transform.any_op) -> !transform.any_op
+    %first_conv, %second_conv = transform.split_handle %convolutions
+      : (!transform.any_op) -> (!transform.any_op, !transform.any_op)
+
+    // Depthwise loop order is N, OH, OW, C, KH, KW. Tiling OH/OW of the
+    // consumer makes structured.fuse pull its ReLU and first-conv producers
+    // into the same 10x10 spatial tile.
+    %tiled, %height_loop, %width_loop =
+        transform.structured.fuse %second_conv
+        tile_sizes [0, 10, 10, 0, 0, 0] {apply_cleanup}
+        : (!transform.any_op) -> (!transform.any_op, !transform.any_op,
+                                  !transform.any_op)
+    transform.yield
+  }
+}

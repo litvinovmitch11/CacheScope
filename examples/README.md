@@ -16,6 +16,10 @@ python3 examples/product-e2e/run.py
 Её layout, cache configuration и проверки описаны в
 [product-e2e/README.md](product-e2e/README.md).
 
+Попарные ML-эксперименты, в которых один и тот же результат вычисляется с
+разной локальностью, собраны в [ml-locality/README.md](ml-locality/README.md).
+Первый сценарий сравнивает послойный depthwise CNN и temporal blocking.
+
 Он самостоятельно собирает CacheScope plugin/runtime, компилирует один matmul
 тремя способами, запускает инструментированный код, проверяет численный
 результат и валидирует все traces.
