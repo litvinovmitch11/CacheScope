@@ -7,7 +7,9 @@
     "line_size_bytes": 64,
     "associativity": 2,
     "set_count": 2,
-    "replacement_policy": "scripted"
+    "replacement_policy": "scripted",
+    "write_policy": "write_back",
+    "allocation_policy": "write_allocate"
   },
   "processed": {
     "trace_events": 3,
@@ -24,7 +26,8 @@
     "write_misses": 1,
     "evictions": 1,
     "writebacks": 0,
-    "hit_rate_percent": 50.0
+    "hit_rate_percent": 50.0,
+    "back_invalidations": 0
   },
   "levels": [
     {
@@ -44,7 +47,8 @@
         "write_misses": 1,
         "evictions": 1,
         "writebacks": 0,
-        "hit_rate_percent": 50.0
+        "hit_rate_percent": 50.0,
+        "back_invalidations": 0
       },
       "name": "L1",
       "cache_config": {
@@ -52,7 +56,9 @@
         "line_size_bytes": 64,
         "associativity": 2,
         "set_count": 2,
-        "replacement_policy": "scripted"
+        "replacement_policy": "scripted",
+        "write_policy": "write_back",
+        "allocation_policy": "write_allocate"
       }
     },
     {
@@ -72,7 +78,8 @@
         "write_misses": 1,
         "evictions": 0,
         "writebacks": 0,
-        "hit_rate_percent": 50.0
+        "hit_rate_percent": 50.0,
+        "back_invalidations": 0
       },
       "name": "L2",
       "cache_config": {
@@ -80,7 +87,9 @@
         "line_size_bytes": 64,
         "associativity": 2,
         "set_count": 2,
-        "replacement_policy": "scripted"
+        "replacement_policy": "scripted",
+        "write_policy": "write_back",
+        "allocation_policy": "write_allocate"
       }
     },
     {
@@ -100,7 +109,8 @@
         "write_misses": 0,
         "evictions": 0,
         "writebacks": 0,
-        "hit_rate_percent": 100.0
+        "hit_rate_percent": 100.0,
+        "back_invalidations": 0
       },
       "name": "L3",
       "cache_config": {
@@ -108,7 +118,9 @@
         "line_size_bytes": 64,
         "associativity": 2,
         "set_count": 2,
-        "replacement_policy": "scripted"
+        "replacement_policy": "scripted",
+        "write_policy": "write_back",
+        "allocation_policy": "write_allocate"
       }
     }
   ],
@@ -146,11 +158,19 @@
   "hierarchy": {
     "inclusion_policy": "exclusive",
     "write_policy": "write_back",
-    "allocation_policy": "write_allocate"
+    "allocation_policy": "write_allocate",
+    "inclusion_policies": [
+      "exclusive",
+      "exclusive"
+    ],
+    "writeback_clean": false,
+    "non_inclusive_fill": "all_levels"
   },
   "memory": {
     "reads": 0,
-    "writebacks": 0
+    "writebacks": 0,
+    "writes": 0,
+    "write_bytes": 0
   },
   "requests": {
     "events": 3,
@@ -184,7 +204,8 @@
             "write_misses": 0,
             "evictions": 1,
             "writebacks": 0,
-            "hit_rate_percent": 66.66666666666666
+            "hit_rate_percent": 66.66666666666666,
+            "back_invalidations": 0
           }
         },
         {
@@ -204,7 +225,8 @@
             "write_misses": 0,
             "evictions": 0,
             "writebacks": 0,
-            "hit_rate_percent": 100.0
+            "hit_rate_percent": 100.0,
+            "back_invalidations": 0
           }
         },
         {
@@ -224,7 +246,8 @@
             "write_misses": 0,
             "evictions": 0,
             "writebacks": 0,
-            "hit_rate_percent": null
+            "hit_rate_percent": null,
+            "back_invalidations": 0
           }
         }
       ],
@@ -255,7 +278,8 @@
             "write_misses": 1,
             "evictions": 0,
             "writebacks": 0,
-            "hit_rate_percent": 0.0
+            "hit_rate_percent": 0.0,
+            "back_invalidations": 0
           }
         },
         {
@@ -275,7 +299,8 @@
             "write_misses": 1,
             "evictions": 0,
             "writebacks": 0,
-            "hit_rate_percent": 0.0
+            "hit_rate_percent": 0.0,
+            "back_invalidations": 0
           }
         },
         {
@@ -295,7 +320,8 @@
             "write_misses": 0,
             "evictions": 0,
             "writebacks": 0,
-            "hit_rate_percent": 100.0
+            "hit_rate_percent": 100.0,
+            "back_invalidations": 0
           }
         }
       ],

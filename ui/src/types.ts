@@ -15,6 +15,7 @@ export const Totals = z.object({
   write_misses: Int,
   evictions: Int,
   writebacks: OptCount,
+  back_invalidations: OptCount,
   hit_rate_percent: z.number().nullable().optional(), // справочно, UI не использует
 });
 
@@ -24,6 +25,8 @@ export const CacheConfig = z.object({
   associativity: Int,
   set_count: Int,
   replacement_policy: z.string(),
+  write_policy: z.string().optional(),
+  allocation_policy: z.string().optional(),
 });
 
 export const Processed = z.object({
@@ -70,9 +73,12 @@ export const Statistics = z.object({
       inclusion_policy: z.string().nullable().optional(),
       write_policy: z.string().nullable().optional(),
       allocation_policy: z.string().nullable().optional(),
+      inclusion_policies: z.array(z.string()).optional(),
+      writeback_clean: z.boolean().optional(),
+      non_inclusive_fill: z.string().optional(),
     })
     .optional(),
-  memory: z.object({ reads: OptCount, writebacks: OptCount }).optional(),
+  memory: z.object({ reads: OptCount, writes: OptCount, write_bytes: OptCount, writebacks: OptCount }).optional(),
   instructions: z.array(Instruction).optional(),
 });
 

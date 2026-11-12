@@ -1,8 +1,10 @@
 #include "runner_api.hpp"
 #include "cache_simulator/FIFO.h"
 #include "cache_simulator/LRU.h"
+#include "cache_simulator/PLRU4.h"
 #include "cache_simulator/Random.h"
 #include "cache_simulator/SetAssociativeCacheLevel.h"
+#include "cache_simulator/cache_policies.hpp"
 #include "cache_simulator/trace_replay.hpp"
 
 #include <algorithm>
@@ -26,9 +28,6 @@ using U64 = std::uint64_t;
 constexpr U64 safe_integer = 9007199254740991ULL;
 constexpr U64 max_index =
     std::min<U64>(safe_integer, std::numeric_limits<std::size_t>::max());
-const Json policies{{"inclusion_policy", "exclusive"},
-                    {"write_policy", "write_back"},
-                    {"allocation_policy", "write_allocate"}};
 const Json limits{{"max_step_count", 1000},
                   {"max_sets_per_read", 64},
                   {"max_instructions_per_read", 100}};
@@ -144,6 +143,10 @@ static Json outcome_dto(Json event) {
           {"address", event.at("address")},
           {"level_results", event.at("level_results")},
           {"evictions", event.at("evictions")},
+          {"back_invalidations", event.at("back_invalidations")},
+          {"writebacks", event.at("writebacks")},
+          {"memory_writes", event.at("memory_writes").dump()},
+          {"memory_write_bytes", event.at("memory_write_bytes").dump()},
           {"memory_reads", event.at("memory_reads").dump()},
           {"memory_writebacks", event.at("memory_writebacks").dump()}};
 }
@@ -321,7 +324,7 @@ private:
 } // namespace
 
 static Json configuration(const Json &body) {
-  keys(body, {"trace_path", "levels"});
+  keys(body, {"trace_path", "levels"}, {"hierarchy"});
   const auto path = string(body, "trace_path");
   if (path.size() < 2 || path.find('\0') != std::string::npos ||
       !std::filesystem::path(path).is_absolute())
@@ -335,7 +338,7 @@ static Json configuration(const Json &body) {
     keys(entry,
          {"name", "size_bytes", "line_size_bytes", "associativity",
           "replacement_policy"},
-         {"random_seed"});
+         {"random_seed", "write_policy", "allocation_policy"});
     const auto name = string(entry, "name");
     const auto policy = string(entry, "replacement_policy");
     const auto capacity = number(entry.at("size_bytes"), "invalid_config");
@@ -345,7 +348,9 @@ static Json configuration(const Json &body) {
     if (name.empty() || !names.insert(name).second || (line & (line - 1)) ||
         !sets || (sets & (sets - 1)) || capacity % line ||
         (capacity / line) % ways || (line_size && line_size != line) ||
-        (policy != "LRU" && policy != "FIFO" && policy != "Random"))
+        (policy != "LRU" && policy != "FIFO" && policy != "Random" &&
+         policy != "PLRU4") ||
+        (policy == "PLRU4" && ways != 4))
       bad("invalid_config", "invalid cache geometry, name or policy");
     line_size = line;
     Json seed = nullptr;
@@ -356,14 +361,23 @@ static Json configuration(const Json &body) {
               : 0);
     else if (entry.contains("random_seed"))
       bad("invalid_config", "random_seed is only allowed for Random");
-    result.push_back({{"level", result.size() + 1},
-                      {"name", name},
-                      {"size_bytes", capacity},
-                      {"line_size_bytes", line},
-                      {"associativity", ways},
-                      {"set_count", sets},
-                      {"replacement_policy", policy},
-                      {"random_seed", seed}});
+    CacheConfig config{};
+    try {
+      configure_policies(config, entry);
+    } catch (const std::exception &e) {
+      bad("invalid_config", e.what());
+    }
+    result.push_back(
+        {{"level", result.size() + 1},
+         {"name", name},
+         {"size_bytes", capacity},
+         {"line_size_bytes", line},
+         {"associativity", ways},
+         {"set_count", sets},
+         {"replacement_policy", policy},
+         {"random_seed", seed},
+         {"write_policy", to_string(config.write_policy)},
+         {"allocation_policy", to_string(config.allocation_policy)}});
   }
   return result;
 }
@@ -375,6 +389,8 @@ struct Session {
   bool busy = false;
   std::atomic<bool> cancelled{false};
   Json levels, total = nullptr, error = nullptr, metadata, last = nullptr;
+  HierarchyConfig policy_config;
+  Json policies;
   std::unique_ptr<CacheHierarchy> hierarchy;
   std::vector<ObservedLevel *> observed;
   std::unique_ptr<TraceReplay> replay;
@@ -529,6 +545,8 @@ struct RunnerApi::Impl {
                   : 0;
           ReplacementPolicyFactory factory =
               [policy, seed]() -> std::unique_ptr<IReplacementPolicy> {
+            if (policy == "PLRU4")
+              return std::make_unique<PLRU4>();
             if (policy == "FIFO")
               return std::make_unique<FIFO>();
             if (policy == "Random")
@@ -539,13 +557,15 @@ struct RunnerApi::Impl {
                              entry.at("line_size_bytes").get<std::size_t>(),
                              entry.at("associativity").get<std::size_t>(),
                              policy};
+          configure_policies(config, entry);
           auto level = std::make_unique<ObservedLevel>(
               config, level_factory(config, factory));
           session->observed.push_back(level.get());
           levels.push_back(
               {entry.at("name").get<std::string>(), config, std::move(level)});
         }
-        auto hierarchy = std::make_unique<CacheHierarchy>(std::move(levels));
+        auto hierarchy = std::make_unique<CacheHierarchy>(
+            std::move(levels), session->policy_config);
         failure_code = "invalid_trace";
         auto replay =
             std::make_unique<TraceReplay>(session->path, *hierarchy, [session] {
@@ -619,6 +639,20 @@ struct RunnerApi::Impl {
       query_values(input, {});
       if (method == "POST") {
         auto configs = configuration(body);
+        HierarchyConfig policy_config;
+        std::vector<CacheConfig> policy_levels;
+        try {
+          policy_config = parse_hierarchy_policies(
+              body.value("hierarchy", Json::object()), configs.size());
+          for (const auto &entry : configs) {
+            CacheConfig config{};
+            configure_policies(config, entry);
+            policy_levels.push_back(config);
+          }
+        } catch (const std::exception &e) {
+          bad("invalid_config", e.what());
+        }
+
         std::lock_guard<std::mutex> lock(mutex);
         if (active)
           throw active->failure(
@@ -630,6 +664,8 @@ struct RunnerApi::Impl {
         session->id = prefix + "-" + std::to_string(++serial);
         session->path = body.at("trace_path").get<std::string>();
         session->levels = std::move(configs);
+        session->policy_config = policy_config;
+        session->policies = describe_policies(policy_config, policy_levels);
         active = pending = session;
         changed.notify_one();
         return {202, session->descriptor(), "/api/v1/sessions/" + session->id};

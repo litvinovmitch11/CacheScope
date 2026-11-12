@@ -12,6 +12,7 @@ struct LineStatistics {
   std::uint64_t hits = 0;
   std::uint64_t misses = 0;
   std::uint64_t evictions = 0;
+  std::uint64_t back_invalidations = 0;
   std::uint64_t writebacks = 0;
 
   std::optional<double> hit_rate_percent() const;
@@ -49,6 +50,8 @@ struct RunSummary {
   std::vector<LevelStatistics> levels;
   std::vector<std::uint64_t> level_events;
   std::uint64_t memory_reads = 0;
+  std::uint64_t memory_writes = 0;
+  std::uint64_t memory_write_bytes = 0;
   std::uint64_t memory_writebacks = 0;
   std::map<std::uint64_t, InstructionStatistics> instructions;
   std::map<std::uint64_t, BufferLayout> buffers;

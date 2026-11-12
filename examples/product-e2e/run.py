@@ -74,7 +74,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--replacement-policy",
-        choices=("lru", "fifo", "random"),
+        choices=("lru", "fifo", "random", "plru4"),
         default="lru",
         help="Replacement policy (default: lru).",
     )

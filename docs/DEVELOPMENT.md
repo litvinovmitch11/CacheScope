@@ -112,7 +112,7 @@ python3 examples/product-e2e/run.py
 Результат и все промежуточные JSON находятся в `output/product-e2e/`.
 Параметры и требования Node.js описаны в
 [`examples/product-e2e/README.md`](../examples/product-e2e/README.md).
-Примеры LRU/FIFO/Random, разных геометрий и hardware-like конфигурации находятся
+Примеры LRU/FIFO/Random/PLRU4, разных геометрий и hardware-like конфигурации находятся
 в [`CACHE_MODELS.md`](CACHE_MODELS.md).
 
 ## PyTorch frontend
@@ -180,7 +180,7 @@ git diff --check
 - `cachescope.schema-suite` — schema fixtures, compatibility и invariants;
 - `cachescope.documentation-suite` — существование локальных Markdown links.
 - `cachescope.runner-*` — integration, real-cache, fifo-cache, random-cache,
-  validation, random-miss, streaming и CLI smoke для LRU/FIFO/Random
+  validation, random-miss, streaming и CLI smoke для LRU/FIFO/Random/PLRU4
   и L1/L2/L3;
 - `cachescope.hierarchy` — exclusive-переносы, dirty и реальный LRU;
 - `SetAssociativeCacheLevelTest.*`, `LRUTest.*` — upstream-тесты симулятора.

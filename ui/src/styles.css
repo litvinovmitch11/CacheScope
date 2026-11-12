@@ -254,3 +254,11 @@ summary {
 .experiment-progress { padding: .8rem 0; }
 .experiment-progress button { margin-left: 1rem; }
 .experiment-form pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 24rem; overflow: auto; }
+
+.cache-preset-note { width: 100%; margin: 0; }
+.cache-preset-note p { margin: 0; }
+.cache-preset-note ul { margin: .4rem 0 0; }
+
+.hierarchy-policies { display: grid; gap: 12px; margin: 16px 0; }
+.hierarchy-policies label { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.hierarchy-policies input[type="checkbox"] { width: auto; }

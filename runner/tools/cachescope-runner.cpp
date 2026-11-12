@@ -1,7 +1,9 @@
 #include "cache_simulator/FIFO.h"
 #include "cache_simulator/LRU.h"
+#include "cache_simulator/PLRU4.h"
 #include "cache_simulator/Random.h"
 #include "cache_simulator/SetAssociativeCacheLevel.h"
+#include "cache_simulator/cache_policies.hpp"
 #include "cache_simulator/trace_runner.hpp"
 #include <fstream>
 #include <nlohmann/json.hpp>
@@ -30,6 +32,10 @@ struct LevelOptions {
   std::size_t associativity;
   std::string replacement_policy;
   std::uint64_t random_seed = 42;
+  cache_simulator::WritePolicy write_policy =
+      cache_simulator::WritePolicy::WriteBack;
+  cache_simulator::AllocationPolicy allocation_policy =
+      cache_simulator::AllocationPolicy::WriteAllocate;
 };
 
 struct Options {
@@ -43,6 +49,7 @@ struct Options {
   std::string replacement_policy = "lru";
   std::uint64_t random_seed = 42;
   std::vector<LevelOptions> cache_levels;
+  cache_simulator::HierarchyConfig hierarchy;
   bool help = false;
 };
 
@@ -54,7 +61,8 @@ void print_usage(std::ostream &output) {
          << "  --size-bytes <n>          Cache capacity (default: 32768)\n"
          << "  --line-size-bytes <n>     Cache line size (default: 64)\n"
          << "  --associativity <n>       Number of ways (default: 8)\n"
-         << "  --replacement-policy <p> lru, fifo or random (default: lru)\n"
+         << "  --replacement-policy <p> lru, fifo, random or plru4 (default: "
+            "lru)\n"
          << "  --random-seed <n>         Random policy seed (default: 42)\n"
          << "  --cache-level <spec>      Repeatable hierarchy level: "
             "NAME:SIZE:LINE:WAYS:POLICY[:SEED]\n"
@@ -63,7 +71,9 @@ void print_usage(std::ostream &output) {
          << "  -h, --help                Show this help\n\n"
          << "When --cache-level is present, it replaces the single-level "
             "options. All hierarchy levels must use the same line size.\n"
-         << "The runner uses an exclusive write-back/write-allocate hierarchy "
+         << "Default: exclusive write-back/write-allocate. --config accepts "
+            "per-level write/allocation policies and hierarchy settings. The "
+            "runner "
             "and writes "
             "statistics.json and events.json into the output directory.\n";
 }
@@ -120,9 +130,12 @@ LevelOptions parse_level(std::string_view text) {
       parse_size(fields[2], "--cache-level LINE"),
       parse_size(fields[3], "--cache-level WAYS"), std::string(fields[4])};
   if (level.replacement_policy != "lru" && level.replacement_policy != "fifo" &&
-      level.replacement_policy != "random")
+      level.replacement_policy != "random" &&
+      level.replacement_policy != "plru4")
     throw std::invalid_argument(
-        "--cache-level POLICY must be lru, fifo or random");
+        "--cache-level POLICY must be lru, fifo, random or plru4");
+  if (level.replacement_policy == "plru4" && level.associativity != 4)
+    throw std::invalid_argument("PLRU4 requires exactly four ways");
   if (fields.size() == 6) {
     if (level.replacement_policy != "random")
       throw std::invalid_argument(
@@ -189,8 +202,11 @@ Options parse_options(int argc, char **argv) {
             parse_size(level.at("line_size_bytes").dump(), "line_size_bytes"),
             parse_size(level.at("associativity").dump(), "associativity"),
             policy};
-        if (policy != "lru" && policy != "fifo" && policy != "random")
+        if (policy != "lru" && policy != "fifo" && policy != "random" &&
+            policy != "plru4")
           throw std::invalid_argument("unknown config replacement_policy");
+        if (policy == "plru4" && entry.associativity != 4)
+          throw std::invalid_argument("PLRU4 requires exactly four ways");
         if (level.contains("random_seed")) {
           if (policy != "random")
             throw std::invalid_argument("only Random accepts random_seed");
@@ -199,8 +215,14 @@ Options parse_options(int argc, char **argv) {
         } else if (policy == "random") {
           entry.random_seed = 0;
         }
+        cache_simulator::CacheConfig policies{};
+        cache_simulator::configure_policies(policies, level);
+        entry.write_policy = policies.write_policy;
+        entry.allocation_policy = policies.allocation_policy;
         options.cache_levels.push_back(std::move(entry));
       }
+      options.hierarchy = cache_simulator::parse_hierarchy_policies(
+          config.value("hierarchy", nlohmann::json::object()), levels.size());
     }
     if (options.trace.empty())
       throw std::invalid_argument("--trace is required");
@@ -210,9 +232,13 @@ Options parse_options(int argc, char **argv) {
       throw std::invalid_argument("--cache-name must not be empty");
     if (options.replacement_policy != "lru" &&
         options.replacement_policy != "fifo" &&
-        options.replacement_policy != "random")
+        options.replacement_policy != "random" &&
+        options.replacement_policy != "plru4")
       throw std::invalid_argument(
-          "--replacement-policy must be lru, fifo or random");
+          "--replacement-policy must be lru, fifo, random or plru4");
+    if (options.cache_levels.empty() && options.replacement_policy == "plru4" &&
+        options.associativity != 4)
+      throw std::invalid_argument("PLRU4 requires exactly four ways");
     for (std::size_t index = 0; index < options.cache_levels.size(); ++index)
       for (std::size_t previous = 0; previous < index; ++previous)
         if (options.cache_levels[index].name ==
@@ -228,6 +254,7 @@ cache_simulator::CacheLevel make_level(const LevelOptions &options) {
   using cache_simulator::CacheLevelConfig;
   using cache_simulator::FIFO;
   using cache_simulator::LRU;
+  using cache_simulator::PLRU4;
   using cache_simulator::Random;
   using cache_simulator::ReplacementPolicyFactory;
   using cache_simulator::SetAssociativeCacheLevel;
@@ -240,6 +267,9 @@ cache_simulator::CacheLevel make_level(const LevelOptions &options) {
   } else if (options.replacement_policy == "fifo") {
     policy_factory = [] { return std::make_unique<FIFO>(); };
     policy_name = "FIFO";
+  } else if (options.replacement_policy == "plru4") {
+    policy_factory = [] { return std::make_unique<PLRU4>(); };
+    policy_name = "PLRU4";
   } else {
     policy_factory = [seed = options.random_seed] {
       return std::make_unique<Random>(seed);
@@ -252,7 +282,7 @@ cache_simulator::CacheLevel make_level(const LevelOptions &options) {
       policy_factory);
   return {options.name,
           {options.size_bytes, options.line_size_bytes, options.associativity,
-           policy_name},
+           policy_name, options.write_policy, options.allocation_policy},
           std::move(implementation)};
 }
 
@@ -270,7 +300,7 @@ cache_simulator::CacheHierarchy make_hierarchy(const Options &options) {
     for (const auto &level : options.cache_levels)
       levels.push_back(make_level(level));
   }
-  return cache_simulator::CacheHierarchy(std::move(levels));
+  return cache_simulator::CacheHierarchy(std::move(levels), options.hierarchy);
 }
 
 } // namespace

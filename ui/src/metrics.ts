@@ -59,13 +59,17 @@ export function fmtCount(n: number | null | undefined): string {
 export function describeConfig(c: CacheConfig): string {
   const size =
     c.size_bytes % 1024 === 0 ? `${c.size_bytes / 1024} KiB` : `${c.size_bytes} B`;
-  return `${size} · ${c.line_size_bytes} B line · ${c.associativity}-way · ${c.set_count} sets · ${c.replacement_policy}`;
+  return `${size} · ${c.line_size_bytes} B line · ${c.associativity}-way · ${c.set_count} sets · ${c.replacement_policy}${c.write_policy ? " · " + c.write_policy : ""}${c.allocation_policy ? " · " + c.allocation_policy : ""}`;
 }
 
 export function describeHierarchy(s: Statistics): string {
   const h = s.hierarchy;
   if (!h) return "";
-  return [h.inclusion_policy, h.write_policy, h.allocation_policy]
+  const links = h.inclusion_policies?.map((policy, i) => `L${i + 1}/L${i + 2}: ${policy}`).join(", ");
+  const inclusion = h.inclusion_policies?.length === 0 ? "один уровень" : links || h.inclusion_policy;
+  return [inclusion, h.write_policy, h.allocation_policy,
+    h.inclusion_policies?.length === 0 || h.writeback_clean === undefined ? null : `clean victims: ${h.writeback_clean ? "forward" : "drop (except exclusive)"}`,
+    h.inclusion_policies?.length !== 0 && h.non_inclusive_fill ? `NINE fill: ${h.non_inclusive_fill}` : null]
     .filter((x): x is string => !!x)
     .join(" · ");
 }
@@ -93,7 +97,8 @@ function sameConfig(a: CacheConfig, b: CacheConfig): boolean {
     a.line_size_bytes === b.line_size_bytes &&
     a.associativity === b.associativity &&
     a.set_count === b.set_count &&
-    a.replacement_policy === b.replacement_policy
+    a.replacement_policy === b.replacement_policy &&
+    a.write_policy === b.write_policy && a.allocation_policy === b.allocation_policy
   );
 }
 
@@ -190,10 +195,15 @@ export function groupByConfig(runs: Run[]): Run[][] {
         l.cache_config.associativity,
         l.cache_config.set_count,
         l.cache_config.replacement_policy,
+        l.cache_config.write_policy ?? null,
+        l.cache_config.allocation_policy ?? null,
       ]),
       r.stats.hierarchy?.inclusion_policy ?? null,
       r.stats.hierarchy?.write_policy ?? null,
       r.stats.hierarchy?.allocation_policy ?? null,
+      r.stats.hierarchy?.inclusion_policies ?? null,
+      r.stats.hierarchy?.writeback_clean ?? null,
+      r.stats.hierarchy?.non_inclusive_fill ?? null,
     ]);
     groups.set(key, [...(groups.get(key) ?? []), r]);
   }

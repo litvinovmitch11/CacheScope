@@ -21,7 +21,7 @@
 | Runtime | explicit reset/flush и `atexit` | поддержано |
 | Example | three MLIR compiler variants | canonical end-to-end driver |
 | Product E2E | compiler → simulator → standalone UI | одна команда и переносимый experiment bundle |
-| Runner CLI | configurable L1/L2/L3 hierarchy | per-level LRU/FIFO/Random, deterministic seed, exclusive write-back/write-allocate |
+| Runner CLI | configurable L1/L2/L3 hierarchy | per-level LRU/FIFO/Random/PLRU4, WB/WT, WA/NWA; mixed exclusive/inclusive/NINE |
 | UI | statistics comparison и standalone HTML | три variants и cache levels |
 | Frontend | static `16×16 f32` PyTorch matmul | end-to-end demo |
 | Transform | tiling и loop interchange | проверено на примерах |
@@ -66,7 +66,7 @@ access table. Поддержаны `memref_offset` и `read/write`, отрица
 `indices` не требуется. Метаданные source mapping переносятся в отчёт для UI.
 
 CacheHierarchy владеет `ICacheLevel` из актуального `CacheLevel.h`, реализует
-exclusive, write-back/write-allocate с одинаковым line size всех уровней.
+настраиваемые exclusive/inclusive/NINE, WB/WT и WA/NWA с одинаковым line size всех уровней.
 Готовые уровни — SetAssociativeCacheLevel с LRU, FIFO и Random. Нет ограничения
 числа событий раннера; память зависит от static sites и размера одного запроса. Неполные,
 invalid и truncated traces, `process_address` и `read_write` отклоняются.

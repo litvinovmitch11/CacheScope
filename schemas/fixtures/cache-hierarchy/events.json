@@ -10,7 +10,9 @@
         "line_size_bytes": 64,
         "associativity": 2,
         "set_count": 2,
-        "replacement_policy": "scripted"
+        "replacement_policy": "scripted",
+        "write_policy": "write_back",
+        "allocation_policy": "write_allocate"
       }
     },
     {
@@ -21,7 +23,9 @@
         "line_size_bytes": 64,
         "associativity": 2,
         "set_count": 2,
-        "replacement_policy": "scripted"
+        "replacement_policy": "scripted",
+        "write_policy": "write_back",
+        "allocation_policy": "write_allocate"
       }
     },
     {
@@ -32,7 +36,9 @@
         "line_size_bytes": 64,
         "associativity": 2,
         "set_count": 2,
-        "replacement_policy": "scripted"
+        "replacement_policy": "scripted",
+        "write_policy": "write_back",
+        "allocation_policy": "write_allocate"
       }
     }
   ],
@@ -105,7 +111,11 @@
         }
       ],
       "memory_reads": 0,
-      "memory_writebacks": 0
+      "memory_writebacks": 0,
+      "back_invalidations": [],
+      "writebacks": [],
+      "memory_writes": 0,
+      "memory_write_bytes": 0
     },
     {
       "sequence": 1,
@@ -166,7 +176,11 @@
       ],
       "evictions": [],
       "memory_reads": 0,
-      "memory_writebacks": 0
+      "memory_writebacks": 0,
+      "back_invalidations": [],
+      "writebacks": [],
+      "memory_writes": 0,
+      "memory_write_bytes": 0
     },
     {
       "sequence": 2,
@@ -201,7 +215,11 @@
       ],
       "evictions": [],
       "memory_reads": 0,
-      "memory_writebacks": 0
+      "memory_writebacks": 0,
+      "back_invalidations": [],
+      "writebacks": [],
+      "memory_writes": 0,
+      "memory_write_bytes": 0
     }
   ]
 }

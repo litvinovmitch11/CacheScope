@@ -38,7 +38,14 @@ Metadata содержит `functions` (name, supported, reason, arguments) и
 ```
 
 `levels` используют геометрию и policies из runner-контракта: одинаковая строка
-на всех уровнях, LRU/FIFO/Random, exclusive/write-back/write-allocate.
+на всех уровнях, LRU/FIFO/Random/PLRU4. Defaults — exclusive/write-back/write-allocate.
+Каждый уровень допускает `write_policy` (`write_back`/`write_through`) и
+`allocation_policy` (`write_allocate`/`no_write_allocate`). Необязательный
+`hierarchy` содержит `inclusion_policies` для N−1 пар, `writeback_clean` и
+`non_inclusive_fill`; [точная семантика](CACHE_MODELS.md#политики-записи-и-иерархии).
+Необязательный `cache_profile` — информационная строка до 128 байтов,
+не влияет на симуляцию. Если профиль удалён из каталога UI, клиент восстанавливает
+`levels` и `hierarchy` как ручную конфигурацию без названия процессора.
 Random допускает `random_seed` в виде канонической uint64 decimal string,
 по умолчанию `"0"`. Seed у других policies отклоняется.
 

@@ -1,4 +1,5 @@
 #include "experiments.hpp"
+#include "cache_simulator/cache_policies.hpp"
 #include "http_json.hpp"
 
 #include <algorithm>
@@ -67,10 +68,17 @@ std::uint64_t number(const Json &value) {
 }
 void validate(const Json &spec, const Json &metadata) {
   require(
-      spec.is_object() && spec.size() == 5 && spec.contains("function") &&
-          spec.contains("bindings") && spec.contains("levels") &&
-          spec.contains("timeout_seconds") && spec.contains("trace_limit"),
+      spec.is_object() &&
+          spec.size() ==
+              5 + spec.count("hierarchy") + spec.count("cache_profile") &&
+          spec.contains("function") && spec.contains("bindings") &&
+          spec.contains("levels") && spec.contains("timeout_seconds") &&
+          spec.contains("trace_limit"),
       "Expected function, bindings, levels, timeout_seconds and trace_limit");
+  if (spec.contains("cache_profile"))
+    require(spec.at("cache_profile").is_string() &&
+                spec.at("cache_profile").get<std::string>().size() <= 128,
+            "cache_profile must be a string of at most 128 bytes");
   const auto &functions = metadata.at("functions");
   const auto selected =
       std::find_if(functions.begin(), functions.end(), [&](const auto &f) {
@@ -135,15 +143,23 @@ void validate(const Json &spec, const Json &metadata) {
             "Invalid cache geometry or name");
     common_line = line;
     const auto &policy = level.at("replacement_policy");
-    require(policy == "LRU" || policy == "FIFO" || policy == "Random",
+    require(policy == "LRU" || policy == "FIFO" || policy == "Random" ||
+                policy == "PLRU4",
             "Unknown cache policy");
-    require(level.size() == (level.contains("random_seed") ? 6 : 5),
+    require(policy != "PLRU4" || ways == 4, "PLRU4 requires exactly four ways");
+    require(level.size() == 5 + level.count("random_seed") +
+                                level.count("write_policy") +
+                                level.count("allocation_policy"),
             "Unknown cache configuration field");
+    CacheConfig config{};
+    configure_policies(config, level);
     if (level.contains("random_seed")) {
       require(policy == "Random", "Only Random accepts random_seed");
       decimal(level.at("random_seed"), false);
     }
   }
+  parse_hierarchy_policies(spec.value("hierarchy", Json::object()),
+                           levels.size());
 }
 
 struct Job {

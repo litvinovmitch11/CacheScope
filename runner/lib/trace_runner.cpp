@@ -1,4 +1,5 @@
 #include "cache_simulator/trace_runner.hpp"
+#include "cache_simulator/cache_policies.hpp"
 #include "cache_simulator/trace_replay.hpp"
 
 #include <nlohmann/json.hpp>
@@ -404,12 +405,10 @@ static void record(LevelStatistics &stats,
   record(write ? stats.writes : stats.reads, line);
 }
 
-static void record_eviction(LevelStatistics &stats, const CacheLine &line,
+static void record_eviction(LevelStatistics &stats, const CacheLine &,
                             bool write) {
   for (auto *counter : {&stats.total, write ? &stats.writes : &stats.reads}) {
     counter->evictions = add(counter->evictions, 1);
-    if (line.dirty)
-      counter->writebacks = add(counter->writebacks, 1);
   }
 }
 
@@ -429,7 +428,8 @@ static Json json_totals(const LevelStatistics &stats) {
               {"write_hits", stats.writes.hits},
               {"write_misses", stats.writes.misses},
               {"evictions", stats.total.evictions},
-              {"writebacks", stats.total.writebacks}};
+              {"writebacks", stats.total.writebacks},
+              {"back_invalidations", stats.total.back_invalidations}};
   const auto rate = stats.total.hit_rate_percent();
   result["hit_rate_percent"] = rate ? Json(*rate) : Json(nullptr);
   return result;
@@ -445,7 +445,9 @@ static Json json_config(const CacheConfig &config) {
           {"associativity", config.associativity},
           {"set_count",
            config.size_bytes / config.line_size_bytes / config.associativity},
-          {"replacement_policy", config.replacement_policy}};
+          {"replacement_policy", config.replacement_policy},
+          {"write_policy", to_string(config.write_policy)},
+          {"allocation_policy", to_string(config.allocation_policy)}};
 }
 
 static Json json_levels(const std::vector<LevelStatistics> &levels,
@@ -505,6 +507,28 @@ static Json replay_event(Json entry, RunSummary &summary,
          {"line_address", hex_address(eviction.line.line_address)},
          {"dirty", eviction.line.dirty}});
   }
+  Json invalidations = Json::array(), writebacks = Json::array();
+  for (const auto &item : result.back_invalidations) {
+    for (auto *stats : {&summary.levels.at(item.level - 1),
+                        &instruction.levels.at(item.level - 1)})
+      for (auto *counter :
+           {&stats->total, write ? &stats->writes : &stats->reads})
+        counter->back_invalidations = add(counter->back_invalidations, 1);
+    invalidations.push_back(
+        {{"level", item.level},
+         {"line_address", hex_address(item.line.line_address)},
+         {"dirty", item.line.dirty}});
+  }
+  for (const auto &item : result.writebacks) {
+    for (auto *stats : {&summary.levels.at(item.level - 1),
+                        &instruction.levels.at(item.level - 1)})
+      for (auto *counter :
+           {&stats->total, write ? &stats->writes : &stats->reads})
+        counter->writebacks = add(counter->writebacks, 1);
+    writebacks.push_back({{"level", item.level},
+                          {"line_address", hex_address(item.line.line_address)},
+                          {"dirty", item.line.dirty}});
+  }
   Json level_results = Json::array();
   const auto primary_lines = line_results.front();
   for (std::size_t index = 0; index < line_results.size(); ++index) {
@@ -516,6 +540,9 @@ static Json replay_event(Json entry, RunSummary &summary,
         {{"level", index + 1}, {"lines", std::move(line_results[index])}});
   }
   summary.memory_reads = add(summary.memory_reads, result.memory_reads);
+  summary.memory_writes = add(summary.memory_writes, result.memory_writes);
+  summary.memory_write_bytes =
+      add(summary.memory_write_bytes, result.memory_write_bytes);
   summary.memory_writebacks =
       add(summary.memory_writebacks, result.memory_writebacks);
   summary.events = add(summary.events, 1);
@@ -533,6 +560,10 @@ static Json replay_event(Json entry, RunSummary &summary,
               {"lines", primary_lines},
               {"level_results", std::move(level_results)},
               {"evictions", std::move(evictions)},
+              {"back_invalidations", std::move(invalidations)},
+              {"writebacks", std::move(writebacks)},
+              {"memory_writes", result.memory_writes},
+              {"memory_write_bytes", result.memory_write_bytes},
               {"memory_reads", result.memory_reads},
               {"memory_writebacks", result.memory_writebacks},
               {"trace_event", std::move(entry)}};
@@ -805,10 +836,7 @@ RunSummary run_trace(const std::filesystem::path &input_path,
         {"levels", std::move(levels)},
         {"buffers", std::move(buffers)},
         {"source", header},
-        {"hierarchy",
-         {{"inclusion_policy", "exclusive"},
-          {"write_policy", "write_back"},
-          {"allocation_policy", "write_allocate"}}},
+        {"hierarchy", describe_policies(hierarchy)},
         {"requests",
          {{"events", summary.events},
           {"reads", summary.reads},
@@ -817,6 +845,8 @@ RunSummary run_trace(const std::filesystem::path &input_path,
           {"write_bytes", summary.write_bytes}}},
         {"memory",
          {{"reads", summary.memory_reads},
+          {"writes", summary.memory_writes},
+          {"write_bytes", summary.memory_write_bytes},
           {"writebacks", summary.memory_writebacks}}}};
     auto prefix = report.dump();
     prefix.pop_back();
@@ -1079,7 +1109,10 @@ nlohmann::json TraceReplay::statistics() const {
             {"read_bytes", s.read_bytes},
             {"write_bytes", s.write_bytes}}},
           {"memory",
-           {{"reads", s.memory_reads}, {"writebacks", s.memory_writebacks}}}};
+           {{"reads", s.memory_reads},
+            {"writes", s.memory_writes},
+            {"write_bytes", s.memory_write_bytes},
+            {"writebacks", s.memory_writebacks}}}};
 }
 
 } // namespace cache_simulator

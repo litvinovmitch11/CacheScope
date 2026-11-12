@@ -10,6 +10,7 @@ add_library(cachescope_simulator
   lib/LRU.cpp
   lib/FIFO.cpp
   lib/Random.cpp
+  lib/PLRU4.cpp
 )
 target_compile_features(cachescope_simulator PUBLIC cxx_std_17)
 target_include_directories(cachescope_simulator PUBLIC
@@ -28,6 +29,10 @@ if(BUILD_TESTING)
   add_executable(cachescope_hierarchy_tests tests/hierarchy_tests.cpp)
   target_link_libraries(cachescope_hierarchy_tests PRIVATE CacheScope::Hierarchy)
   add_test(NAME cachescope.hierarchy COMMAND cachescope_hierarchy_tests)
+
+  add_executable(cachescope_policy_tests tests/policy_tests.cpp)
+  target_link_libraries(cachescope_policy_tests PRIVATE CacheScope::Hierarchy)
+  add_test(NAME cachescope.policies COMMAND cachescope_policy_tests)
 
   add_executable(cachescope_reference_tests tests/reference_tests.cpp)
   target_link_libraries(cachescope_reference_tests PRIVATE CacheScope::Hierarchy)
@@ -53,6 +58,7 @@ if(BUILD_TESTING)
     tests/LRUTest.cpp
     tests/FIFOTest.cpp
     tests/RandomTest.cpp
+    tests/PLRU4Test.cpp
   )
   target_link_libraries(cachescope_cache_level_tests PRIVATE cachescope_simulator GTest::gtest_main)
   include(GoogleTest)
