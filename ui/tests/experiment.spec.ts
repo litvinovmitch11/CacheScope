@@ -98,7 +98,7 @@ test("upload MLIR and tensors, run real compiler and show the report without nav
   await expect(page.locator(".instructions-table tbody tr")).toHaveCount(2);
   await page.locator(".card").getByRole("button", { name: "L2", exact: true }).click();
   await expect(page.locator(".instructions-table tbody tr")).toHaveCount(2);
-  await expect(page).toHaveURL(new RegExp("/$"));
+  await expect(page).toHaveURL(/\?view=mlir$/);
   await page.reload();
   await expect(page.getByRole("status")).toHaveText("Готово");
   await expect(page.locator(".cards")).toContainText("93.75%");
